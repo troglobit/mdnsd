@@ -85,7 +85,7 @@ xhn _xht_set(xht h, const char *key, void *val, char flag)
     /* when flag is set, we manage their mem and free em first */
     if(n->flag)
     {
-        free(n->key);
+        free((void *)n->key);
         free(n->val);
     }
 
@@ -142,7 +142,7 @@ void xht_free(xht h)
             f = n->next;
             if(n->flag)
             {
-                free(n->key);
+                free((void *)n->key);
                 free(n->val);
             }
             free(n);
