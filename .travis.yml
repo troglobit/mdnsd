@@ -10,8 +10,8 @@ compiler:
   - gcc
   - clang
 
-# We (currently) don't use GNU Configure & Build System, only a simple
-# Makefile, for the time being.
+# We don't have the configure script checked in, and no test rule yet
 script:
-  - make distclean
-  - make
+  - ./autogen.sh
+  - ./configure --disable-silent-rules
+  - make -j5 clean all
