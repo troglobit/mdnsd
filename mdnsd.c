@@ -2,18 +2,23 @@
 #include <string.h>
 #include <stdlib.h>
 
-// size of query/publish hashes
-#define SPRIME 108
-// size of cache hash
-#define LPRIME 1009
-// brute force garbage cleanup frequency, rarely needed (daily default)
-#define GC 86400
+#define SPRIME 108		/* Size of query/publish hashes */
+#define LPRIME 1009		/* Size of cache hash */
 
-/* messy, but it's the best/simplest balance I can find at the moment
-Some internal data types, and a few hashes: querys, answers, cached, and records (published, unique and shared)
-Each type has different semantics for processing, both for timeouts, incoming, and outgoing I/O
-They inter-relate too, like records affect the querys they are relevant to
-Nice things about MDNS: we only publish once (and then ask asked), and only query once, then just expire records we've got cached
+#define GC 86400                /* Brute force garbage cleanup
+				 * frequency, rarely needed (daily
+				 * default) */
+
+/**
+ * Messy, but it's the best/simplest balance I can find at the moment
+ *
+ * Some internal data types, and a few hashes: querys, answers, cached,
+ * and records (published, unique and shared).  Each type has different
+ * semantics for processing, both for timeouts, incoming, and outgoing
+ * I/O.  They inter-relate too, like records affect the querys they are
+ * relevant to.  Nice things about MDNS: we only publish once (and then
+ * ask asked), and only query once, then just expire records we've got
+ * cached
 */
 
 struct query {
@@ -42,7 +47,7 @@ struct cached {
 
 struct mdns_record {
 	struct mdns_answer rr;
-	char unique;		// # of checks performed to ensure
+	char unique;		/* # of checks performed to ensure */
 	int tries;
 	void (*conflict)(char *, int, void *);
 	void *arg;
@@ -75,7 +80,7 @@ int _namehash(const char *s)
 	return (int)h;
 }
 
-// basic linked list and hash primitives
+/* Basic linked list and hash primitives */
 struct query *_q_next(mdns_daemon_t *d, struct query *q, char *host, int type)
 {
 	if (q == 0)
@@ -123,21 +128,21 @@ mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, char *host, int type)
 
 int _rr_len(mdns_answer_t *rr)
 {
-	int len = 12;		// name is always compressed (dup of earlier), plus normal stuff
+	int len = 12;		/* name is always compressed (dup of earlier), plus normal stuff */
 
 	if (rr->rdata)
 		len += rr->rdlen;
 	if (rr->rdname)
-		len += strlen(rr->rdname);	// worst case
+		len += strlen(rr->rdname); /* worst case */
 	if (rr->ip.s_addr)
 		len += 4;
 	if (rr->type == QTYPE_PTR)
-		len += 6;	// srv record stuff
+		len += 6;	/* srv record stuff */
 
 	return len;
 }
 
-// compares new rdata with known a, painfully
+/* Compares new rdata with known a, painfully */
 int _a_match(struct resource *r, mdns_answer_t *a)
 {
 	if (strcmp(r->name, a->name) || r->type != a->type)
@@ -156,7 +161,7 @@ int _a_match(struct resource *r, mdns_answer_t *a)
 	return 0;
 }
 
-// compare time values easily
+/* Compare time values easily */
 int _tvdiff(struct timeval old, struct timeval new)
 {
 	int udiff = 0;
@@ -167,7 +172,7 @@ int _tvdiff(struct timeval old, struct timeval new)
 	return (new.tv_usec - old.tv_usec) + udiff;
 }
 
-// make sure not already on the list, then insert
+/* Make sure not already on the list, then insert */
 void _r_push(mdns_record_t **list, mdns_record_t *r)
 {
 	mdns_record_t *cur;
@@ -181,16 +186,16 @@ void _r_push(mdns_record_t **list, mdns_record_t *r)
 	*list = r;
 }
 
-// set this r to probing, set next probe time
+/* Set this r to probing, set next probe time */
 void _r_probe(mdns_daemon_t *d, mdns_record_t *r)
 {
 }
 
-// force any r out right away, if valid
+/* Force any r out right away, if valid */
 void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 {
 	if (r->unique && r->unique < 5)
-		return;		// probing already
+		return;		/* Probing already */
 
 	r->tries = 0;
 	d->publish.tv_sec = d->now.tv_sec;
@@ -198,27 +203,29 @@ void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 	_r_push(&d->a_publish, r);
 }
 
-// send r out asap
+/* send r out asap */
 void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 {
-	if (r->tries < 4) {	// being published, make sure that happens soon
+	/* Being published, make sure that happens soon */
+	if (r->tries < 4) {
 		d->publish.tv_sec = d->now.tv_sec;
 		d->publish.tv_usec = d->now.tv_usec;
 		return;
 	}
 
-	if (r->unique) {	// known unique ones can be sent asap
+	/* Known unique ones can be sent asap */
+	if (r->unique) {
 		_r_push(&d->a_now, r);
 		return;
 	}
 
-	// set d->pause.tv_usec to random 20-120 msec
+	/* Set d->pause.tv_usec to random 20-120 msec */
 	d->pause.tv_sec = d->now.tv_sec;
 	d->pause.tv_usec = d->now.tv_usec + (d->now.tv_usec % 100) + 20;
 	_r_push(&d->a_pause, r);
 }
 
-// create generic unicast response struct
+/* Create generic unicast response struct */
 void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long int to, unsigned short int port)
 {
 	struct unicast *u;
@@ -248,8 +255,9 @@ void _q_reset(mdns_daemon_t *d, struct query *q)
 		d->checkqlist = q->nexttry;
 }
 
+/* No more query, update all it's cached entries, remove from lists */
 void _q_done(mdns_daemon_t *d, struct query *q)
-{				// no more query, update all it's cached entries, remove from lists
+{
 	struct cached *c = 0;
 	struct query *cur;
 	int i = _namehash(q->name) % LPRIME;
@@ -277,8 +285,9 @@ void _q_done(mdns_daemon_t *d, struct query *q)
 	free(q);
 }
 
+/* buh-bye, remove from hash and free */
 void _r_done(mdns_daemon_t *d, mdns_record_t *r)
-{				// buh-bye, remove from hash and free
+{
 	mdns_record_t *cur = 0;
 	int i = _namehash(r->rr.name) % SPRIME;
 
@@ -295,7 +304,7 @@ void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 	free(r);
 }
 
-// call the answer function with this cached entry
+/* Call the answer function with this cached entry */
 void _q_answer(mdns_daemon_t *d, struct cached *c)
 {
 	if (c->rr.ttl <= d->now.tv_sec)
@@ -310,7 +319,7 @@ void _conflict(mdns_daemon_t *d, mdns_record_t *r)
 	mdnsd_done(d, r);
 }
 
-// expire any old entries in this list
+/* Expire any old entries in this list */
 void _c_expire(mdns_daemon_t *d, struct cached **list)
 {
 	struct cached *next, *cur = *list, *last = 0;
@@ -320,10 +329,14 @@ void _c_expire(mdns_daemon_t *d, struct cached **list)
 		if (d->now.tv_sec >= cur->rr.ttl) {
 			if (last)
 				last->next = next;
+
+			/* Update list pointer if the first one expired */
 			if (*list == cur)
-				*list = next;	// update list pointer if the first one expired
+				*list = next;
+
 			if (cur->q)
 				_q_answer(d, cur);
+
 			free(cur->rr.name);
 			free(cur->rr.rdata);
 			free(cur->rr.rdname);
@@ -335,7 +348,7 @@ void _c_expire(mdns_daemon_t *d, struct cached **list)
 	}
 }
 
-// brute force expire any old cached records
+/* Brute force expire any old cached records */
 void _gc(mdns_daemon_t *d)
 {
 	int i;
@@ -353,13 +366,14 @@ void _cache(mdns_daemon_t *d, struct resource *r)
 	struct cached *c = 0;
 	int i = _namehash(r->name) % LPRIME;
 
-	if (r->class == 32768 + d->class) {	// cache flush
+	/* Cache flush */
+	if (r->class == 32768 + d->class) {
 		while (c = _c_next(d, c, r->name, r->type))
 			c->rr.ttl = 0;
 		_c_expire(d, &d->cache[i]);
 	}
 
-	// process deletes
+	/* Process deletes */
 	if (r->ttl == 0) {
 		while (c = _c_next(d, c, r->name, r->type)) {
 			if (_a_match(r, &c->rr)) {
@@ -371,10 +385,14 @@ void _cache(mdns_daemon_t *d, struct resource *r)
 		return;
 	}
 
+	/*
+	 * XXX: The c->rr.ttl is a hack for now, BAD SPEC, start
+	 *      retrying just after half-waypoint, then expire
+	 */
 	c = calloc(1, sizeof(struct cached));
 	c->rr.name = strdup(r->name);
 	c->rr.type = r->type;
-	c->rr.ttl = d->now.tv_sec + (r->ttl / 2) + 8;	// XXX hack for now, BAD SPEC, start retrying just after half-waypoint, then expire
+	c->rr.ttl = d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
 	c->rr.rdata = malloc(r->rdlength);
 	memcpy(c->rr.rdata, r->rdata, r->rdlength);
@@ -405,7 +423,7 @@ void _cache(mdns_daemon_t *d, struct resource *r)
 		_q_answer(d, c);
 }
 
-// copy the data bits only
+/* Copy the data bits only */
 void _a_copy(struct message *m, mdns_answer_t *a)
 {
 	if (a->rdata) {
@@ -421,7 +439,7 @@ void _a_copy(struct message *m, mdns_answer_t *a)
 		message_rdata_name(m, a->rdname);
 }
 
-// copy a published record into an outgoing message
+/* Copy a published record into an outgoing message */
 int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 {
 	mdns_record_t *r, next;
@@ -459,7 +477,7 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	return d;
 }
 
-// shutting down, zero out ttl and push out all records
+/* Shutting down, zero out ttl and push out all records */
 void mdnsd_shutdown(mdns_daemon_t *d)
 {
 	int i;
@@ -481,18 +499,20 @@ void mdnsd_shutdown(mdns_daemon_t *d)
 
 void mdnsd_flush(mdns_daemon_t *d)
 {
-	// set all querys to 0 tries
-	// free whole cache
-	// set all mdns_record_t *to probing
-	// reset all answer lists
+	/* - Set all querys to 0 tries
+	 * - Free whole cache
+	 * - Set all mdns_record_t *to probing
+	 * - Reset all answer lists
+	 */
 }
 
 void mdnsd_free(mdns_daemon_t *d)
 {
 	int i;
 
-	// loop through all hashes, free everything
-	// free answers if any
+	/* Loop through all hashes, free everything,
+	 * free answers if any */
+
 	free(d);
 }
 
@@ -507,37 +527,39 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 	gettimeofday(&d->now, 0);
 
 	if (m->header.qr == 0) {
-		// process each query
+		/* Process each query */
 		for (i = 0; i < m->qdcount; i++) {
 			if (m->qd[i].class != d->class || (r = _r_next(d, 0, m->qd[i].name, m->qd[i].type)) == 0)
 				continue;
 
-			// send the matching unicast reply
+			/* Send the matching unicast reply */
 			if (port != 5353)
 				_u_push(d, r, m->id, ip, port);
 
-			// check all of our potential answers
+			/* Check all of our potential answers */
 			for (; r != 0; r = _r_next(d, r, m->qd[i].name, m->qd[i].type)) {
-				// probing state, check for conflicts
+				/* probing state, check for conflicts */
 				if (r->unique && r->unique < 5) {
-					// check all to-be answers against our own
+					/* Check all to-be answers against our own */
 					for (j = 0; j < m->nscount; j++) {
 						if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
 							continue;
 
-						// this answer isn't ours, conflict!
+						/* This answer isn't ours, conflict! */
 						if (!_a_match(&m->an[j], &r->rr))
 							_conflict(d, r);
 					}
 					continue;
 				}
 
-				// check the known answers for this question
+				/* Check the known answers for this question */
 				for (j = 0; j < m->ancount; j++) {
 					if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
 						continue;
+
+					/* Do they already have this answer? */
 					if (_a_match(&m->an[j], &r->rr))
-						break;	// they already have this answer
+						break;
 				}
 
 				if (j == m->ancount)
@@ -548,7 +570,7 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 		return;
 	}
 
-	// process each answer, check for a conflict, and cache
+	/* Process each answer, check for a conflict, and cache */
 	for (i = 0; i < m->ancount; i++) {
 		if ((r = _r_next(d, 0, m->an[i].name, m->an[i].type)) != 0 &&
 		    r->unique && _a_match(&m->an[i], &r->rr) == 0)
@@ -566,13 +588,13 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 	gettimeofday(&d->now, 0);
 	memset(m, 0, sizeof(struct message));
 
-	// defaults, multicast
+	/* Defaults, multicast */
 	*port = htons(5353);
 	*ip = inet_addr("224.0.0.251");
 	m->header.qr = 1;
 	m->header.aa = 1;
 
-	// send out individual unicast answers
+	/* Send out individual unicast answers */
 	if (d->uanswers) {
 		struct unicast *u = d->uanswers;
 
@@ -590,11 +612,11 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 //	printf("OUT: probing %X now %X pause %X publish %X\n",d->probing,d->a_now,d->a_pause,d->a_publish);
 
-	// accumulate any immediate responses
+	/* Accumulate any immediate responses */
 	if (d->a_now)
 		ret += _r_out(d, m, &d->a_now);
 
-	// check to see if it's time to send the publish retries (and unlink if done)
+	/* Check if it's time to send the publish retries (unlink if done) */
 	if (d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
 		mdns_record_t *next, *cur = d->a_publish, *last = NULL;
 
@@ -630,15 +652,15 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		}
 	}
 
-	// if we're in shutdown, we're done
+	/* If we're in shutdown, we're done */
 	if (d->shutdown)
 		return ret;
 
-	// check if a_pause is ready
+	/* Check if a_pause is ready */
 	if (d->a_pause && _tvdiff(d->now, d->pause) <= 0)
 		ret += _r_out(d, m, &d->a_pause);
 
-	// now process questions
+	/* Now process questions */
 	if (ret)
 		return ret;
 
@@ -648,9 +670,9 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 	if (d->probing && _tvdiff(d->now, d->probe) <= 0) {
 		mdns_record_t *last = 0;
 
-		// scan probe list to ask questions and process published
+		/* Scan probe list to ask questions and process published */
 		for (r = d->probing; r != 0;) {
-			// done probing, publish
+			/* Done probing, publish */
 			if (r->unique == 4) {
 				mdns_record_t *next = r->list;
 
@@ -671,7 +693,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			r = r->list;
 		}
 
-		// scan probe list again to append our to-be answers
+		/* Scan probe list again to append our to-be answers */
 		for (r = d->probing; r != 0; last = r, r = r->list) {
 			r->unique++;
 			message_ns(m, r->rr.name, r->rr.type, d->class, r->rr.ttl);
@@ -679,7 +701,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			ret++;
 		}
 
-		// process probes again in the future
+		/* Process probes again in the future */
 		if (ret) {
 			d->probe.tv_sec = d->now.tv_sec;
 			d->probe.tv_usec = d->now.tv_usec + 250000;
@@ -687,13 +709,13 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		}
 	}
 
-	// process qlist for retries or expirations
+	/* Process qlist for retries or expirations */
 	if (d->checkqlist && d->now.tv_sec >= d->checkqlist) {
 		struct query *q;
 		struct cached *c;
 		unsigned long int nextbest = 0;
 
-		// ask questions first, track nextbest time
+		/* Ask questions first, track nextbest time */
 		for (q = d->qlist; q != 0; q = q->list) {
 			if (q->nexttry > 0 && q->nexttry <= d->now.tv_sec && q->tries < 3)
 				message_qd(m, q->name, q->type, d->class);
@@ -701,12 +723,13 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 				nextbest = q->nexttry;
 		}
 
-		// include known answers, update questions
+		/* Include known answers, update questions */
 		for (q = d->qlist; q != 0; q = q->list) {
 			if (q->nexttry == 0 || q->nexttry > d->now.tv_sec)
 				continue;
 
-			if (q->tries == 3) {	// done retrying, expire and reset
+			/* Done retrying, expire and reset */
+			if (q->tries == 3) {
 				_c_expire(d, &d->cache[_namehash(q->name) % LPRIME]);
 				_q_reset(d, q);
 				continue;
@@ -717,7 +740,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			if (nextbest == 0 || q->nexttry < nextbest)
 				nextbest = q->nexttry;
 
-			// if room, add all known good entries
+			/* If room, add all known good entries */
 			c = 0;
 			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > d->now.tv_sec + 8 &&
 			       message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
@@ -742,41 +765,41 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
 #define RET while(d->sleep.tv_usec > 1000000) {d->sleep.tv_sec++;d->sleep.tv_usec -= 1000000;} return &d->sleep;
 
-	// first check for any immediate items to handle
+	/* First check for any immediate items to handle */
 	if (d->uanswers || d->a_now)
 		return &d->sleep;
 
 	gettimeofday(&d->now, 0);
 
-	// then check for paused answers
+	/* Then check for paused answers */
 	if (d->a_pause) {
 		if ((usec = _tvdiff(d->now, d->pause)) > 0)
 			d->sleep.tv_usec = usec;
 		RET;
 	}
 
-	// now check for probe retries
+	/* Now check for probe retries */
 	if (d->probing) {
 		if ((usec = _tvdiff(d->now, d->probe)) > 0)
 			d->sleep.tv_usec = usec;
 		RET;
 	}
 
-	// now check for publish retries
+	/* Now check for publish retries */
 	if (d->a_publish) {
 		if ((usec = _tvdiff(d->now, d->publish)) > 0)
 			d->sleep.tv_usec = usec;
 		RET;
 	}
 
-	// also check for queries with known answer expiration/retry
+	/* Also check for queries with known answer expiration/retry */
 	if (d->checkqlist) {
 		if ((sec = d->checkqlist - d->now.tv_sec) > 0)
 			d->sleep.tv_sec = sec;
 		RET;
 	}
 
-	// last resort, next gc expiration
+	/* Last resort, next gc expiration */
 	if ((sec = d->expireall - d->now.tv_sec) > 0)
 		d->sleep.tv_sec = sec;
 	RET;
@@ -799,16 +822,16 @@ void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer) (mdns_ans
 		q->list = d->qlist;
 		d->qlist = d->queries[i] = q;
 
-		// any cached entries should be associated
+		/* Any cached entries should be associated */
 		while (cur = _c_next(d, cur, q->name, q->type))
 			cur->q = q;
 		_q_reset(d, q);
 
-		// new questin, immediately send out
+		/* New question, immediately send out */
 		q->nexttry = d->checkqlist = d->now.tv_sec;
 	}
 
-	// no answer means we don't care anymore
+	/* No answer means we don't care anymore */
 	if (!answer) {
 		_q_done(d, q);
 		return;
@@ -857,7 +880,8 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 {
 	mdns_record_t *cur;
 
-	if (r->unique && r->unique < 5) {	// probing yet, zap from that list first!
+	if (r->unique && r->unique < 5) {
+		/* Probing yet, zap from that list first! */
 		if (d->probing == r) {
 			d->probing = r->list;
 		} else {

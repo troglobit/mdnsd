@@ -17,14 +17,12 @@ int _shutdown = 0;
 mdns_daemon_t *_d;
 int _zzz[2];
 
-// conflict!
-void con(char *name, int type, void *arg)
+void conflict(char *name, int type, void *arg)
 {
 	printf("conflicting name detected %s for type %d\n", name, type);
 	exit(1);
 }
 
-// quit
 void done(int sig)
 {
 	_shutdown = 1;
@@ -32,7 +30,7 @@ void done(int sig)
 	write(_zzz[1], " ", 1);
 }
 
-// create multicast 224.0.0.251:5353 socket
+/* Create multicast 224.0.0.251:5353 socket */
 int msock(void)
 {
 	int s, flag = 1, ittl = 255;
@@ -114,11 +112,11 @@ int main(int argc, char *argv[])
 	sprintf(nlocal, "http-%s.local.", argv[1]);
 	r = mdnsd_shared(d, "_http._tcp.local.", QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
-	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, con, 0);
+	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, 0);
 	mdnsd_set_srv(d, r, 0, 0, port, nlocal);
-	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, con, 0);
+	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, conflict, 0);
 	mdnsd_set_raw(d, r, (unsigned char *)&ip, 4);
-	r = mdnsd_unique(d, hlocal, 16, 600, con, 0);
+	r = mdnsd_unique(d, hlocal, 16, 600, conflict, 0);
 	h = xht_new(11);
 	if (path && strlen(path))
 		xht_set(h, "path", path);
@@ -134,7 +132,7 @@ int main(int argc, char *argv[])
 		FD_SET(s, &fds);
 		select(s + 1, &fds, 0, 0, tv);
 
-		// only used when we wake-up from a signal, shutting down
+		/* Only used when we wake-up from a signal, shutting down */
 		if (FD_ISSET(_zzz[0], &fds))
 			read(_zzz[0], buf, MAX_PACKET_LEN);
 

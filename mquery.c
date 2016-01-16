@@ -12,7 +12,7 @@
 
 #include "mdnsd.h"
 
-// print an answer
+/* Print an answer */
 int ans(mdns_answer_t *a, void *arg)
 {
 	int now;
@@ -40,7 +40,7 @@ int ans(mdns_answer_t *a, void *arg)
 	}
 }
 
-// create multicast 224.0.0.251:5353 socket
+/* Create multicast 224.0.0.251:5353 socket */
 int msock(void)
 {
 	int s, flag = 1, ittl = 255;

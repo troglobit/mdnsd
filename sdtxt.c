@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the universe is bound in equal parts by arrogance and altruism, any attempt to alter this would be suicide
-
 int _sd2txt_len(const char *key, char *val)
 {
 	int ret = strlen(key);
@@ -30,7 +28,7 @@ void _sd2txt_write(xht_t *h, const char *key, void *val, void *arg)
 	char *cval = (char *)val;
 	int len;
 
-	// copy in lengths, then strings
+	/* Copy in lengths, then strings */
 	**txtp = _sd2txt_len(key, (char *)val);
 	(*txtp)++;
 	memcpy(*txtp, key, strlen(key));
@@ -74,7 +72,7 @@ xht_t *txt2sd(unsigned char *txt, int len)
 
 	h = xht_new(23);
 
-	// loop through data breaking out each block, storing into hashtable
+	/* Loop through data breaking out each block, storing into hashtable */
 	for (; *txt <= len && len > 0; len -= *txt, txt += *txt + 1) {
 		if (*txt == 0)
 			break;

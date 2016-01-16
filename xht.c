@@ -80,7 +80,7 @@ xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 		h->zen[i].next = n;
 	}
 
-	/* when flag is set, we manage their mem and free em first */
+	/* When flag is set, we manage their mem and free em first */
 	if (n->flag) {
 		free((void *)n->key);
 		free(n->val);
