@@ -248,7 +248,7 @@ void _q_reset(mdns_daemon_t *d, struct query *q)
 	q->nexttry = 0;
 	q->tries = 0;
 
-	while (cur = _c_next(d, cur, q->name, q->type)) {
+	while ((cur = _c_next(d, cur, q->name, q->type))) {
 		if (q->nexttry == 0 || cur->rr.ttl - 7 < q->nexttry)
 			q->nexttry = cur->rr.ttl - 7;
 	}
@@ -264,7 +264,7 @@ void _q_done(mdns_daemon_t *d, struct query *q)
 	struct query *cur;
 	int i = _namehash(q->name) % LPRIME;
 
-	while (c = _c_next(d, c, q->name, q->type))
+	while ((c = _c_next(d, c, q->name, q->type)))
 		c->q = 0;
 
 	if (d->qlist == q) {
@@ -370,14 +370,14 @@ void _cache(mdns_daemon_t *d, struct resource *r)
 
 	/* Cache flush */
 	if (r->class == 32768 + d->class) {
-		while (c = _c_next(d, c, r->name, r->type))
+		while ((c = _c_next(d, c, r->name, r->type)))
 			c->rr.ttl = 0;
 		_c_expire(d, &d->cache[i]);
 	}
 
 	/* Process deletes */
 	if (r->ttl == 0) {
-		while (c = _c_next(d, c, r->name, r->type)) {
+		while ((c = _c_next(d, c, r->name, r->type))) {
 			if (_a_match(r, &c->rr)) {
 				c->rr.ttl = 0;
 				_c_expire(d, &d->cache[i]);
@@ -421,7 +421,7 @@ void _cache(mdns_daemon_t *d, struct resource *r)
 	c->next = d->cache[i];
 	d->cache[i] = c;
 
-	if (c->q = _q_next(d, 0, r->name, r->type))
+	if ((c->q = _q_next(d, 0, r->name, r->type)))
 		_q_answer(d, c);
 }
 
@@ -822,7 +822,7 @@ void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer)(mdns_answ
 		d->qlist = d->queries[i] = q;
 
 		/* Any cached entries should be associated */
-		while (cur = _c_next(d, cur, q->name, q->type))
+		while ((cur = _c_next(d, cur, q->name, q->type)))
 			cur->q = q;
 		_q_reset(d, q);
 
