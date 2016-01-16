@@ -95,15 +95,16 @@ void _label(struct message *m, unsigned char **bufp, char **namep)
 
 	/* Terminate name and check for cache or cache it */
 	*name = '\0';
-	for (x = 0; x <= 19 && m->_labels[x]; x++) {
+	for (x = 0; x < MAX_NUM_LABELS && m->_labels[x]; x++) {
 		if (strcmp(*namep, m->_labels[x]))
 			continue;
+
 		*namep = m->_labels[x];
 		return;
 	}
 
 	/* No cache, so cache it if room */
-	if (x <= 19 && m->_labels[x] == 0)
+	if (x < MAX_NUM_LABELS && m->_labels[x] == 0)
 		m->_labels[x] = *namep;
 	m->_len += (name - *namep) + 1;
 }
@@ -177,7 +178,7 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 
 	/* Double-loop checking each label against all m->_labels for match */
 	for (x = 0; label[x]; x += label[x] + 1) {
-		for (y = 0; m->_labels[y]; y++) {
+		for (y = 0; m->_labels[y] && y < MAX_NUM_LABELS; y++) {
 			if (_lmatch(m, label + x, m->_labels[y])) {
 				/* Matching label, set up pointer */
 				l = label + x;
@@ -198,11 +199,10 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 	*bufp += len;
 
 	/* For each new label, store it's location for future compression */
-	for (x = 0; l[x]; x += l[x] + 1) {
+	for (x = 0; l[x] && m->_label < MAX_NUM_LABELS; x += l[x] + 1) {
 		if (l[x] & 0xc0)
 			break;
-		if (m->_label + 1 >= 19)
-			break;
+
 		m->_labels[m->_label++] = l + x;
 	}
 
@@ -215,21 +215,23 @@ int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **
 
 	for (i = 0; i < count; i++) {
 		_label(m, bufp, &(rr[i].name));
-		rr[i].type = net2short(bufp);
-		rr[i].class = net2short(bufp);
-		rr[i].ttl = net2long(bufp);
+		rr[i].type     = net2short(bufp);
+		rr[i].class    = net2short(bufp);
+		rr[i].ttl      = net2long(bufp);
 		rr[i].rdlength = net2short(bufp);
+//		fprintf(stderr, "Record type %d class 0x%2x ttl %lu len %d\n", rr[i].type, rr[i].class, rr[i].ttl, rr[i].rdlength);
 
 		/* If not going to overflow, make copy of source rdata */
 		if (rr[i].rdlength + (*bufp - m->_buf) > MAX_PACKET_LEN || m->_len + rr[i].rdlength > MAX_PACKET_LEN)
 			return 1;
+
 		rr[i].rdata = m->_packet + m->_len;
 		m->_len += rr[i].rdlength;
 		memcpy(rr[i].rdata, *bufp, rr[i].rdlength);
 
 		/* Parse commonly known ones */
 		switch (rr[i].type) {
-		case 1:
+		case QTYPE_A:
 			if (m->_len + 16 > MAX_PACKET_LEN)
 				return 1;
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
@@ -238,25 +240,26 @@ int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **
 			rr[i].known.a.ip.s_addr = net2long(bufp);
 			break;
 
-		case 2:
+		case QTYPE_NS:
 			_label(m, bufp, &(rr[i].known.ns.name));
 			break;
 
-		case 5:
+		case QTYPE_CNAME:
 			_label(m, bufp, &(rr[i].known.cname.name));
 			break;
 
-		case 12:
+		case QTYPE_PTR:
 			_label(m, bufp, &(rr[i].known.ptr.name));
 			break;
 
-		case 33:
+		case QTYPE_SRV:
 			rr[i].known.srv.priority = net2short(bufp);
 			rr[i].known.srv.weight = net2short(bufp);
 			rr[i].known.srv.port = net2short(bufp);
 			_label(m, bufp, &(rr[i].known.srv.name));
 			break;
 
+		case QTYPE_TXT:
 		default:
 			*bufp += rr[i].rdlength;
 		}
@@ -267,7 +270,7 @@ int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **
 
 /* Keep all our mem in one (aligned) block for easy freeing */
 #define my(x,y)					\
-	while (m->_len&7)			\
+	while (m->_len & 7)			\
 		m->_len++;			\
 	x = (void *)(m->_packet + m->_len);	\
 	m->_len += y;
@@ -326,7 +329,7 @@ void message_parse(struct message *m, unsigned char *packet)
 	my(m->qd, sizeof(struct question) * m->qdcount);
 	for (i = 0; i < m->qdcount; i++) {
 		_label(m, &buf, &(m->qd[i].name));
-		m->qd[i].type = net2short(&buf);
+		m->qd[i].type  = net2short(&buf);
 		m->qd[i].class = net2short(&buf);
 	}
 
