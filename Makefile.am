@@ -1,18 +1,14 @@
 ACLOCAL_AMFLAGS         = -I m4
 
-lib_LTLIBRARIES         = libmdnsd.la
-include_HEADERS         = mdnsd.h 1035.h sdtxt.h xht.h
-libmdnsd_la_SOURCES     = mdnsd.c mdnsd.h 1035.c 1035.h sdtxt.c sdtxt.h xht.c xht.h
-libmdnsd_la_CFLAGS      = -W -Wall -Wextra
-libmdnsd_la_LDFLAGS     = $(AM_LDFLAGS) -version-info 0:0:0
-
 sbin_PROGRAMS           = mhttp
 bin_PROGRAMS            = mquery
 mhttp_SOURCES           = mhttp.c
-mhttp_LDADD             = libmdnsd.la
+mhttp_LDADD             = libmdnsd/libmdnsd.la
 mquery_SOURCES          = mquery.c
-mquery_LDADD            = libmdnsd.la
+mquery_LDADD            = libmdnsd/libmdnsd.la
 
+nobase_include_HEADERS  = libmdnsd/mdnsd.h libmdnsd/1035.h libmdnsd/sdtxt.h libmdnsd/xht.h
+SUBDIRS                 = libmdnsd
 doc_DATA                = README.md LICENSE
 EXTRA_DIST              = README.md LICENSE
 

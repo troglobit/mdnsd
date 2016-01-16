@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "mdnsd.h"
-#include "sdtxt.h"
+#include <libmdnsd/mdnsd.h>
+#include <libmdnsd/sdtxt.h>
 
 int _shutdown = 0;
 mdns_daemon_t *_d;
