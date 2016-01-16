@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
+#define QCLASS_IN (1)
+
 /* Main daemon data */
 typedef struct mdns_daemon mdns_daemon_t;
 /* Record entry */
