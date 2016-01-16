@@ -76,12 +76,14 @@ int main(int argc, char *argv[])
 	struct in_addr ip;
 	unsigned short int port;
 	struct timeval *tv;
-	int bsize, ssize = sizeof(struct sockaddr_in);
+	ssize_t bsize;
+	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
 	struct sockaddr_in from, to;
 	fd_set fds;
 	int s;
-	unsigned char *packet, hlocal[256], nlocal[256];
+	char hlocal[256], nlocal[256];
+	unsigned char *packet;
 	int len = 0;
 	xht_t *h;
 	char *path = NULL;
@@ -115,14 +117,14 @@ int main(int argc, char *argv[])
 	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, 0);
 	mdnsd_set_srv(d, r, 0, 0, port, nlocal);
 	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, conflict, 0);
-	mdnsd_set_raw(d, r, (unsigned char *)&ip, 4);
+	mdnsd_set_raw(d, r, (char *)&ip.s_addr, 4);
 	r = mdnsd_unique(d, hlocal, QTYPE_TXT, 600, conflict, 0);
 	h = xht_new(11);
 	if (path && strlen(path))
 		xht_set(h, "path", path);
 	packet = sd2txt(h, &len);
 	xht_free(h);
-	mdnsd_set_raw(d, r, packet, len);
+	mdnsd_set_raw(d, r, (char *)packet, len);
 	free(packet);
 
 	while (1) {
@@ -137,6 +139,7 @@ int main(int argc, char *argv[])
 			read(_zzz[0], buf, MAX_PACKET_LEN);
 
 		if (FD_ISSET(s, &fds)) {
+			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(s, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
 				message_parse(&m, buf);
