@@ -805,7 +805,7 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 	RET;
 }
 
-void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer) (mdns_answer_t *a, void *arg), void *arg)
+void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer)(mdns_answer_t *a, void *arg), void *arg)
 {
 	struct query *q;
 	struct cached *cur = 0;
@@ -861,7 +861,7 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, char *host, int type, long int ttl
 	return r;
 }
 
-mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, int type, long int ttl, void (*conflict) (char *host, int type, void *arg), void *arg)
+mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, int type, long int ttl, void (*conflict)(char *host, int type, void *arg), void *arg)
 {
 	mdns_record_t *r;
 

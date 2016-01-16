@@ -108,7 +108,7 @@ mdns_answer_t *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t 
  * changes effectively expire the old one and attempt to create a new
  * unique record
  */
-mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, int type, long int ttl, void (*conflict) (char *host, int type, void *arg), void *arg);
+mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, int type, long int ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
 
 /** 
  * Create a new shared record

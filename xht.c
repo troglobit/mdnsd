@@ -161,7 +161,7 @@ void xht_walk(xht_t *h, xht_walker w, void *arg)
 	for (i = 0; i < h->prime; i++) {
 		for (n = &h->zen[i]; n != 0; n = n->next) {
 			if (n->key != 0 && n->val != 0)
-				(*w) (h, n->key, n->val, arg);
+				(*w)(h, n->key, n->val, arg);
 		}
 	}
 }
