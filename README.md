@@ -15,10 +15,25 @@ to improve it in the future.  Also included are some other utilities,
 standalone DNS parsing.
 
 
+Build & Install
+---------------
+
+The software is built for and developed on GNU/Linux systems, but should
+work on any UNIX like system.
+
+The GNU configure and build system is used, simply call the configure
+script to generate a Makefile.  If you are using the GitHub sources you
+first need to call `./autogen.sh` to generate the configure script.
+
+    ./configure
+    make all
+    make install
+
+
 Origin & References
 -------------------
 
-This MDNS-SD implementation was developed by [Jeremie Miller][[jeremie]]
+This MDNS-SD implementation was developed by [Jeremie Miller][jeremie]
 in 2003, originally [announced on the rendezvous-dev][announced] mailing
 list.  It has many forks and has been used by many other applications
 over the years.
