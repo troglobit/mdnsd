@@ -87,7 +87,8 @@ int main(int argc, char *argv[])
 	unsigned long int ip;
 	unsigned short int port;
 	struct timeval *tv;
-	int bsize, ssize = sizeof(struct sockaddr_in);
+	ssize_t bsize;
+	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
 	struct sockaddr_in from, to;
 	fd_set fds;
@@ -113,6 +114,7 @@ int main(int argc, char *argv[])
 		select(s + 1, &fds, 0, 0, tv);
 
 		if (FD_ISSET(s, &fds)) {
+			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(s, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
 				message_parse(&m, buf);
