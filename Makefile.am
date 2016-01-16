@@ -1,9 +1,9 @@
 ACLOCAL_AMFLAGS         = -I m4
 
-sbin_PROGRAMS           = mhttp
+sbin_PROGRAMS           = mdnsd
 bin_PROGRAMS            = mquery
-mhttp_SOURCES           = mhttp.c
-mhttp_LDADD             = libmdnsd/libmdnsd.la
+mdnsd_SOURCES           = mdnsd.c
+mdnsd_LDADD             = libmdnsd/libmdnsd.la
 mquery_SOURCES          = mquery.c
 mquery_LDADD            = libmdnsd/libmdnsd.la
 

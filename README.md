@@ -30,6 +30,16 @@ first need to call `./autogen.sh` to generate the configure script.
     make install
 
 
+Running
+-------
+
+To test the included example applications you need to first start the
+`mdnsd` daemon before calling `mquery`:
+
+    ./mdnsd _name._service 192.168.1.2 80 &
+    ./mquery 12 _http._tcp.local.
+
+
 Origin & References
 -------------------
 
