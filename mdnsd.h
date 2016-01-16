@@ -14,13 +14,13 @@ typedef struct mdns_record mdns_record_t;
 
 /* Answer data */
 typedef struct mdns_answer {
-	unsigned char *name;
+	char *name;
 	unsigned short int type;
 	unsigned long int ttl;
 	unsigned short int rdlen;
 	unsigned char *rdata;
 	struct in_addr ip;	/* A */
-	unsigned char *rdname;	/* NS/CNAME/PTR/SRV */
+	char *rdname;		/* NS/CNAME/PTR/SRV */
 	struct {
 		unsigned short int priority, weight, port;
 	} srv;			/* SRV */

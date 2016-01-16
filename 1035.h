@@ -25,7 +25,7 @@ struct question {
 #define QTYPE_SRV    33
 
 struct resource {
-	unsigned char *name;
+	char *name;
 	unsigned short int type, class;
 	unsigned long int ttl;
 	unsigned short int rdlength;
@@ -36,17 +36,17 @@ struct resource {
 			char *name;
 		} a;
 		struct {
-			unsigned char *name;
+			char *name;
 		} ns;
 		struct {
-			unsigned char *name;
+			char *name;
 		} cname;
 		struct {
-			unsigned char *name;
+			char *name;
 		} ptr;
 		struct {
 			unsigned short int priority, weight, port;
-			unsigned char *name;
+			char *name;
 		} srv;
 	} known;
 };
