@@ -1,5 +1,6 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
+[![Travis Status][]][Travis]
 
 This package is intended for software developers and integrators, there
 isn't really anything here for an end user.  The project license is the
@@ -25,5 +26,7 @@ applications over the years.
 This GitHub project is an attempt to clean it up, develop it further,
 and maintain it for the long haul.
 
-[jeremie]: https://github.com/quartzjer
-[announced]: http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
+[jeremie]:       https://github.com/quartzjer
+[announced]:     http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
+[Travis]:        https://travis-ci.org/troglobit/mdnsd
+[Travis Status]: https://travis-ci.org/troglobit/mdnsd.png?branch=master
