@@ -5,6 +5,11 @@ language: c
 # We don't need to install packages, use dockerized build, quicker
 sudo: false
 
+# Test build with both GCC and Clang (LLVM)
+compiler:
+  - gcc
+  - clang
+
 # We (currently) don't use GNU Configure & Build System, only a simple
 # Makefile, for the time being.
 script:
