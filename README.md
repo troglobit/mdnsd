@@ -19,12 +19,13 @@ Origin & References
 -------------------
 
 This MDNS-SD implementation was developed by [Jeremie Miller][[jeremie]]
-in 2003 and originally [announced on the rendezvous-dev][announced]
-mailing list.  It has many forks and has been used by many other
-applications over the years.
+in 2003, originally [announced on the rendezvous-dev][announced] mailing
+list.  It has many forks and has been used by many other applications
+over the years.
 
 This GitHub project is an attempt to clean it up, develop it further,
 and maintain it for the long haul.
+
 
 [jeremie]:       https://github.com/quartzjer
 [announced]:     http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
