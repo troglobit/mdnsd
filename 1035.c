@@ -50,7 +50,7 @@ void long2net(unsigned long int l, unsigned char **bufp)
 	*bufp += 4;
 }
 
-unsigned short int _ldecomp(unsigned char *ptr)
+unsigned short int _ldecomp(char *ptr)
 {
 	unsigned short int i;
 
@@ -72,10 +72,10 @@ void _label(struct message *m, unsigned char **bufp, char **namep)
 	*namep = name = (char *)m->_packet + m->_len;
 
 	/* Loop storing label in the block */
-	for (label = *bufp; *label != 0; name += *label + 1, label += *label + 1) {
+	for (label = (char *)*bufp; *label != 0; name += *label + 1, label += *label + 1) {
 		/* Skip past any compression pointers, kick out if end encountered (bad data prolly) */
 		while (*label & 0xc0) {
-			if (*(label = m->_buf + _ldecomp(label)) == 0)
+			if (*(label = (char *)m->_buf + _ldecomp(label)) == 0)
 				break;
 		}
 
@@ -89,9 +89,9 @@ void _label(struct message *m, unsigned char **bufp, char **namep)
 	}
 
 	/* Advance buffer */
-	for (label = *bufp; *label != 0 && !(*label & 0xc0 && label++); label += *label + 1)
+	for (label = (char *)*bufp; *label != 0 && !(*label & 0xc0 && label++); label += *label + 1)
 		;
-	*bufp = label + 1;
+	*bufp = (unsigned char *)(label + 1);
 
 	/* Terminate name and check for cache or cache it */
 	*name = '\0';
@@ -109,15 +109,15 @@ void _label(struct message *m, unsigned char **bufp, char **namep)
 }
 
 /* Internal label matching */
-int _lmatch(struct message *m, unsigned char *l1, unsigned char *l2)
+int _lmatch(struct message *m, char *l1, char *l2)
 {
 	int len;
 
 	/* Always ensure we get called w/o a pointer */
 	if (*l1 & 0xc0)
-		return _lmatch(m, m->_buf + _ldecomp(l1), l2);
+		return _lmatch(m, (char *)m->_buf + _ldecomp(l1), l2);
 	if (*l2 & 0xc0)
-		return _lmatch(m, l1, m->_buf + _ldecomp(l2));
+		return _lmatch(m, l1, (char *)m->_buf + _ldecomp(l2));
 
 	/* Same already? */
 	if (l1 == l2)
@@ -144,9 +144,9 @@ int _lmatch(struct message *m, unsigned char *l1, unsigned char *l2)
 }
 
 /* Nasty, convert host into label using compression */
-int _host(struct message *m, unsigned char **bufp, unsigned char *name)
+int _host(struct message *m, unsigned char **bufp, char *name)
 {
-	unsigned char label[256], *l;
+	char label[256], *l;
 	int len = 0, x = 1, y = 0, last = 0;
 
 	if (name == 0)
@@ -181,7 +181,7 @@ int _host(struct message *m, unsigned char **bufp, unsigned char *name)
 			if (_lmatch(m, label + x, m->_labels[y])) {
 				/* Matching label, set up pointer */
 				l = label + x;
-				short2net(m->_labels[y] - m->_packet, &l);
+				short2net((unsigned char *)m->_labels[y] - m->_packet, (unsigned char **)&l);
 				label[x] |= 0xc0;
 				len = x + 2;
 				break;
@@ -194,7 +194,7 @@ int _host(struct message *m, unsigned char **bufp, unsigned char *name)
 
 	/* Copy into buffer, point there now */
 	memcpy(*bufp, label, len);
-	l = *bufp;
+	l = (char *)*bufp;
 	*bufp += len;
 
 	/* For each new label, store it's location for future compression */
@@ -232,7 +232,7 @@ int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **
 		case 1:
 			if (m->_len + 16 > MAX_PACKET_LEN)
 				return 1;
-			rr[i].known.a.name = m->_packet + m->_len;
+			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
 			sprintf(rr[i].known.a.name, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
 			rr[i].known.a.ip.s_addr = net2long(bufp);
@@ -342,7 +342,7 @@ void message_parse(struct message *m, unsigned char *packet)
 		return;
 }
 
-void message_qd(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class)
+void message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class)
 {
 	m->qdcount++;
 	if (m->_buf == 0)
@@ -352,7 +352,7 @@ void message_qd(struct message *m, unsigned char *name, unsigned short int type,
 	short2net(class, &(m->_buf));
 }
 
-void _rrappend(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+void _rrappend(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
 {
 	if (m->_buf == 0)
 		m->_buf = m->_packet + 12;
@@ -362,19 +362,19 @@ void _rrappend(struct message *m, unsigned char *name, unsigned short int type, 
 	long2net(ttl, &(m->_buf));
 }
 
-void message_an(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+void message_an(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
 {
 	m->ancount++;
 	_rrappend(m, name, type, class, ttl);
 }
 
-void message_ns(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+void message_ns(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
 {
 	m->nscount++;
 	_rrappend(m, name, type, class, ttl);
 }
 
-void message_ar(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+void message_ar(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
 {
 	m->arcount++;
 	_rrappend(m, name, type, class, ttl);
@@ -386,7 +386,7 @@ void message_rdata_long(struct message *m, struct in_addr l)
 	long2net(l.s_addr, &(m->_buf));
 }
 
-void message_rdata_name(struct message *m, unsigned char *name)
+void message_rdata_name(struct message *m, char *name)
 {
 	unsigned char *mybuf = m->_buf;
 
@@ -394,7 +394,7 @@ void message_rdata_name(struct message *m, unsigned char *name)
 	short2net(_host(m, &(m->_buf), name), &mybuf);
 }
 
-void message_rdata_srv(struct message *m, unsigned short int priority, unsigned short int weight, unsigned short int port, unsigned char *name)
+void message_rdata_srv(struct message *m, unsigned short int priority, unsigned short int weight, unsigned short int port, char *name)
 {
 	unsigned char *mybuf = m->_buf;
 
@@ -407,7 +407,7 @@ void message_rdata_srv(struct message *m, unsigned short int priority, unsigned 
 
 void message_rdata_raw(struct message *m, unsigned char *rdata, unsigned short int rdlength)
 {
-	if ((m->_buf - m->_packet) + rdlength > 4096)
+	if (((unsigned char *)m->_buf - m->_packet) + rdlength > 4096)
 		rdlength = 0;
 	short2net(rdlength, &(m->_buf));
 	memcpy(m->_buf, rdata, rdlength);
@@ -453,5 +453,5 @@ int message_packet_len(struct message *m)
 	if (m->_buf == 0)
 		return 12;
 
-	return m->_buf - m->_packet;
+	return (unsigned char *)m->_buf - m->_packet;
 }

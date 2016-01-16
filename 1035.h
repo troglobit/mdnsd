@@ -11,9 +11,10 @@
 
 /* Should be reasonably large, for UDP */
 #define MAX_PACKET_LEN 4000
+#define MAX_NUM_LABELS 20
 
 struct question {
-	unsigned char *name;
+	char *name;
 	unsigned short int type, class;
 };
 
@@ -62,7 +63,8 @@ struct message {
 	struct resource *an, *ns, *ar;
 
 	/* Internal variables */
-	unsigned char *_buf, *_labels[20];
+	unsigned char *_buf;
+	char *_labels[MAX_NUM_LABELS];
 	int _len, _label;
 
 	/* Packet acts as padding, easier mem management */
@@ -95,22 +97,22 @@ struct message *message_wire(void);
 /**
  * append a question to the wire message
  */
-void message_qd(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class);
+void message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class);
 
 /**
  * append a resource record to the message, all called in order!
  */
-void message_an(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
-void message_ns(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
-void message_ar(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
+void message_an(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
+void message_ns(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
+void message_ar(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
 
 /**
  * Append various special types of resource data blocks
  */
 void message_rdata_long (struct message *m, struct in_addr l);
-void message_rdata_name (struct message *m, unsigned char *name);
+void message_rdata_name (struct message *m, char *name);
 void message_rdata_srv  (struct message *m, unsigned short int priority, unsigned short int weight,
-			 unsigned short int port, unsigned char *name);
+			 unsigned short int port, char *name);
 void message_rdata_raw  (struct message *m, unsigned char *rdata, unsigned short int rdlength);
 
 /**
