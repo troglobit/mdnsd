@@ -14,7 +14,7 @@
 #include "sdtxt.h"
 
 int _shutdown = 0;
-mdnsd _d;
+mdns_daemon_t *_d;
 int _zzz[2];
 
 // conflict!
@@ -72,8 +72,8 @@ int msock(void)
 
 int main(int argc, char *argv[])
 {
-	mdnsd d;
-	mdnsdr r;
+	mdns_daemon_t *d;
+	mdns_record_t *r;
 	struct message m;
 	struct in_addr ip;
 	unsigned short int port;

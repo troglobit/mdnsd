@@ -21,7 +21,7 @@ struct query {
 	int type;
 	unsigned long int nexttry;
 	int tries;
-	int (*answer) (mdnsda, void *);
+	int (*answer)(mdns_answer_t *, void *);
 	void *arg;
 	struct query *next, *list;
 };
@@ -30,32 +30,32 @@ struct unicast {
 	int id;
 	unsigned long int to;
 	unsigned short int port;
-	mdnsdr r;
+	mdns_record_t *r;
 	struct unicast *next;
 };
 
 struct cached {
-	struct mdnsda_struct rr;
+	struct mdns_answer rr;
 	struct query *q;
 	struct cached *next;
 };
 
-struct mdnsdr_struct {
-	struct mdnsda_struct rr;
+struct mdns_record {
+	struct mdns_answer rr;
 	char unique;		// # of checks performed to ensure
 	int tries;
-	void (*conflict) (char *, int, void *);
+	void (*conflict)(char *, int, void *);
 	void *arg;
-	struct mdnsdr_struct *next, *list;
+	struct mdns_record *next, *list;
 };
 
-struct mdnsd_struct {
+struct mdns_daemon {
 	char shutdown;
 	unsigned long int expireall, checkqlist;
 	struct timeval now, sleep, pause, probe, publish;
 	int class, frame;
 	struct cached *cache[LPRIME];
-	struct mdnsdr_struct *published[SPRIME], *probing, *a_now, *a_pause, *a_publish;
+	struct mdns_record *published[SPRIME], *probing, *a_now, *a_pause, *a_publish;
 	struct unicast *uanswers;
 	struct query *queries[SPRIME], *qlist;
 };
@@ -76,7 +76,7 @@ int _namehash(const char *s)
 }
 
 // basic linked list and hash primitives
-struct query *_q_next(mdnsd d, struct query *q, char *host, int type)
+struct query *_q_next(mdns_daemon_t *d, struct query *q, char *host, int type)
 {
 	if (q == 0)
 		q = d->queries[_namehash(host) % SPRIME];
@@ -91,7 +91,7 @@ struct query *_q_next(mdnsd d, struct query *q, char *host, int type)
 	return 0;
 }
 
-struct cached *_c_next(mdnsd d, struct cached *c, char *host, int type)
+struct cached *_c_next(mdns_daemon_t *d, struct cached *c, char *host, int type)
 {
 	if (c == 0)
 		c = d->cache[_namehash(host) % LPRIME];
@@ -106,7 +106,7 @@ struct cached *_c_next(mdnsd d, struct cached *c, char *host, int type)
 	return 0;
 }
 
-mdnsdr _r_next(mdnsd d, mdnsdr r, char *host, int type)
+mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, char *host, int type)
 {
 	if (r == 0)
 		r = d->published[_namehash(host) % SPRIME];
@@ -121,7 +121,7 @@ mdnsdr _r_next(mdnsd d, mdnsdr r, char *host, int type)
 	return 0;
 }
 
-int _rr_len(mdnsda rr)
+int _rr_len(mdns_answer_t *rr)
 {
 	int len = 12;		// name is always compressed (dup of earlier), plus normal stuff
 
@@ -138,7 +138,7 @@ int _rr_len(mdnsda rr)
 }
 
 // compares new rdata with known a, painfully
-int _a_match(struct resource *r, mdnsda a)
+int _a_match(struct resource *r, mdns_answer_t *a)
 {
 	if (strcmp(r->name, a->name) || r->type != a->type)
 		return 0;
@@ -168,9 +168,9 @@ int _tvdiff(struct timeval old, struct timeval new)
 }
 
 // make sure not already on the list, then insert
-void _r_push(mdnsdr * list, mdnsdr r)
+void _r_push(mdns_record_t **list, mdns_record_t *r)
 {
-	mdnsdr cur;
+	mdns_record_t *cur;
 
 	for (cur = *list; cur != 0; cur = cur->list) {
 		if (cur == r)
@@ -182,12 +182,12 @@ void _r_push(mdnsdr * list, mdnsdr r)
 }
 
 // set this r to probing, set next probe time
-void _r_probe(mdnsd d, mdnsdr r)
+void _r_probe(mdns_daemon_t *d, mdns_record_t *r)
 {
 }
 
 // force any r out right away, if valid
-void _r_publish(mdnsd d, mdnsdr r)
+void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 {
 	if (r->unique && r->unique < 5)
 		return;		// probing already
@@ -199,7 +199,7 @@ void _r_publish(mdnsd d, mdnsdr r)
 }
 
 // send r out asap
-void _r_send(mdnsd d, mdnsdr r)
+void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 {
 	if (r->tries < 4) {	// being published, make sure that happens soon
 		d->publish.tv_sec = d->now.tv_sec;
@@ -219,7 +219,7 @@ void _r_send(mdnsd d, mdnsdr r)
 }
 
 // create generic unicast response struct
-void _u_push(mdnsd d, mdnsdr r, int id, unsigned long int to, unsigned short int port)
+void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long int to, unsigned short int port)
 {
 	struct unicast *u;
 
@@ -232,7 +232,7 @@ void _u_push(mdnsd d, mdnsdr r, int id, unsigned long int to, unsigned short int
 	d->uanswers = u;
 }
 
-void _q_reset(mdnsd d, struct query *q)
+void _q_reset(mdns_daemon_t *d, struct query *q)
 {
 	struct cached *cur = 0;
 
@@ -248,7 +248,7 @@ void _q_reset(mdnsd d, struct query *q)
 		d->checkqlist = q->nexttry;
 }
 
-void _q_done(mdnsd d, struct query *q)
+void _q_done(mdns_daemon_t *d, struct query *q)
 {				// no more query, update all it's cached entries, remove from lists
 	struct cached *c = 0;
 	struct query *cur;
@@ -277,9 +277,9 @@ void _q_done(mdnsd d, struct query *q)
 	free(q);
 }
 
-void _r_done(mdnsd d, mdnsdr r)
+void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 {				// buh-bye, remove from hash and free
-	mdnsdr cur = 0;
+	mdns_record_t *cur = 0;
 	int i = _namehash(r->rr.name) % SPRIME;
 
 	if (d->published[i] == r)
@@ -296,7 +296,7 @@ void _r_done(mdnsd d, mdnsdr r)
 }
 
 // call the answer function with this cached entry
-void _q_answer(mdnsd d, struct cached *c)
+void _q_answer(mdns_daemon_t *d, struct cached *c)
 {
 	if (c->rr.ttl <= d->now.tv_sec)
 		c->rr.ttl = 0;
@@ -304,14 +304,14 @@ void _q_answer(mdnsd d, struct cached *c)
 		_q_done(d, c->q);
 }
 
-void _conflict(mdnsd d, mdnsdr r)
+void _conflict(mdns_daemon_t *d, mdns_record_t *r)
 {
 	r->conflict(r->rr.name, r->rr.type, r->arg);
 	mdnsd_done(d, r);
 }
 
 // expire any old entries in this list
-void _c_expire(mdnsd d, struct cached **list)
+void _c_expire(mdns_daemon_t *d, struct cached **list)
 {
 	struct cached *next, *cur = *list, *last = 0;
 
@@ -336,7 +336,7 @@ void _c_expire(mdnsd d, struct cached **list)
 }
 
 // brute force expire any old cached records
-void _gc(mdnsd d)
+void _gc(mdns_daemon_t *d)
 {
 	int i;
 
@@ -348,7 +348,7 @@ void _gc(mdnsd d)
 	d->expireall = d->now.tv_sec + GC;
 }
 
-void _cache(mdnsd d, struct resource *r)
+void _cache(mdns_daemon_t *d, struct resource *r)
 {
 	struct cached *c = 0;
 	int i = _namehash(r->name) % LPRIME;
@@ -406,7 +406,7 @@ void _cache(mdnsd d, struct resource *r)
 }
 
 // copy the data bits only
-void _a_copy(struct message *m, mdnsda a)
+void _a_copy(struct message *m, mdns_answer_t *a)
 {
 	if (a->rdata) {
 		message_rdata_raw(m, a->rdata, a->rdlen);
@@ -422,9 +422,9 @@ void _a_copy(struct message *m, mdnsda a)
 }
 
 // copy a published record into an outgoing message
-int _r_out(mdnsd d, struct message *m, mdnsdr * list)
+int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 {
-	mdnsdr r, next;
+	mdns_record_t *r, next;
 	int ret = 0;
 
 	while ((r = *list) != 0 && message_packet_len(m) + _rr_len(&r->rr) < d->frame) {
@@ -445,12 +445,12 @@ int _r_out(mdnsd d, struct message *m, mdnsdr * list)
 }
 
 
-mdnsd mdnsd_new(int class, int frame)
+mdns_daemon_t *mdnsd_new(int class, int frame)
 {
 	int i;
-	mdnsd d;
+	mdns_daemon_t *d;
 
-	d = calloc(1, sizeof(struct mdnsd_struct));
+	d = calloc(1, sizeof(struct mdns_daemon));
 	gettimeofday(&d->now, 0);
 	d->expireall = d->now.tv_sec + GC;
 	d->class = class;
@@ -460,10 +460,10 @@ mdnsd mdnsd_new(int class, int frame)
 }
 
 // shutting down, zero out ttl and push out all records
-void mdnsd_shutdown(mdnsd d)
+void mdnsd_shutdown(mdns_daemon_t *d)
 {
 	int i;
-	mdnsdr cur, next;
+	mdns_record_t *cur, *next;
 
 	d->a_now = 0;
 	for (i = 0; i < SPRIME; i++) {
@@ -479,15 +479,15 @@ void mdnsd_shutdown(mdnsd d)
 	d->shutdown = 1;
 }
 
-void mdnsd_flush(mdnsd d)
+void mdnsd_flush(mdns_daemon_t *d)
 {
 	// set all querys to 0 tries
 	// free whole cache
-	// set all mdnsdr to probing
+	// set all mdns_record_t *to probing
 	// reset all answer lists
 }
 
-void mdnsd_free(mdnsd d)
+void mdnsd_free(mdns_daemon_t *d)
 {
 	int i;
 
@@ -496,10 +496,10 @@ void mdnsd_free(mdnsd d)
 	free(d);
 }
 
-void mdnsd_in(mdnsd d, struct message *m, unsigned long int ip, unsigned short int port)
+void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned short int port)
 {
 	int i, j;
-	mdnsdr r = 0;
+	mdns_record_t *r = 0;
 
 	if (d->shutdown)
 		return;
@@ -558,9 +558,9 @@ void mdnsd_in(mdnsd d, struct message *m, unsigned long int ip, unsigned short i
 	}
 }
 
-int mdnsd_out(mdnsd d, struct message *m, unsigned long int *ip, unsigned short int *port)
+int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsigned short int *port)
 {
-	mdnsdr r;
+	mdns_record_t *r;
 	int ret = 0;
 
 	gettimeofday(&d->now, 0);
@@ -596,7 +596,7 @@ int mdnsd_out(mdnsd d, struct message *m, unsigned long int *ip, unsigned short 
 
 	// check to see if it's time to send the publish retries (and unlink if done)
 	if (d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
-		mdnsdr next, cur = d->a_publish, last = 0;
+		mdns_record_t *next, *cur = d->a_publish, *last = NULL;
 
 		while (cur && message_packet_len(m) + _rr_len(&cur->rr) < d->frame) {
 			next = cur->list;
@@ -646,13 +646,13 @@ int mdnsd_out(mdnsd d, struct message *m, unsigned long int *ip, unsigned short 
 	m->header.aa = 0;
 
 	if (d->probing && _tvdiff(d->now, d->probe) <= 0) {
-		mdnsdr last = 0;
+		mdns_record_t *last = 0;
 
 		// scan probe list to ask questions and process published
 		for (r = d->probing; r != 0;) {
 			// done probing, publish
 			if (r->unique == 4) {
-				mdnsdr next = r->list;
+				mdns_record_t *next = r->list;
 
 				if (d->probing == r)
 					d->probing = r->list;
@@ -734,10 +734,10 @@ int mdnsd_out(mdnsd d, struct message *m, unsigned long int *ip, unsigned short 
 	return ret;
 }
 
-struct timeval *mdnsd_sleep(mdnsd d)
+struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
 	int sec, usec;
-	mdnsdr r;
+	mdns_record_t *r;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
 #define RET while(d->sleep.tv_usec > 1000000) {d->sleep.tv_sec++;d->sleep.tv_usec -= 1000000;} return &d->sleep;
@@ -782,7 +782,7 @@ struct timeval *mdnsd_sleep(mdnsd d)
 	RET;
 }
 
-void mdnsd_query(mdnsd d, char *host, int type, int (*answer) (mdnsda a, void *arg), void *arg)
+void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer) (mdns_answer_t *a, void *arg), void *arg)
 {
 	struct query *q;
 	struct cached *cur = 0;
@@ -818,17 +818,17 @@ void mdnsd_query(mdnsd d, char *host, int type, int (*answer) (mdnsda a, void *a
 	q->arg = arg;
 }
 
-mdnsda mdnsd_list(mdnsd d, char *host, int type, mdnsda last)
+mdns_answer_t *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t *last)
 {
-	return (mdnsda) _c_next(d, (struct cached *)last, host, type);
+	return (mdns_answer_t *)_c_next(d, (struct cached *)last, host, type);
 }
 
-mdnsdr mdnsd_shared(mdnsd d, char *host, int type, long int ttl)
+mdns_record_t *mdnsd_shared(mdns_daemon_t *d, char *host, int type, long int ttl)
 {
 	int i = _namehash(host) % SPRIME;
-	mdnsdr r;
+	mdns_record_t *r;
 
-	r = calloc(1, sizeof(struct mdnsdr_struct));
+	r = calloc(1, sizeof(struct mdns_record));
 	r->rr.name = strdup(host);
 	r->rr.type = type;
 	r->rr.ttl = ttl;
@@ -838,9 +838,9 @@ mdnsdr mdnsd_shared(mdnsd d, char *host, int type, long int ttl)
 	return r;
 }
 
-mdnsdr mdnsd_unique(mdnsd d, char *host, int type, long int ttl, void (*conflict) (char *host, int type, void *arg), void *arg)
+mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, int type, long int ttl, void (*conflict) (char *host, int type, void *arg), void *arg)
 {
-	mdnsdr r;
+	mdns_record_t *r;
 
 	r = mdnsd_shared(d, host, type, ttl);
 	r->conflict = conflict;
@@ -853,9 +853,9 @@ mdnsdr mdnsd_unique(mdnsd d, char *host, int type, long int ttl, void (*conflict
 	return r;
 }
 
-void mdnsd_done(mdnsd d, mdnsdr r)
+void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 {
-	mdnsdr cur;
+	mdns_record_t *cur;
 
 	if (r->unique && r->unique < 5) {	// probing yet, zap from that list first!
 		if (d->probing == r) {
@@ -874,7 +874,7 @@ void mdnsd_done(mdnsd d, mdnsdr r)
 	_r_send(d, r);
 }
 
-void mdnsd_set_raw(mdnsd d, mdnsdr r, char *data, int len)
+void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, char *data, int len)
 {
 	free(r->rr.rdata);
 	r->rr.rdata = malloc(len);
@@ -883,20 +883,20 @@ void mdnsd_set_raw(mdnsd d, mdnsdr r, char *data, int len)
 	_r_publish(d, r);
 }
 
-void mdnsd_set_host(mdnsd d, mdnsdr r, char *name)
+void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, char *name)
 {
 	free(r->rr.rdname);
 	r->rr.rdname = strdup(name);
 	_r_publish(d, r);
 }
 
-void mdnsd_set_ip(mdnsd d, mdnsdr r, struct in_addr ip)
+void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip)
 {
 	r->rr.ip = ip;
 	_r_publish(d, r);
 }
 
-void mdnsd_set_srv(mdnsd d, mdnsdr r, int priority, int weight, int port, char *name)
+void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, int priority, int weight, int port, char *name)
 {
 	r->rr.srv.priority = priority;
 	r->rr.srv.weight = weight;

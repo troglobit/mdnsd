@@ -13,7 +13,7 @@
 #include "mdnsd.h"
 
 // print an answer
-int ans(mdnsda a, void *arg)
+int ans(mdns_answer_t *a, void *arg)
 {
 	int now;
 
@@ -80,7 +80,7 @@ int msock(void)
 
 int main(int argc, char *argv[])
 {
-	mdnsd d;
+	mdns_daemon_t *d;
 	struct message m;
 	unsigned long int ip;
 	unsigned short int port;
