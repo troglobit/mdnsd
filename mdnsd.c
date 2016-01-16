@@ -115,7 +115,7 @@ int _rr_len(mdnsda rr)
     int len = 12; // name is always compressed (dup of earlier), plus normal stuff
     if(rr->rdata) len += rr->rdlen;
     if(rr->rdname) len += strlen(rr->rdname); // worst case
-    if(rr->ip) len += 4;
+    if(rr->ip.s_addr) len += 4;
     if(rr->type == QTYPE_PTR) len += 6; // srv record stuff
     return len;
 }
@@ -338,7 +338,7 @@ void _cache(mdnsd d, struct resource *r)
 void _a_copy(struct message *m, mdnsda a)
 { // copy the data bits only
     if(a->rdata) { message_rdata_raw(m, a->rdata, a->rdlen); return; }
-    if(a->ip) message_rdata_long(m, a->ip);
+    if(a->ip.s_addr) message_rdata_long(m, a->ip);
     if(a->type == QTYPE_SRV) message_rdata_srv(m, a->srv.priority, a->srv.weight, a->srv.port, a->rdname);
     else if(a->rdname) message_rdata_name(m, a->rdname);
 }
@@ -745,7 +745,7 @@ void mdnsd_set_host(mdnsd d, mdnsdr r, char *name)
     _r_publish(d,r);
 }
 
-void mdnsd_set_ip(mdnsd d, mdnsdr r, unsigned long int ip)
+void mdnsd_set_ip(mdnsd d, mdnsdr r, struct in_addr ip)
 {
     r->rr.ip = ip;
     _r_publish(d,r);

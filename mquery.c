@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -79,7 +80,7 @@ int main(int argc, char *argv[])
     fd_set fds;
     int s;
 
-    if(argc != 3) { printf("usage: mquery 12 _http._tcp.local.\n"); return; }
+    if(argc != 3) { printf("usage: mquery 12 _http._tcp.local.\n"); return 1; }
 
     d = mdnsd_new(1,1000);
     if((s = msock()) == 0) { printf("can't create socket: %s\n",strerror(errno)); return 1; }

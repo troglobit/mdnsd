@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
     mdnsd d;
     mdnsdr r;
     struct message m;
-    unsigned long int ip;
+    struct in_addr ip;
     unsigned short int port;
     struct timeval *tv;
     int bsize, ssize = sizeof(struct sockaddr_in);
@@ -79,11 +80,14 @@ int main(int argc, char *argv[])
     unsigned char *packet, hlocal[256], nlocal[256];
     int len = 0;
     xht h;
+    char *path = NULL;
 
-    if(argc < 4) { printf("usage: mhttp 'unique name' 12.34.56.78 80 '/optionalpath'\n"); return; }
+    if(argc < 4) { printf("usage: mhttp 'unique name' 12.34.56.78 80 '/optionalpath'\n"); return 1; }
 
-    ip = inet_addr(argv[2]);
+    inet_aton(argv[2], &ip);
     port = atoi(argv[3]);
+    if (argc == 5)
+	    path = argv[4];
     printf("Announcing .local site named '%s' to %s:%d and extra path '%s'\n",argv[1],inet_ntoa(ip),port,argv[4]);
 
     signal(SIGINT,done);
@@ -104,7 +108,7 @@ int main(int argc, char *argv[])
     mdnsd_set_raw(d,r,(unsigned char *)&ip,4);
     r = mdnsd_unique(d,hlocal,16,600,con,0);
     h = xht_new(11);
-    if(argc == 5 && argv[4] && strlen(argv[4]) > 0) xht_set(h,"path",argv[4]);
+    if(path && strlen(path)) xht_set(h,"path",path);
     packet = sd2txt(h, &len);
     xht_free(h);
     mdnsd_set_raw(d,r,packet,len);
@@ -131,12 +135,12 @@ int main(int argc, char *argv[])
             }
             if(bsize < 0 && errno != EAGAIN) { printf("can't read from socket %d: %s\n",errno,strerror(errno)); return 1; }
         }
-        while(mdnsd_out(d,&m,&ip,&port))
+        while(mdnsd_out(d,&m,(long unsigned int *)&ip,&port))
         {
             memset(&to, 0, sizeof(to));
             to.sin_family = AF_INET;
             to.sin_port = port;
-            to.sin_addr.s_addr = ip;
+            to.sin_addr = ip;
             if(sendto(s,message_packet(&m),message_packet_len(&m),0,(struct sockaddr *)&to,sizeof(struct sockaddr_in)) != message_packet_len(&m))  { printf("can't write to socket: %s\n",strerror(errno)); return 1; }
         }
         if(_shutdown) break;

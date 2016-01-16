@@ -209,7 +209,7 @@ int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **
             rr[i].known.a.name = m->_packet + m->_len;
             m->_len += 16;
             sprintf(rr[i].known.a.name,"%d.%d.%d.%d",(*bufp)[0],(*bufp)[1],(*bufp)[2],(*bufp)[3]);
-            rr[i].known.a.ip = net2long(bufp);
+            rr[i].known.a.ip.s_addr = net2long(bufp);
             break;
         case 2:
             _label(m, bufp, &(rr[i].known.ns.name));
@@ -319,10 +319,10 @@ void message_ar(struct message *m, unsigned char *name, unsigned short int type,
     _rrappend(m,name,type,class,ttl);
 }
 
-void message_rdata_long(struct message *m, unsigned long int l)
+void message_rdata_long(struct message *m, struct in_addr l)
 {
     short2net(4, &(m->_buf));
-    long2net(l, &(m->_buf));
+    long2net(l.s_addr, &(m->_buf));
 }
 
 void message_rdata_name(struct message *m, unsigned char *name)

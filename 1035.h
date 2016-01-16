@@ -1,6 +1,8 @@
 #ifndef _1035_h
 #define _1035_h
 
+#include <arpa/inet.h>
+
 // be familiar with rfc1035 if you want to know what all the variable names mean, but this hides most of the dirty work
 // all of this code depends on the buffer space a packet is in being 4096 and zero'd before the packet is copied in
 // also conveniently decodes srv rr's, type 33, see rfc2782
@@ -28,7 +30,7 @@ struct resource
     unsigned short int rdlength;
     unsigned char *rdata;
     union {
-        struct { unsigned long int ip; char *name; } a;
+        struct { struct in_addr ip; char *name; } a;
         struct { unsigned char *name; } ns;
         struct { unsigned char *name; } cname;
         struct { unsigned char *name; } ptr;
@@ -76,7 +78,7 @@ void message_ns(struct message *m, unsigned char *name, unsigned short int type,
 void message_ar(struct message *m, unsigned char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
 
 // append various special types of resource data blocks
-void message_rdata_long(struct message *m, unsigned long int l);
+void message_rdata_long(struct message *m, struct in_addr l);
 void message_rdata_name(struct message *m, unsigned char *name);
 void message_rdata_srv(struct message *m, unsigned short int priority, unsigned short int weight, unsigned short int port, unsigned char *name);
 void message_rdata_raw(struct message *m, unsigned char *rdata, unsigned short int rdlength);
