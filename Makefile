@@ -1,10 +1,11 @@
 all: mquery mhttp
 
-mhttp: mhttp.c
-	gcc -g -o mhttp mhttp.c mdnsd.c 1035.c sdtxt.c xht.c
+mhttp: mhttp.o mdnsd.o 1035.o sdtxt.o xht.o
 
-mquery: mquery.c
-	gcc -g -o mquery mquery.c mdnsd.c 1035.c
+mquery: mquery.o mdnsd.o 1035.o
 
 clean:
-	rm -f mquery mhttp
+	-@$(RM) mquery mhttp
+
+distclean:
+	-@$(RM) *.o *~
