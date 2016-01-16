@@ -33,7 +33,7 @@ void done(int sig)
 }
 
 // create multicast 224.0.0.251:5353 socket
-int msock()
+int msock(void)
 {
 	int s, flag = 1, ittl = 255;
 	struct sockaddr_in in;

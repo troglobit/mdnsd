@@ -223,8 +223,7 @@ void _u_push(mdnsd d, mdnsdr r, int id, unsigned long int to, unsigned short int
 {
 	struct unicast *u;
 
-	u = malloc(sizeof(struct unicast));
-	bzero(u, sizeof(struct unicast));
+	u = calloc(1, sizeof(struct unicast));
 	u->r = r;
 	u->id = id;
 	u->to = to;
@@ -372,8 +371,7 @@ void _cache(mdnsd d, struct resource *r)
 		return;
 	}
 
-	c = malloc(sizeof(struct cached));
-	bzero(c, sizeof(struct cached));
+	c = calloc(1, sizeof(struct cached));
 	c->rr.name = strdup(r->name);
 	c->rr.type = r->type;
 	c->rr.ttl = d->now.tv_sec + (r->ttl / 2) + 8;	// XXX hack for now, BAD SPEC, start retrying just after half-waypoint, then expire
@@ -452,8 +450,7 @@ mdnsd mdnsd_new(int class, int frame)
 	int i;
 	mdnsd d;
 
-	d = malloc(sizeof(struct mdnsd_struct));
-	bzero(d, sizeof(struct mdnsd_struct));
+	d = calloc(1, sizeof(struct mdnsd_struct));
 	gettimeofday(&d->now, 0);
 	d->expireall = d->now.tv_sec + GC;
 	d->class = class;
@@ -567,7 +564,7 @@ int mdnsd_out(mdnsd d, struct message *m, unsigned long int *ip, unsigned short 
 	int ret = 0;
 
 	gettimeofday(&d->now, 0);
-	bzero(m, sizeof(struct message));
+	memset(m, 0, sizeof(struct message));
 
 	// defaults, multicast
 	*port = htons(5353);
@@ -795,8 +792,7 @@ void mdnsd_query(mdnsd d, char *host, int type, int (*answer) (mdnsda a, void *a
 		if (!answer)
 			return;
 
-		q = malloc(sizeof(struct query));
-		bzero(q, sizeof(struct query));
+		q = calloc(1, sizeof(struct query));
 		q->name = strdup(host);
 		q->type = type;
 		q->next = d->queries[i];
@@ -832,8 +828,7 @@ mdnsdr mdnsd_shared(mdnsd d, char *host, int type, long int ttl)
 	int i = _namehash(host) % SPRIME;
 	mdnsdr r;
 
-	r = malloc(sizeof(struct mdnsdr_struct));
-	bzero(r, sizeof(struct mdnsdr_struct));
+	r = calloc(1, sizeof(struct mdnsdr_struct));
 	r->rr.name = strdup(host);
 	r->rr.type = type;
 	r->rr.ttl = ttl;

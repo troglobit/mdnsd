@@ -51,8 +51,8 @@ xht_t *xht_new(int prime)
 
 	xnew = malloc(sizeof(struct xht));
 	xnew->prime = prime;
-	xnew->zen = malloc(sizeof(struct xhn) * prime);	/* array of xhn_t size of prime */
-	bzero(xnew->zen, sizeof(struct xhn) * prime);
+	xnew->zen = calloc(1, sizeof(struct xhn) * prime);	/* array of xhn_t size of prime */
+
 	return xnew;
 }
 
