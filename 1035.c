@@ -63,13 +63,13 @@ unsigned short int _ldecomp(unsigned char *ptr)
 	return i;
 }
 
-void _label(struct message *m, unsigned char **bufp, unsigned char **namep)
+void _label(struct message *m, unsigned char **bufp, char **namep)
 {
-	unsigned char *label, *name;
 	int x;
+	char *label, *name;
 
 	/* Set namep to the end of the block */
-	*namep = name = m->_packet + m->_len;
+	*namep = name = (char *)m->_packet + m->_len;
 
 	/* Loop storing label in the block */
 	for (label = *bufp; *label != 0; name += *label + 1, label += *label + 1) {
