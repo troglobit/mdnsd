@@ -15,18 +15,17 @@ int _sd2txt_len(const char *key, char *val)
 	return ret;
 }
 
-void _sd2txt_count(xht_t *h, const char *key, void *val, void *arg)
+void _sd2txt_count(xht_t *h __attribute__ ((unused)), const char *key, void *val, void *arg)
 {
 	int *count = (int *)arg;
 
 	*count += _sd2txt_len(key, (char *)val) + 1;
 }
 
-void _sd2txt_write(xht_t *h, const char *key, void *val, void *arg)
+void _sd2txt_write(xht_t *h __attribute__ ((unused)), const char *key, void *val, void *arg)
 {
 	unsigned char **txtp = (unsigned char **)arg;
 	char *cval = (char *)val;
-	int len;
 
 	/* Copy in lengths, then strings */
 	**txtp = _sd2txt_len(key, (char *)val);

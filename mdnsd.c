@@ -189,6 +189,8 @@ void _r_push(mdns_record_t **list, mdns_record_t *r)
 /* Set this r to probing, set next probe time */
 void _r_probe(mdns_daemon_t *d, mdns_record_t *r)
 {
+	(void)d;
+	(void)r;
 }
 
 /* Force any r out right away, if valid */
@@ -442,7 +444,7 @@ void _a_copy(struct message *m, mdns_answer_t *a)
 /* Copy a published record into an outgoing message */
 int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 {
-	mdns_record_t *r, next;
+	mdns_record_t *r;
 	int ret = 0;
 
 	while ((r = *list) != 0 && message_packet_len(m) + _rr_len(&r->rr) < d->frame) {
@@ -465,7 +467,6 @@ int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 
 mdns_daemon_t *mdnsd_new(int class, int frame)
 {
-	int i;
 	mdns_daemon_t *d;
 
 	d = calloc(1, sizeof(struct mdns_daemon));
@@ -499,6 +500,7 @@ void mdnsd_shutdown(mdns_daemon_t *d)
 
 void mdnsd_flush(mdns_daemon_t *d)
 {
+	(void)d;
 	/* - Set all querys to 0 tries
 	 * - Free whole cache
 	 * - Set all mdns_record_t *to probing
@@ -508,8 +510,6 @@ void mdnsd_flush(mdns_daemon_t *d)
 
 void mdnsd_free(mdns_daemon_t *d)
 {
-	int i;
-
 	/* Loop through all hashes, free everything,
 	 * free answers if any */
 
@@ -760,7 +760,6 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
 	int sec, usec;
-	mdns_record_t *r;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
 #define RET while(d->sleep.tv_usec > 1000000) {d->sleep.tv_sec++;d->sleep.tv_usec -= 1000000;} return &d->sleep;
