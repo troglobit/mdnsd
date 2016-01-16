@@ -22,8 +22,7 @@ void *xht_get(xht_t *h, const char *key);
 void xht_free(xht_t *h);
 
 // pass a function that is called for every key that has a value set
-typedef void (*xht_walker)(xht_t *h, const char *key, void *val, void *arg);
+typedef void (*xht_walker) (xht_t *h, const char *key, void *val, void *arg);
 void xht_walk(xht_t *h, xht_walker w, void *arg);
 
 #endif
-

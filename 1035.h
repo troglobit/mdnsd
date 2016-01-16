@@ -10,10 +10,9 @@
 // should be reasonably large, for udp
 #define MAX_PACKET_LEN 4000
 
-struct question
-{
-    unsigned char *name;
-    unsigned short int type, class;
+struct question {
+	unsigned char *name;
+	unsigned short int type, class;
 };
 
 #define QTYPE_A 1
@@ -22,37 +21,49 @@ struct question
 #define QTYPE_PTR 12
 #define QTYPE_SRV 33
 
-struct resource
-{
-    unsigned char *name;
-    unsigned short int type, class;
-    unsigned long int ttl;
-    unsigned short int rdlength;
-    unsigned char *rdata;
-    union {
-        struct { struct in_addr ip; char *name; } a;
-        struct { unsigned char *name; } ns;
-        struct { unsigned char *name; } cname;
-        struct { unsigned char *name; } ptr;
-        struct { unsigned short int priority, weight, port; unsigned char *name; } srv;
-    } known;
+struct resource {
+	unsigned char *name;
+	unsigned short int type, class;
+	unsigned long int ttl;
+	unsigned short int rdlength;
+	unsigned char *rdata;
+	union {
+		struct {
+			struct in_addr ip;
+			char *name;
+		} a;
+		struct {
+			unsigned char *name;
+		} ns;
+		struct {
+			unsigned char *name;
+		} cname;
+		struct {
+			unsigned char *name;
+		} ptr;
+		struct {
+			unsigned short int priority, weight, port;
+			unsigned char *name;
+		} srv;
+	} known;
 };
 
-struct message
-{
-    // external data
-    unsigned short int id;
-    struct { unsigned short qr:1, opcode:4, aa:1, tc:1, rd:1, ra:1, z:3, rcode:4; } header;
-    unsigned short int qdcount, ancount, nscount, arcount;
-    struct question *qd;
-    struct resource *an, *ns, *ar;
+struct message {
+	// external data
+	unsigned short int id;
+	struct {
+		unsigned short qr:1, opcode:4, aa:1, tc:1, rd:1, ra:1, z:3, rcode:4;
+	} header;
+	unsigned short int qdcount, ancount, nscount, arcount;
+	struct question *qd;
+	struct resource *an, *ns, *ar;
 
-    // internal variables
-    unsigned char *_buf, *_labels[20];
-    int _len, _label;
-    
-    // packet acts as padding, easier mem management
-    unsigned char _packet[MAX_PACKET_LEN];
+	// internal variables
+	unsigned char *_buf, *_labels[20];
+	int _len, _label;
+
+	// packet acts as padding, easier mem management
+	unsigned char _packet[MAX_PACKET_LEN];
 };
 
 // returns the next short/long off the buffer (and advances it)
@@ -80,7 +91,8 @@ void message_ar(struct message *m, unsigned char *name, unsigned short int type,
 // append various special types of resource data blocks
 void message_rdata_long(struct message *m, struct in_addr l);
 void message_rdata_name(struct message *m, unsigned char *name);
-void message_rdata_srv(struct message *m, unsigned short int priority, unsigned short int weight, unsigned short int port, unsigned char *name);
+void message_rdata_srv(struct message *m, unsigned short int priority, unsigned short int weight, unsigned short int port,
+		       unsigned char *name);
 void message_rdata_raw(struct message *m, unsigned char *rdata, unsigned short int rdlength);
 
 // return the wire format (and length) of the message, just free message when done
