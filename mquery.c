@@ -38,6 +38,8 @@ int ans(mdns_answer_t *a, void *arg)
 	default:
 		printf("%d %s for %d seconds with %d data\n", a->type, a->name, now, a->rdlen);
 	}
+
+	return 0;
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
