@@ -74,7 +74,7 @@ xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 	}
 
 	/* if none, make a new one, link into this index */
-	if (n == 0) {
+	if (n == NULL) {
 		n = malloc(sizeof(struct xhn));
 		n->next = h->zen[i].next;
 		h->zen[i].next = n;
@@ -89,6 +89,8 @@ xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 	n->flag = flag;
 	n->key = key;
 	n->val = val;
+
+	return n;
 }
 
 void xht_set(xht_t *h, const char *key, void *val)
