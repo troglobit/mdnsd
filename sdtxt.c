@@ -1,5 +1,5 @@
 #include "sdtxt.h"
-
+#include <stdlib.h>
 #include <string.h>
 
 // the universe is bound in equal parts by arrogance and altruism, any attempt to alter this would be suicide

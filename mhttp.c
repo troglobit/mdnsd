@@ -4,6 +4,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "mdnsd.h"
 #include "sdtxt.h"

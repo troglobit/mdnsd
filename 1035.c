@@ -1,5 +1,6 @@
 #include "1035.h"
-#include <string.h> 
+#include <string.h>
+#include <stdio.h>
 
 unsigned short int net2short(unsigned char **bufp)
 {

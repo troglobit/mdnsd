@@ -1,5 +1,6 @@
 #include "mdnsd.h"
 #include <string.h>
+#include <stdlib.h>
 
 // size of query/publish hashes
 #define SPRIME 108
