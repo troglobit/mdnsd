@@ -1,8 +1,9 @@
 mdnsd - embeddable Multicast DNS Daemon
 
 This package is intended for software developers and integrators, there isn't really anything here for an end 
-user. More info is available at http://dotlocal.org/mdnsd/ or by emailing me.  The license is GPL and BSD, with 
-alternative licensing available upon request if needed.
+user. More info is available at http://dotlocal.org/mdnsd/ or by emailing me.  The license is the modified
+3-clause BSD, https://en.wikipedia.org/wiki/BSD_licenses, with alternative licensing available upon request
+if needed.
 
 You should be able to just type make and it will build the included example apps.  Otherwise, check out mdnsd.h 
 to get started, the API is as simple as I could make it, but I hope to find some easier/better ways to improve it 
