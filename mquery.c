@@ -41,7 +41,7 @@ int msock()
     struct ip_mreq mc;
     char ttl = 255;
 
-    bzero(&in, sizeof(in));
+    memset(&in, 0, sizeof(in));
     in.sin_family = AF_INET;
     in.sin_port = htons(5353);
     in.sin_addr.s_addr = 0;
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
         {
             while((bsize = recvfrom(s,buf,MAX_PACKET_LEN,0,(struct sockaddr*)&from,&ssize)) > 0)
             {
-                bzero(&m,sizeof(struct message));
+                memset(&m,0,sizeof(struct message));
                 message_parse(&m,buf);
                 mdnsd_in(d,&m,(unsigned long int)from.sin_addr.s_addr,from.sin_port);
             }
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
         }
         while(mdnsd_out(d,&m,&ip,&port))
         {
-            bzero(&to, sizeof(to));
+            memset(&to, 0, sizeof(to));
             to.sin_family = AF_INET;
             to.sin_port = port;
             to.sin_addr.s_addr = ip;
