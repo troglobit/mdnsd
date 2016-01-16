@@ -757,12 +757,19 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 	return ret;
 }
 
+
+#define RET					\
+	while (d->sleep.tv_usec > 1000000) {	\
+		d->sleep.tv_sec++;		\
+		d->sleep.tv_usec -= 1000000;	\
+	}					\
+	return &d->sleep;
+
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
 	int sec, usec;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
-#define RET while(d->sleep.tv_usec > 1000000) {d->sleep.tv_sec++;d->sleep.tv_usec -= 1000000;} return &d->sleep;
 
 	/* First check for any immediate items to handle */
 	if (d->uanswers || d->a_now)
