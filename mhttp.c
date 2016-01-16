@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     int s;
     unsigned char *packet, hlocal[256], nlocal[256];
     int len = 0;
-    xht h;
+    xht_t *h;
     char *path = NULL;
 
     if(argc < 4) { printf("usage: mhttp 'unique name' 12.34.56.78 80 '/optionalpath'\n"); return 1; }

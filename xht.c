@@ -2,18 +2,18 @@
 #include <string.h>
 #include <stdlib.h>
 
-typedef struct xhn_struct
+typedef struct xhn
 {
     char flag;
-    struct xhn_struct *next;
+    struct xhn *next;
     const char *key;
     void *val;
-} *xhn;
+} xhn_t;
 
-struct xht_struct
+struct xht
 {
     int prime;
-    xhn zen;
+    xhn_t *zen;
 };
 
 /* Generates a hash code for a string.
@@ -39,7 +39,7 @@ int _xhter(const char *s)
 }
 
 
-xhn _xht_node_find(xhn n, const char *key)
+xhn_t *_xht_node_find(xhn_t *n, const char *key)
 {
     for(;n != 0; n = n->next)
         if(n->key != 0 && strcmp(key, n->key) == 0)
@@ -48,22 +48,22 @@ xhn _xht_node_find(xhn n, const char *key)
 }
 
 
-xht xht_new(int prime)
+xht_t *xht_new(int prime)
 {
-    xht xnew;
+    xht_t *xnew;
 
-    xnew = (xht)malloc(sizeof(struct xht_struct));
+    xnew = malloc(sizeof(struct xht));
     xnew->prime = prime;
-    xnew->zen = (xhn)malloc(sizeof(struct xhn_struct)*prime); /* array of xhn size of prime */
-    bzero(xnew->zen,sizeof(struct xhn_struct)*prime);
+    xnew->zen = malloc(sizeof(struct xhn)*prime); /* array of xhn_t size of prime */
+    bzero(xnew->zen,sizeof(struct xhn)*prime);
     return xnew;
 }
 
 /* does the set work, used by xht_set and xht_store */
-xhn _xht_set(xht h, const char *key, void *val, char flag)
+xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 {
     int i;
-    xhn n;
+    xhn_t *n;
 
     /* get our index for this key */
     i = _xhter(key) % h->prime;
@@ -77,7 +77,7 @@ xhn _xht_set(xht h, const char *key, void *val, char flag)
     /* if none, make a new one, link into this index */
     if(n == 0)
     {
-        n = (xhn)malloc(sizeof(struct xhn_struct));
+        n = malloc(sizeof(struct xhn));
         n->next = h->zen[i].next;
         h->zen[i].next = n;
     }
@@ -94,33 +94,33 @@ xhn _xht_set(xht h, const char *key, void *val, char flag)
     n->val = val;
 }
 
-void xht_set(xht h, const char *key, void *val)
+void xht_set(xht_t *h, const char *key, void *val)
 {
     if(h == 0 || key == 0)
         return;
     _xht_set(h, key, val, 0);
 }
 
-void xht_store(xht h, const char *key, int klen, void *val, int vlen)
+void xht_store(xht_t *h, const char *key, int klen, void *val, int vlen)
 {
     char *ckey, *cval;
 
     if(h == 0 || key == 0 || klen == 0)
         return;
 
-    ckey = (char*)malloc(klen+1);
+    ckey = malloc(klen+1);
     memcpy(ckey,key,klen);
     ckey[klen] = '\0';
-    cval = (void*)malloc(vlen+1);
+    cval = malloc(vlen+1);
     memcpy(cval,val,vlen);
     cval[vlen] = '\0'; /* convenience, in case it was a string too */
     _xht_set(h, ckey, cval, 1);
 }
 
 
-void *xht_get(xht h, const char *key)
+void *xht_get(xht_t *h, const char *key)
 {
-    xhn n;
+    xhn_t *n;
 
     if(h == 0 || key == 0 || (n = _xht_node_find(&h->zen[_xhter(key) % h->prime], key)) == 0)
         return 0;
@@ -129,10 +129,10 @@ void *xht_get(xht h, const char *key)
 }
 
 
-void xht_free(xht h)
+void xht_free(xht_t *h)
 {
-    xhn n, f;
     int i;
+    xhn_t *n, *f;
 
     if(h == 0) return;
 
@@ -153,10 +153,10 @@ void xht_free(xht h)
     free(h);
 }
 
-void xht_walk(xht h, xht_walker w, void *arg)
+void xht_walk(xht_t *h, xht_walker w, void *arg)
 {
     int i;
-    xhn n;
+    xhn_t *n;
 
     if(h == 0 || w == 0)
         return;

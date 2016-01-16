@@ -13,13 +13,13 @@ int _sd2txt_len(const char *key, char *val)
     return ret;
 }
 
-void _sd2txt_count(xht h, const char *key, void *val, void *arg)
+void _sd2txt_count(xht_t *h, const char *key, void *val, void *arg)
 {
     int *count = (int*)arg;
     *count += _sd2txt_len(key,(char*)val) + 1;
 }
 
-void _sd2txt_write(xht h, const char *key, void *val, void *arg)
+void _sd2txt_write(xht_t *h, const char *key, void *val, void *arg)
 {
     unsigned char **txtp = (unsigned char **)arg;
     char *cval = (char*)val;
@@ -37,7 +37,7 @@ void _sd2txt_write(xht h, const char *key, void *val, void *arg)
     *txtp += strlen(cval);
 }
 
-unsigned char *sd2txt(xht h, int *len)
+unsigned char *sd2txt(xht_t *h, int *len)
 {
     unsigned char *buf, *raw;
     *len = 0;
@@ -55,10 +55,10 @@ unsigned char *sd2txt(xht h, int *len)
     return raw;
 }
 
-xht txt2sd(unsigned char *txt, int len)
+xht_t *txt2sd(unsigned char *txt, int len)
 {
     char key[256], *val;
-    xht h = 0;
+    xht_t *h = 0;
 
     if(txt == 0 || len == 0 || *txt == 0) return 0;
     h = xht_new(23);
