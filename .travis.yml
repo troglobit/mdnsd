@@ -1,17 +1,78 @@
-# Travis CI integration
-# Defaults to GNU GCC and autotools: ./configure && make && make test
 language: c
 
-# We don't need to install packages, use dockerized build, quicker
+compiler:
+- gcc
+- clang
+
+os:
+- linux
+- osx
+
 sudo: false
 
-# Test build with both GCC and Clang (LLVM)
-compiler:
-  - gcc
-  - clang
+env:
+  matrix:
+    # Do both, compile with static code analysis and without
+    - ANALYZE=false
+    - ANALYZE=true
 
-# We don't have the configure script checked in, and no test rule yet
+matrix:
+  exclude:
+  # This excludes OSX GCC builds.
+    - os: osx
+      compiler: gcc
+    - os: osx
+      env: ANALYZE=true
+
+addons:
+  apt:
+    sources:
+      # see https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
+      - kalakris-cmake
+      - ubuntu-toolchain-r-test
+    packages:
+      - binutils-mingw-w64-i686
+      - build-essential
+      - clang
+      - cmake
+      - gcc-mingw-w64-i686
+      - gcc-multilib
+      - g++-multilib
+      - gcc-4.8
+      - g++-4.8
+      - g++-4.8-multilib
+      - libc6-dbg # for valgrind compilation
+      - mingw-w64
+      - g++-mingw-w64
+
+cache:
+  pip: true
+  apt: true
+  directories:
+    - $HOME/install
+
+before_install:
+# set paths for locally installed libs (like liburcu)
+- export LOCAL_PKG=$HOME/install
+- mkdir -p $LOCAL_PKG/lib
+- mkdir -p $LOCAL_PKG/include
+- mkdir -p $LOCAL_PKG/bin
+- export LIBRARY_PATH=$LOCAL_PKG/lib:$LIBRARY_PATH
+- export C_INCLUDE_PATH=$LOCAL_PKG/include:$C_INCLUDE_PATH
+- export CPLUS_INCLUDE_PATH=$LOCAL_PKG/include:$CPLUS_INCLUDE_PATH
+- export PKG_CONFIG_PATH=$LOCAL_PKG/lib/pkgconfig:$PKG_CONFIG_PATH
+- export PATH=$LOCAL_PKG:$LOCAL_PKG/bin:$PATH
+# set local path for python packages
+- export PATH=$PATH:$HOME/.local/bin # linux
+- export PATH=$PATH:$HOME/Library/Python #OS X
+- export PATH=$PATH:$HOME/Library/Python/2.7/bin #OS X
+# set search path for check library
+- export CHECK_INCLUDE_DIRS=$LOCAL_PKG/include/
+- export CHECK_LIBRARIES=$LOCAL_PKG/lib/
+
+- if [ ${TRAVIS_OS_NAME} == "linux" ]; then sh ./tools/travis/travis_linux_before_install.sh; fi
+- if [ ${TRAVIS_OS_NAME} == "osx" ]; then sh ./tools/travis/travis_osx_before_install.sh; fi
+
 script:
-  - ./autogen.sh
-  - ./configure --disable-silent-rules
-  - make -j5 clean all
+- if [ ${TRAVIS_OS_NAME} == "linux" ]; then sh ./tools/travis/travis_linux_script.sh; fi
+- if [ ${TRAVIS_OS_NAME} == "osx" ]; then sh ./tools/travis/travis_osx_script.sh; fi

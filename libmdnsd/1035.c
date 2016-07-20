@@ -7,11 +7,11 @@ unsigned short int net2short(unsigned char **bufp)
 	short int i;
 
 	i = **bufp;
-	i <<= 8;
-	i |= *(*bufp + 1);
+	i = (short int)(i << 8);
+	i = (short int)(i | (*(*bufp + 1)));
 	*bufp += 2;
 
-	return i;
+	return (unsigned short int)i;
 }
 
 unsigned long int net2long(unsigned char **bufp)
@@ -27,7 +27,7 @@ unsigned long int net2long(unsigned char **bufp)
 	l |= *(*bufp + 3);
 	*bufp += 4;
 
-	return l;
+	return (unsigned long int)l;
 }
 
 void short2net(unsigned short int i, unsigned char **bufp)
@@ -50,20 +50,20 @@ void long2net(unsigned long int l, unsigned char **bufp)
 	*bufp += 4;
 }
 
-unsigned short int _ldecomp(char *ptr)
+static unsigned short int _ldecomp(char *ptr)
 {
 	unsigned short int i;
 
-	i = 0xc0 ^ ptr[0];
-	i <<= 8;
-	i |= ptr[1];
+	i = (unsigned short int)(0xc0 ^ ptr[0]);
+	i = (unsigned short int)(i<<8);
+	i = (unsigned short int)(i | ptr[1]);
 	if (i >= 4096)
 		i = 4095;
 
 	return i;
 }
 
-void _label(struct message *m, unsigned char **bufp, char **namep)
+static void _label(struct message *m, unsigned char **bufp, char **namep)
 {
 	int x;
 	char *label, *name;
@@ -84,8 +84,8 @@ void _label(struct message *m, unsigned char **bufp, char **namep)
 			return;
 
 		/* Copy chars for this label */
-		memcpy(name, label + 1, *label);
-		name[*label] = '.';
+		memcpy(name, label + 1, (size_t)*label);
+		name[(size_t)*label] = '.';
 	}
 
 	/* Advance buffer */
@@ -106,11 +106,11 @@ void _label(struct message *m, unsigned char **bufp, char **namep)
 	/* No cache, so cache it if room */
 	if (x < MAX_NUM_LABELS && m->_labels[x] == 0)
 		m->_labels[x] = *namep;
-	m->_len += (name - *namep) + 1;
+	m->_len += (int)((name - *namep) + 1);
 }
 
 /* Internal label matching */
-int _lmatch(struct message *m, char *l1, char *l2)
+static int _lmatch(struct message *m, char *l1, char *l2)
 {
 	int len;
 
@@ -145,7 +145,7 @@ int _lmatch(struct message *m, char *l1, char *l2)
 }
 
 /* Nasty, convert host into label using compression */
-int _host(struct message *m, unsigned char **bufp, char *name)
+static int _host(struct message *m, unsigned char **bufp, char *name)
 {
 	char label[256], *l;
 	int len = 0, x = 1, y = 0, last = 0;
@@ -158,7 +158,7 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 		if (name[y] == '.') {
 			if (!name[y + 1])
 				break;
-			label[last] = x - (last + 1);
+			label[last] = (char)(x - (last + 1));
 			last = x;
 		} else {
 			label[x] = name[y];
@@ -170,7 +170,7 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 		y++;
 	}
 
-	label[last] = x - (last + 1);
+	label[last] = (char)(x - (last + 1));
 	if (x == 1)
 		x--;		/* Special case, bad names, but handle correctly */
 	len = x + 1;
@@ -178,12 +178,12 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 
 	/* Double-loop checking each label against all m->_labels for match */
 	for (x = 0; label[x]; x += label[x] + 1) {
-		for (y = 0; m->_labels[y] && y < MAX_NUM_LABELS; y++) {
+		for (y = 0; y < MAX_NUM_LABELS && m->_labels[y]; y++) {
 			if (_lmatch(m, label + x, m->_labels[y])) {
 				/* Matching label, set up pointer */
 				l = label + x;
-				short2net((unsigned char *)m->_labels[y] - m->_packet, (unsigned char **)&l);
-				label[x] |= 0xc0;
+				short2net((unsigned short)((unsigned char *)m->_labels[y] - m->_packet), (unsigned char **)&l);
+				label[x] = (char)(label[x] | 0xc0);
 				len = x + 2;
 				break;
 			}
@@ -194,7 +194,7 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 	}
 
 	/* Copy into buffer, point there now */
-	memcpy(*bufp, label, len);
+	memcpy(*bufp, label, (size_t)len);
 	l = (char *)*bufp;
 	*bufp += len;
 
@@ -209,7 +209,7 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 	return len;
 }
 
-int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **bufp)
+static int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **bufp)
 {
 	int i;
 
@@ -237,7 +237,7 @@ int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
 			sprintf(rr[i].known.a.name, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
-			rr[i].known.a.ip.s_addr = net2long(bufp);
+			rr[i].known.a.ip.s_addr = (in_addr_t)net2long(bufp);
 			break;
 
 		case QTYPE_NS:
@@ -288,7 +288,7 @@ void message_parse(struct message *m, unsigned char *packet)
 	m->id = net2short(&buf);
 	if (buf[0] & 0x80)
 		m->header.qr = 1;
-	m->header.opcode = (buf[0] & 0x78) >> 3;
+	m->header.opcode = (unsigned short)(((buf[0] & 0x78) >> 3) & 15);
 	if (buf[0] & 0x04)
 		m->header.aa = 1;
 	if (buf[0] & 0x02)
@@ -297,36 +297,36 @@ void message_parse(struct message *m, unsigned char *packet)
 		m->header.rd = 1;
 	if (buf[1] & 0x80)
 		m->header.ra = 1;
-	m->header.z = (buf[1] & 0x70) >> 4;
-	m->header.rcode = buf[1] & 0x0F;
+	m->header.z = (unsigned short)(((buf[1] & 0x70) >> 4) & 7);
+	m->header.rcode = (unsigned short)(buf[1] & 0x0F);
 	buf += 2;
 
 	m->qdcount = net2short(&buf);
-	if (m->_len + (sizeof(struct question) * m->qdcount) > MAX_PACKET_LEN - 8) {
+	if (m->_len + (int)(sizeof(struct question) * m->qdcount) > MAX_PACKET_LEN - 8) {
 		m->qdcount = 0;
 		return;
 	}
 
 	m->ancount = net2short(&buf);
-	if (m->_len + (sizeof(struct resource) * m->ancount) > MAX_PACKET_LEN - 8) {
+	if (m->_len + (int)(sizeof(struct resource) * m->ancount) > MAX_PACKET_LEN - 8) {
 		m->ancount = 0;
 		return;
 	}
 
 	m->nscount = net2short(&buf);
-	if (m->_len + (sizeof(struct resource) * m->nscount) > MAX_PACKET_LEN - 8) {
+	if (m->_len + (int)(sizeof(struct resource) * m->nscount) > MAX_PACKET_LEN - 8) {
 		m->nscount = 0;
 		return;
 	}
 
 	m->arcount = net2short(&buf);
-	if (m->_len + (sizeof(struct resource) * m->arcount) > MAX_PACKET_LEN - 8) {
+	if (m->_len + (int)(sizeof(struct resource) * m->arcount) > MAX_PACKET_LEN - 8) {
 		m->arcount = 0;
 		return;
 	}
 
 	/* Process questions */
-	my(m->qd, sizeof(struct question) * m->qdcount);
+	my(m->qd, (int)(sizeof(struct question) * m->qdcount));
 	for (i = 0; i < m->qdcount; i++) {
 		_label(m, &buf, &(m->qd[i].name));
 		m->qd[i].type  = net2short(&buf);
@@ -334,9 +334,9 @@ void message_parse(struct message *m, unsigned char *packet)
 	}
 
 	/* Process rrs */
-	my(m->an, sizeof(struct resource) * m->ancount);
-	my(m->ns, sizeof(struct resource) * m->nscount);
-	my(m->ar, sizeof(struct resource) * m->arcount);
+	my(m->an, (int)(sizeof(struct resource) * m->ancount));
+	my(m->ns, (int)(sizeof(struct resource) * m->nscount));
+	my(m->ar, (int)(sizeof(struct resource) * m->arcount));
 	if (_rrparse(m, m->an, m->ancount, &buf))
 		return;
 	if (_rrparse(m, m->ns, m->nscount, &buf))
@@ -355,7 +355,7 @@ void message_qd(struct message *m, char *name, unsigned short int type, unsigned
 	short2net(class, &(m->_buf));
 }
 
-void _rrappend(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+static void _rrappend(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
 {
 	if (m->_buf == 0)
 		m->_buf = m->_packet + 12;
@@ -394,7 +394,7 @@ void message_rdata_name(struct message *m, char *name)
 	unsigned char *mybuf = m->_buf;
 
 	m->_buf += 2;
-	short2net(_host(m, &(m->_buf), name), &mybuf);
+	short2net((unsigned short)_host(m, &(m->_buf), name), &mybuf);
 }
 
 void message_rdata_srv(struct message *m, unsigned short int priority, unsigned short int weight, unsigned short int port, char *name)
@@ -405,7 +405,7 @@ void message_rdata_srv(struct message *m, unsigned short int priority, unsigned 
 	short2net(priority, &(m->_buf));
 	short2net(weight, &(m->_buf));
 	short2net(port, &(m->_buf));
-	short2net(_host(m, &(m->_buf), name) + 6, &mybuf);
+	short2net((unsigned short)(_host(m, &(m->_buf), name) + 6), &mybuf);
 }
 
 void message_rdata_raw(struct message *m, unsigned char *rdata, unsigned short int rdlength)
@@ -427,7 +427,7 @@ unsigned char *message_packet(struct message *m)
 	if (m->header.qr)
 		m->_buf[0] |= 0x80;
 	if ((c = m->header.opcode))
-		m->_buf[0] |= (c << 3);
+		m->_buf[0] |= (unsigned char)(c << 3);
 	if (m->header.aa)
 		m->_buf[0] |= 0x04;
 	if (m->header.tc)
@@ -437,9 +437,9 @@ unsigned char *message_packet(struct message *m)
 	if (m->header.ra)
 		m->_buf[1] |= 0x80;
 	if ((c = m->header.z))
-		m->_buf[1] |= (c << 4);
+		m->_buf[1] |= (unsigned char)(c << 4);
 	if (m->header.rcode)
-		m->_buf[1] |= m->header.rcode;
+		m->_buf[1] = (unsigned char)(m->_buf[1] | m->header.rcode);
 
 	m->_buf += 2;
 	short2net(m->qdcount, &(m->_buf));
@@ -456,5 +456,5 @@ int message_packet_len(struct message *m)
 	if (m->_buf == 0)
 		return 12;
 
-	return (unsigned char *)m->_buf - m->_packet;
+	return (int)((unsigned char *)m->_buf - m->_packet);
 }

@@ -5,7 +5,7 @@
 typedef struct xhn {
 	char flag;
 	struct xhn *next;
-	const char *key;
+	char *key;
 	void *val;
 } xhn_t;
 
@@ -18,14 +18,15 @@ struct xht {
  * This function uses the ELF hashing algorithm as reprinted in 
  * Andrew Binstock, "Hashing Rehashed," Dr. Dobb's Journal, April 1996.
  */
-int _xhter(const char *s)
+static int _xhter(const char *s)
 {
 	/* ELF hash uses unsigned chars and unsigned arithmetic for portability */
 	const unsigned char *name = (const unsigned char *)s;
-	unsigned long h = 0, g;
+	unsigned long h = 0;
 
 	while (*name) {		/* do some fancy bitwanking on the string */
 		h = (h << 4) + (unsigned long)(*name++);
+		unsigned long g;
 		if ((g = (h & 0xF0000000UL)) != 0)
 			h ^= (g >> 24);
 		h &= ~g;
@@ -36,7 +37,7 @@ int _xhter(const char *s)
 }
 
 
-xhn_t *_xht_node_find(xhn_t *n, const char *key)
+static xhn_t *_xht_node_find(xhn_t *n, const char *key)
 {
 	for (; n != 0; n = n->next)
 		if (n->key != 0 && strcmp(key, n->key) == 0)
@@ -51,13 +52,13 @@ xht_t *xht_new(int prime)
 
 	xnew = malloc(sizeof(struct xht));
 	xnew->prime = prime;
-	xnew->zen = calloc(1, sizeof(struct xhn) * prime);	/* array of xhn_t size of prime */
+	xnew->zen = calloc(1, (sizeof(struct xhn) * (size_t)prime));	/* array of xhn_t size of prime */
 
 	return xnew;
 }
 
 /* does the set work, used by xht_set and xht_store */
-xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
+static xhn_t *_xht_set(xht_t *h, char *key, void *val, char flag)
 {
 	int i;
 	xhn_t *n;
@@ -75,49 +76,55 @@ xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 
 	/* if none, make a new one, link into this index */
 	if (n == NULL) {
-		n = malloc(sizeof(struct xhn));
-		n->next = h->zen[i].next;
-		h->zen[i].next = n;
-	}
-
-	/* When flag is set, we manage their mem and free em first */
-	if (n->flag) {
+		if (h->zen != NULL) {
+			n = malloc(sizeof(struct xhn));
+			n->next = NULL;
+			n->next = h->zen[i].next;
+			h->zen[i].next = n;
+		}
+	} else if (n->flag) {
+		/* When flag is set, we manage their mem and free em first */
 		free((void *)n->key);
 		free(n->val);
 	}
 
-	n->flag = flag;
-	n->key = key;
-	n->val = val;
+	if (n != NULL) {
+		n->flag = flag;
+		n->key = key;
+		n->val = val;
+	} else {
+		free(key);
+		free(val);
+	}
 
 	return n;
 }
 
-void xht_set(xht_t *h, const char *key, void *val)
+void xht_set(xht_t *h, char *key, void *val)
 {
 	if (h == 0 || key == 0)
 		return;
 	_xht_set(h, key, val, 0);
 }
 
-void xht_store(xht_t *h, const char *key, int klen, void *val, int vlen)
+void xht_store(xht_t *h, char *key, int klen, void *val, int vlen)
 {
 	char *ckey, *cval;
 
 	if (h == 0 || key == 0 || klen == 0)
 		return;
 
-	ckey = malloc(klen + 1);
-	memcpy(ckey, key, klen);
+	ckey = malloc((size_t)klen + 1);
+	memcpy(ckey, key, (size_t)klen);
 	ckey[klen] = '\0';
-	cval = malloc(vlen + 1);
-	memcpy(cval, val, vlen);
+	cval = malloc((size_t)vlen + 1);
+	memcpy(cval, val, (size_t)vlen);
 	cval[vlen] = '\0';	/* convenience, in case it was a string too */
 	_xht_set(h, ckey, cval, 1);
 }
 
 
-void *xht_get(xht_t *h, const char *key)
+void *xht_get(xht_t *h, char *key)
 {
 	xhn_t *n;
 

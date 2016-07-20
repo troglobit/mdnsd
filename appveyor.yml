@@ -1,0 +1,63 @@
+version: '{build}'
+
+os: Visual Studio 2015 RC
+
+clone_folder: c:\projects\mdnsd
+clone_depth: 20
+
+environment:
+  matrix:
+  - Compiler: msvc
+    Arch: x86
+  - Compiler: msvc
+    Arch: x64
+  - Compiler: mingw
+    Arch: x86
+  - Compiler: mingw
+    Arch: x64
+#    cygwin cmake stopped working on 05.07.2016 -- commented out until a fix appears
+#  - Compiler: cygwin
+#    Arch: x86
+
+#
+# Initialisation prior to pulling the Mono repository
+# Attempt to ensure we don't try to convert line endings to Win32 CRLF as this will cause build to fail
+#
+init:
+  - git config --global core.autocrlf input
+
+before_build:
+  # Workaround for CMake not wanting sh.exe on PATH for MinGW
+  - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
+
+build_script:
+  - ps: |
+        cd c:\projects\mdnsd
+        md build
+        cd build
+        if ($env:Compiler -eq "mingw") {
+          if ($env:Arch -eq "x64") {
+            echo "Testing MinGW64"
+            $env:Path = "C:\mingw-w64\i686-5.3.0-posix-dwarf-rt_v4-rev0\mingw32\bin;" + $env:Path
+          } else {
+            echo "Testing MinGW32"
+            $env:Path = "C:\MinGW\bin;" + $env:Path
+          }
+          cmake -G"MinGW Makefiles" ..
+          mingw32-make -j4
+        } elseif ($env:Compiler -eq "cygwin") {
+          echo "Testing cygwin"
+          $env:Path = "C:\cygwin\bin;" + $env:Path
+          C:\cygwin\bin\bash -lc "cygcheck -dc cygwin"
+          C:\cygwin\bin\bash --login -lc "cmake.exe --version"
+          C:\cygwin\bin\bash --login -lc "cd /cygdrive/c/projects/mdnsd/build; cmake -G\"Unix Makefiles\" .."
+          C:\cygwin\bin\bash --login -lc "cd /cygdrive/c/projects/mdnsd/build; make -j"
+        } else {
+          if ($env:Arch -eq "x64") {
+            cmake -G"Visual Studio 12 2013 Win64" ..
+          } else {
+            cmake -G"Visual Studio 12 2013" ..
+          }
+          msbuild mdnsd.sln /m
+        }
+  - echo "Build done"

@@ -1,33 +1,92 @@
-#include <arpa/inet.h>
+#if defined(__MINGW32__) && (!defined(WINVER) || WINVER < 0x501)
+/* Assume the target is newer than Windows XP */
+# undef WINVER
+# undef _WIN32_WINDOWS
+# undef _WIN32_WINNT
+# define WINVER _WIN32_WINNT_VISTA
+# define _WIN32_WINDOWS _WIN32_WINNT_VISTA
+# define _WIN32_WINNT _WIN32_WINNT_VISTA
+#endif
+
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+
+#ifdef _WIN32
+# include <winsock2.h>
+# include <ws2tcpip.h>
+
+static int my_inet_pton(int af, const char *src, void *dst)
+{
+  struct sockaddr_storage ss;
+  int size = sizeof(ss);
+  char src_copy[INET6_ADDRSTRLEN+1];
+
+  ZeroMemory(&ss, sizeof(ss));
+  /* stupid non-const API */
+  strncpy (src_copy, src, INET6_ADDRSTRLEN+1);
+  src_copy[INET6_ADDRSTRLEN] = 0;
+
+  if (WSAStringToAddress(src_copy, af, NULL, (struct sockaddr *)&ss, &size) == 0) {
+    switch(af) {
+      case AF_INET:
+    *(struct in_addr *)dst = ((struct sockaddr_in *)&ss)->sin_addr;
+    return 1;
+      case AF_INET6:
+    *(struct in6_addr *)dst = ((struct sockaddr_in6 *)&ss)->sin6_addr;
+    return 1;
+    }
+  }
+  return 0;
+}
+
+#define INET_PTON my_inet_pton
+#else
+# include <arpa/inet.h>
+# include <netinet/in.h>
+# include <sys/select.h>
+# include <sys/ioctl.h>
+#define INET_PTON inet_pton
+#endif
+
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
+#ifdef _WIN32
+# define CLOSESOCKET(S) closesocket((SOCKET)S)
+# define ssize_t int
+#else
+# include <unistd.h> // read, write, close
+# define CLOSESOCKET(S) close(S)
+#endif
 
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
 
 int _shutdown = 0;
 mdns_daemon_t *_d;
-int _zzz[2];
 
-void conflict(char *name, int type, void *arg __attribute__ ((unused)))
+void conflict(char *name, int type, void *arg)
 {
 	printf("conflicting name detected %s for type %d\n", name, type);
 	exit(1);
 }
 
-void done(int sig __attribute__ ((unused)))
+void done(int sig)
 {
 	_shutdown = 1;
 	mdnsd_shutdown(_d);
-	write(_zzz[1], " ", 1);
+}
+
+static void socket_set_nonblocking(int sockfd) {
+#ifdef _WIN32
+	u_long iMode = 1;
+    ioctlsocket(sockfd, FIONBIO, &iMode);
+#else
+	int opts = fcntl(sockfd, F_GETFL);
+	fcntl(sockfd, F_SETFL, opts|O_NONBLOCK);
+#endif
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
@@ -57,13 +116,11 @@ int msock(void)
 
 	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
 	mc.imr_interface.s_addr = htonl(INADDR_ANY);
-	setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
-	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
-	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ittl, sizeof(ittl));
+	setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void*)&mc, sizeof(mc));
+	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, (void*)&ttl, sizeof(ttl));
+	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, (void*)&ittl, sizeof(ittl));
 
-	flag = fcntl(s, F_GETFL, 0);
-	flag |= O_NONBLOCK;
-	fcntl(s, F_SETFL, flag);
+	socket_set_nonblocking(s);
 
 	return s;
 }
@@ -93,25 +150,36 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	inet_aton(argv[2], &ip);
+	INET_PTON(AF_INET,argv[2], &ip);
 	port = atoi(argv[3]);
 	if (argc == 5)
 		path = argv[4];
 	printf("Announcing .local site named '%s' to %s:%d and extra path '%s'\n", argv[1], inet_ntoa(ip), port, argv[4]);
 
 	signal(SIGINT, done);
+	#ifdef SIGHUP
 	signal(SIGHUP, done);
+	#endif
+	#ifdef SIGQUIT
 	signal(SIGQUIT, done);
+	#endif
 	signal(SIGTERM, done);
-	pipe(_zzz);
 	_d = d = mdnsd_new(QCLASS_IN, 1000);
 	if ((s = msock()) == 0) {
 		printf("can't create socket: %s\n", strerror(errno));
 		return 1;
 	}
 
+
+
+
 	sprintf(hlocal, "%s._http._tcp.local.", argv[1]);
 	sprintf(nlocal, "http-%s.local.", argv[1]);
+
+
+	r = mdnsd_shared(d, "_services._dns-sd._udp.local.", QTYPE_PTR, 120);
+	mdnsd_set_host(d, r, hlocal);
+
 	r = mdnsd_shared(d, "_http._tcp.local.", QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
 	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, 0);
@@ -130,13 +198,12 @@ int main(int argc, char *argv[])
 	while (1) {
 		tv = mdnsd_sleep(d);
 		FD_ZERO(&fds);
-		FD_SET(_zzz[0], &fds);
 		FD_SET(s, &fds);
 		select(s + 1, &fds, 0, 0, tv);
 
-		/* Only used when we wake-up from a signal, shutting down */
-		if (FD_ISSET(_zzz[0], &fds))
-			read(_zzz[0], buf, MAX_PACKET_LEN);
+		if (_shutdown)
+			break;
+
 
 		if (FD_ISSET(s, &fds)) {
 			ssize = sizeof(struct sockaddr_in);
