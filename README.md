@@ -1,6 +1,9 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
-[![Travis Status][]][Travis]
+
+[![Ohloh Project Status](https://www.ohloh.net/p/mdnsd_pro/widgets/project_thin_badge.gif)](https://www.ohloh.net/p/mdnsd_pro)
+[![Build Status](https://travis-ci.org/Pro/mdnsd.png?branch=master)](https://travis-ci.org/Pro/mdnsd)
+[![Build status](https://ci.appveyor.com/api/projects/status/gv4lros88uubrkwd?svg=true)](https://ci.appveyor.com/project/Pro/mdnsd)
 
 This package is intended for software developers and integrators, there
 isn't really anything here for an end user.  The project license is the
