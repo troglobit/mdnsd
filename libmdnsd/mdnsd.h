@@ -34,7 +34,7 @@ typedef struct mdns_answer {
  * Create a new mdns daemon for the given class of names (usually 1) and
  * maximum frame size
  */
-MDNSD_EXPORT mdns_daemon_t * mdnsd_new(int class, int frame);
+mdns_daemon_t MDNSD_EXPORT * mdnsd_new(int class, int frame);
 
 /**
  * Gracefully shutdown the daemon, use mdnsd_out() to get the last
@@ -71,7 +71,7 @@ int MDNSD_EXPORT mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long in
 /**
  * returns the max wait-time until mdnsd_out() needs to be called again 
  */
-MDNSD_EXPORT struct timeval * mdnsd_sleep(mdns_daemon_t *d);
+struct timeval MDNSD_EXPORT * mdnsd_sleep(mdns_daemon_t *d);
 
 /**
  * Q/A functions
@@ -91,7 +91,7 @@ void MDNSD_EXPORT mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answ
  * Returns the first (if last == NULL) or next answer after last from
  * the cache mdns_answer_t only valid until an I/O function is called
  */
-MDNSD_EXPORT mdns_answer_t *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t *last);
+mdns_answer_t MDNSD_EXPORT *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t *last);
 
 
 /**
@@ -108,12 +108,12 @@ MDNSD_EXPORT mdns_answer_t *mdnsd_list(mdns_daemon_t *d, char *host, int type, m
  * changes effectively expire the old one and attempt to create a new
  * unique record
  */
-MDNSD_EXPORT mdns_record_t* mdnsd_unique(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
+mdns_record_t MDNSD_EXPORT * mdnsd_unique(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
 
 /** 
  * Create a new shared record
  */
-MDNSD_EXPORT mdns_record_t* mdnsd_shared(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl);
+mdns_record_t MDNSD_EXPORT * mdnsd_shared(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl);
 
 /**
  * de-list the given record

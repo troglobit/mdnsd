@@ -5,11 +5,11 @@
 /**
  * returns hashtable of strings from the SD TXT record rdata
  */
-MDNSD_EXPORT xht_t *txt2sd(unsigned char *txt, int len);
+xht_t MDNSD_EXPORT *txt2sd(unsigned char *txt, int len);
 
 /**
  * returns a raw block that can be sent with a SD TXT record, sets length
  */
-MDNSD_EXPORT unsigned char *sd2txt(xht_t *h, int *len);
+unsigned char MDNSD_EXPORT *sd2txt(xht_t *h, int *len);
 
 #endif	/* MDNS_SDTXT_H_ */

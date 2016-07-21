@@ -10,6 +10,12 @@
 				 * frequency, rarely needed (daily
 				 * default) */
 
+#ifdef _WIN32
+# ifdef SLIST_ENTRY
+#  undef SLIST_ENTRY /* Fix redefinition of SLIST_ENTRY on mingw winnt.h */
+# endif
+#endif
+
 #ifdef _MSC_VER
 #include <stdint.h>
 
@@ -42,8 +48,16 @@ static char *my_strdup(const char *s) {
     return p;
 }
 #define STRDUP my_strdup
+#elif defined(_WIN32)
+#define STRDUP _strdup
 #else
 #define STRDUP strdup
+#endif
+
+#ifdef _WIN32
+# ifdef SLIST_ENTRY
+#  undef SLIST_ENTRY /* Fix redefinition of SLIST_ENTRY on mingw winnt.h */
+# endif
 #endif
 
 /**

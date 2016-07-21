@@ -10,15 +10,16 @@
 #include "mdnsd_config.h"
 
 #ifdef _WIN32
-# ifdef SLIST_ENTRY
-#  undef SLIST_ENTRY /* Fix redefinition of SLIST_ENTRY on mingw winnt.h */
-# endif
+# define _WINSOCK_DEPRECATED_NO_WARNINGS /* inet_ntoa is deprecated on MSVC but used for compatibility */
 # include <winsock2.h>
 # include <ws2tcpip.h>
 
 #ifndef in_addr_t
 #define in_addr_t unsigned __int32
 #endif
+# ifdef SLIST_ENTRY
+#  undef SLIST_ENTRY /* Fix redefinition of SLIST_ENTRY on mingw winnt.h */
+# endif
 #else
 # include <arpa/inet.h>
 #endif
@@ -101,14 +102,14 @@ unsigned long int  net2long (unsigned char **buf);
 /**
  * copies the short/long into the buffer (and advances it)
  */
-MDNSD_EXPORT void short2net(unsigned short int i, unsigned char **buf);
-MDNSD_EXPORT void long2net (unsigned long int  l, unsigned char **buf);
+void MDNSD_EXPORT short2net(unsigned short int i, unsigned char **buf);
+void MDNSD_EXPORT long2net (unsigned long int  l, unsigned char **buf);
 
 /**
  * parse packet into message, packet must be at least MAX_PACKET_LEN and
  * message must be zero'd for safety
  */
-MDNSD_EXPORT void message_parse(struct message *m, unsigned char *packet);
+void MDNSD_EXPORT message_parse(struct message *m, unsigned char *packet);
 
 /**
  * create a message for sending out on the wire
@@ -118,29 +119,29 @@ struct message *message_wire(void);
 /**
  * append a question to the wire message
  */
-MDNSD_EXPORT void message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class);
+void MDNSD_EXPORT message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class);
 
 /**
  * append a resource record to the message, all called in order!
  */
-MDNSD_EXPORT void message_an(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
-MDNSD_EXPORT void message_ns(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
-MDNSD_EXPORT void message_ar(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
+void MDNSD_EXPORT message_an(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
+void MDNSD_EXPORT message_ns(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
+void MDNSD_EXPORT message_ar(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
 
 /**
  * Append various special types of resource data blocks
  */
-MDNSD_EXPORT void message_rdata_long (struct message *m, struct in_addr l);
-MDNSD_EXPORT void message_rdata_name (struct message *m, char *name);
-MDNSD_EXPORT void message_rdata_srv  (struct message *m, unsigned short int priority, unsigned short int weight,
+void MDNSD_EXPORT message_rdata_long (struct message *m, struct in_addr l);
+void MDNSD_EXPORT message_rdata_name (struct message *m, char *name);
+void MDNSD_EXPORT message_rdata_srv  (struct message *m, unsigned short int priority, unsigned short int weight,
 			 unsigned short int port, char *name);
-MDNSD_EXPORT void message_rdata_raw  (struct message *m, unsigned char *rdata, unsigned short int rdlength);
+void MDNSD_EXPORT message_rdata_raw  (struct message *m, unsigned char *rdata, unsigned short int rdlength);
 
 /**
  * Return the wire format (and length) of the message, just free message
  * when done
  */
-MDNSD_EXPORT unsigned char *message_packet     (struct message *m);
-MDNSD_EXPORT int            message_packet_len (struct message *m);
+unsigned char MDNSD_EXPORT * message_packet     (struct message *m);
+int   MDNSD_EXPORT           message_packet_len (struct message *m);
 
 #endif	/* MDNS_1035_H_ */

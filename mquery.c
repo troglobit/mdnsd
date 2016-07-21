@@ -1,3 +1,7 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <sys/types.h>
 
 #include <fcntl.h>
@@ -25,7 +29,7 @@ int ans(mdns_answer_t *a, void *arg)
 	if (a->ttl == 0)
 		now = 0;
 	else
-		now = a->ttl - time(0);
+		now = (int)(a->ttl - (unsigned long)time(0));
 
 	switch (a->type) {
 	case QTYPE_A:
@@ -72,7 +76,7 @@ int msock(void)
 	in.sin_port = htons(5353);
 	in.sin_addr.s_addr = 0;
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if ((s = (int)socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		return 0;
 
 #ifdef SO_REUSEPORT
@@ -80,7 +84,7 @@ int msock(void)
 #endif
 	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
 	if (bind(s, (struct sockaddr *)&in, sizeof(in))) {
-		close(s);
+		CLOSESOCKET(s);
 		return 0;
 	}
 

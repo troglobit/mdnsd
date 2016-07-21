@@ -24,7 +24,7 @@ endif()
 
 # Building shared libs (dll, so)
 set(MDNSD_DYNAMIC_LINKING OFF)
-if(BUILDD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS)
   set(MDNSD_DYNAMIC_LINKING ON)
 endif()
 
@@ -37,3 +37,5 @@ add_library(libmdnsd SHARED ${LIBRARY_FILES})
 if(WIN32 OR MINGW)
   target_link_libraries(libmdnsd wsock32 ws2_32)
 endif()
+
+target_compile_definitions(libmdnsd PRIVATE -DMDNSD_DYNAMIC_LINKING_EXPORT)

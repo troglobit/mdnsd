@@ -2,6 +2,37 @@
 #include <string.h>
 #include <stdio.h>
 
+#if defined(_MSC_VER) && _MSC_VER < 1900
+
+#define snprintf c99_snprintf
+#define vsnprintf c99_vsnprintf
+
+__inline int c99_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
+{
+    int count = -1;
+
+    if (size != 0)
+        count = _vsnprintf_s(outBuf, size, _TRUNCATE, format, ap);
+    if (count == -1)
+        count = _vscprintf(format, ap);
+
+    return count;
+}
+
+__inline int c99_snprintf(char *outBuf, size_t size, const char *format, ...)
+{
+    int count;
+    va_list ap;
+
+    va_start(ap, format);
+    count = c99_vsnprintf(outBuf, size, format, ap);
+    va_end(ap);
+
+    return count;
+}
+
+#endif
+
 unsigned short int net2short(unsigned char **bufp)
 {
 	short int i;
@@ -236,7 +267,7 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 				return 1;
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
-			sprintf(rr[i].known.a.name, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
+			snprintf(rr[i].known.a.name,15, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
 			rr[i].known.a.ip.s_addr = (in_addr_t)net2long(bufp);
 			break;
 
@@ -426,7 +457,7 @@ unsigned char *message_packet(struct message *m)
 
 	if (m->header.qr)
 		m->_buf[0] |= 0x80;
-	if ((c = m->header.opcode))
+	if ((c = (unsigned char)m->header.opcode))
 		m->_buf[0] |= (unsigned char)(c << 3);
 	if (m->header.aa)
 		m->_buf[0] |= 0x04;
@@ -436,7 +467,7 @@ unsigned char *message_packet(struct message *m)
 		m->_buf[0] |= 0x01;
 	if (m->header.ra)
 		m->_buf[1] |= 0x80;
-	if ((c = m->header.z))
+	if ((c = (unsigned char)m->header.z))
 		m->_buf[1] |= (unsigned char)(c << 4);
 	if (m->header.rcode)
 		m->_buf[1] = (unsigned char)(m->_buf[1] | m->header.rcode);

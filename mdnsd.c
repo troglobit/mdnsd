@@ -8,9 +8,15 @@
 # define _WIN32_WINNT _WIN32_WINNT_VISTA
 #endif
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <sys/types.h>
 
 #ifdef _WIN32
+
+# define _WINSOCK_DEPRECATED_NO_WARNINGS /* inet_ntoa is deprecated on MSVC but used for compatibility */
 # include <winsock2.h>
 # include <ws2tcpip.h>
 
@@ -102,7 +108,7 @@ int msock(void)
 	in.sin_port = htons(5353);
 	in.sin_addr.s_addr = 0;
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if ((s = (int)socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		return 0;
 
 #ifdef SO_REUSEPORT
@@ -110,7 +116,7 @@ int msock(void)
 #endif
 	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
 	if (bind(s, (struct sockaddr *)&in, sizeof(in))) {
-		close(s);
+		CLOSESOCKET(s);
 		return 0;
 	}
 

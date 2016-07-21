@@ -8,7 +8,7 @@ typedef struct xht xht_t;
 /**
  * must pass a prime#
  */
-MDNSD_EXPORT xht_t *xht_new(int prime);
+xht_t MDNSD_EXPORT *xht_new(int prime);
 
 /**
  * caller responsible for key storage, no copies made
@@ -18,23 +18,23 @@ MDNSD_EXPORT xht_t *xht_new(int prime);
  *
  * Note: don't free it b4 xht_free()!
  */
-MDNSD_EXPORT void xht_set(xht_t *h, char *key, void *val);
+void MDNSD_EXPORT xht_set(xht_t *h, char *key, void *val);
 
 /**
  * Unlike xht_set() where key/val is in caller's mem, here they are
  * copied into xht and free'd when val is 0 or xht_free()
  */
-MDNSD_EXPORT void xht_store(xht_t *h, char *key, int klen, void *val, int vlen);
+void MDNSD_EXPORT xht_store(xht_t *h, char *key, int klen, void *val, int vlen);
 
 /**
  * returns value of val if found, or NULL
  */
-MDNSD_EXPORT void *xht_get(xht_t *h, char *key);
+void MDNSD_EXPORT *xht_get(xht_t *h, char *key);
 
 /**
  * free the hashtable and all entries
  */
-MDNSD_EXPORT void xht_free(xht_t *h);
+void MDNSD_EXPORT xht_free(xht_t *h);
 
 /**
  * pass a function that is called for every key that has a value set
