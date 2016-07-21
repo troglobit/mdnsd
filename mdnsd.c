@@ -72,6 +72,7 @@ static int my_inet_pton(int af, const char *src, void *dst)
 
 int _shutdown = 0;
 mdns_daemon_t *_d;
+int daemon_socket = 0;
 
 void conflict(char *name, int type, void *arg)
 {
@@ -83,6 +84,8 @@ void done(int sig)
 {
 	_shutdown = 1;
 	mdnsd_shutdown(_d);
+	// wake up select
+	write(daemon_socket, "\0", 1);
 }
 
 static void socket_set_nonblocking(int sockfd) {
