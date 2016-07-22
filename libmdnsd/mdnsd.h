@@ -94,6 +94,18 @@ void MDNSD_EXPORT mdnsd_query(mdns_daemon_t *d, const char *host, int type, int 
  */
 mdns_answer_t MDNSD_EXPORT *mdnsd_list(mdns_daemon_t *d, const char *host, int type, mdns_answer_t *last);
 
+/**
+ * Returns the next record of the given record, i.e. the value of next field.
+ * @param r the base record
+ * @return r->next
+ */
+mdns_record_t MDNSD_EXPORT *mdnsd_record_next(const mdns_record_t* r) ;
+
+/**
+ * Gets the record data
+ */
+const mdns_answer_t MDNSD_EXPORT *mdnsd_record_data(const mdns_record_t* r) ;
+
 
 /**
  * Publishing functions
