@@ -118,6 +118,7 @@ mdns_record_t MDNSD_EXPORT * mdnsd_shared(mdns_daemon_t *d, const char *host, un
 
 /**
  * Get a previously created record based on the host name. NULL if not found. Does not return records for other hosts.
+ * If multiple records are found, use record->next to iterate over all the results.
  */
 mdns_record_t MDNSD_EXPORT * mdnsd_get_published(mdns_daemon_t *d, const char *host);
 
