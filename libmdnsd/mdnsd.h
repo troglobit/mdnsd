@@ -1,7 +1,6 @@
 #ifndef MDNSD_H_
 #define MDNSD_H_
 
-#include <jmorecfg.h>
 #include "mdnsd_config.h"
 #include "1035.h"
 #include <stdbool.h>
