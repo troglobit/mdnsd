@@ -31,6 +31,7 @@
 #include "1035.h"
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <stdbool.h>
 
 #define QCLASS_IN (1)
 
@@ -155,5 +156,11 @@ void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, char *data, int len);
 void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, char *name);
 void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
 void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, int priority, int weight, int port, char *name);
+
+/**
+ * Process input queue and output queue. Should be called at least the time which is returned in nextSleep.
+ * Returns 0 on success, 1 on read error, 2 on write error
+ */
+unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep);
 
 #endif	/* LIB_MDNSD_H_ */
