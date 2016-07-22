@@ -910,6 +910,14 @@ mdns_answer_t *mdnsd_list(mdns_daemon_t *d,const char *host, int type, mdns_answ
 	return (mdns_answer_t *)_c_next(d, (struct cached *)last, host, type);
 }
 
+mdns_record_t *mdnsd_record_next(const mdns_record_t* r) {
+	return r ? r->next : NULL;
+}
+
+const mdns_answer_t *mdnsd_record_data(const mdns_record_t* r) {
+	return &r->rr;
+}
+
 mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl)
 {
 	int i = _namehash(host) % SPRIME;
