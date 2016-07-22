@@ -135,7 +135,7 @@ static int _namehash(const char *s)
 }
 
 /* Basic linked list and hash primitives */
-static struct query *_q_next(mdns_daemon_t *d, struct query *q, char *host, int type)
+static struct query *_q_next(mdns_daemon_t *d, struct query *q, const char *host, int type)
 {
 	if (q == 0)
 		q = d->queries[_namehash(host) % SPRIME];
@@ -150,7 +150,7 @@ static struct query *_q_next(mdns_daemon_t *d, struct query *q, char *host, int 
 	return 0;
 }
 
-static struct cached *_c_next(mdns_daemon_t *d, struct cached *c, char *host, int type)
+static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *host, int type)
 {
 	if (c == 0)
 		c = d->cache[_namehash(host) % LPRIME];
@@ -165,7 +165,7 @@ static struct cached *_c_next(mdns_daemon_t *d, struct cached *c, char *host, in
 	return 0;
 }
 
-static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, char *host, int type)
+static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *host, int type)
 {
 	if (r == 0)
 		r = d->published[_namehash(host) % SPRIME];
@@ -887,7 +887,7 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 	RET;
 }
 
-void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer)(mdns_answer_t *a, void *arg), void *arg)
+void mdnsd_query(mdns_daemon_t *d, const char *host, int type, int (*answer)(mdns_answer_t *a, void *arg), void *arg)
 {
 	struct query *q;
 	int i = _namehash(host) % SPRIME;
@@ -923,12 +923,12 @@ void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer)(mdns_answ
 	q->arg = arg;
 }
 
-mdns_answer_t *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t *last)
+mdns_answer_t *mdnsd_list(mdns_daemon_t *d,const char *host, int type, mdns_answer_t *last)
 {
 	return (mdns_answer_t *)_c_next(d, (struct cached *)last, host, type);
 }
 
-mdns_record_t *mdnsd_shared(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl)
+mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl)
 {
 	int i = _namehash(host) % SPRIME;
 	mdns_record_t *r;
@@ -943,7 +943,7 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, char *host, unsigned short type, u
 	return r;
 }
 
-mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg)
+mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg)
 {
 	mdns_record_t *r;
 
@@ -956,6 +956,10 @@ mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, unsigned short type, u
 	d->probe.tv_usec = d->now.tv_usec;
 
 	return r;
+}
+
+mdns_record_t * mdnsd_get_published(mdns_daemon_t *d, const char *host) {
+	return d->published[_namehash(host) % SPRIME];
 }
 
 void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
@@ -980,7 +984,7 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 	_r_send(d, r);
 }
 
-void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, char *data, unsigned short len)
+void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len)
 {
 	free(r->rr.rdata);
 	r->rr.rdata = malloc(len);
@@ -989,7 +993,7 @@ void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, char *data, unsigned shor
 	_r_publish(d, r);
 }
 
-void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, char *name)
+void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name)
 {
 	free(r->rr.rdname);
 	r->rr.rdname = STRDUP(name);

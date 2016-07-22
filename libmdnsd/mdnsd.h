@@ -86,13 +86,13 @@ struct timeval MDNSD_EXPORT * mdnsd_sleep(mdns_daemon_t *d);
  * either answer returns -1, or another mdnsd_query() with a %NULL answer
  * will remove/unregister this query
  */
-void MDNSD_EXPORT mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer)(mdns_answer_t *a, void *arg), void *arg);
+void MDNSD_EXPORT mdnsd_query(mdns_daemon_t *d, const char *host, int type, int (*answer)(mdns_answer_t *a, void *arg), void *arg);
 
 /**
  * Returns the first (if last == NULL) or next answer after last from
  * the cache mdns_answer_t only valid until an I/O function is called
  */
-mdns_answer_t MDNSD_EXPORT *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t *last);
+mdns_answer_t MDNSD_EXPORT *mdnsd_list(mdns_daemon_t *d, const char *host, int type, mdns_answer_t *last);
 
 
 /**
@@ -109,12 +109,17 @@ mdns_answer_t MDNSD_EXPORT *mdnsd_list(mdns_daemon_t *d, char *host, int type, m
  * changes effectively expire the old one and attempt to create a new
  * unique record
  */
-mdns_record_t MDNSD_EXPORT * mdnsd_unique(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
+mdns_record_t MDNSD_EXPORT * mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
 
 /** 
  * Create a new shared record
  */
-mdns_record_t MDNSD_EXPORT * mdnsd_shared(mdns_daemon_t *d, char *host, unsigned short type, unsigned long ttl);
+mdns_record_t MDNSD_EXPORT * mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl);
+
+/**
+ * Get a previously created record based on the host name. NULL if not found. Does not return records for other hosts.
+ */
+mdns_record_t MDNSD_EXPORT * mdnsd_get_published(mdns_daemon_t *d, const char *host);
 
 /**
  * de-list the given record
@@ -125,8 +130,8 @@ void MDNSD_EXPORT mdnsd_done(mdns_daemon_t *d, mdns_record_t *r);
  * These all set/update the data for the given record, nothing is
  * published until they are called
  */
-void MDNSD_EXPORT mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, char *data, unsigned short len);
-void MDNSD_EXPORT mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, char *name);
+void MDNSD_EXPORT mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len);
+void MDNSD_EXPORT mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name);
 void MDNSD_EXPORT mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
 void MDNSD_EXPORT mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name);
 

@@ -198,6 +198,9 @@ int main(int argc, char *argv[])
 	mdnsd_set_raw(d, r, (char *)packet, len);
 	free(packet);
 
+	// example for getting a previously published record:
+	// mdns_record_t *get_r = mdnsd_get_published(d, "_http._tcp.local.");
+
 
 	struct timeval next_sleep = {.tv_sec = 0, .tv_usec = 0};
 	while (1) {
