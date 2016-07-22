@@ -78,6 +78,7 @@ struct mdns_record {
 	int tries;
 	void (*conflict)(char *, int, void *);
 	void *arg;
+	struct timeval last_sent;
 	struct mdns_record *next, *list;
 };
 
@@ -489,6 +490,7 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 			message_an(m, r->rr.name, r->rr.type, d->class + 32768, r->rr.ttl);
 		else
 			message_an(m, r->rr.name, r->rr.type, d->class, r->rr.ttl);
+		r->last_sent = d->now;
 
 		_a_copy(m, &r->rr);
 		if (r->rr.ttl == 0)
@@ -640,6 +642,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		m->id = u->id;
 		message_qd(m, u->r->rr.name, u->r->rr.type, d->class);
 		message_an(m, u->r->rr.name, u->r->rr.type, d->class, u->r->rr.ttl);
+		u->r->last_sent = d->now;
 		_a_copy(m, &u->r->rr);
 		free(u);
 
@@ -666,6 +669,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			else
 				message_an(m, cur->rr.name, cur->rr.type, d->class, cur->rr.ttl);
 			_a_copy(m, &cur->rr);
+			cur->last_sent = d->now;
 
 			if (cur->rr.ttl != 0 && cur->tries < 4) {
 				last = cur;
@@ -725,6 +729,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			}
 
 			message_qd(m, r->rr.name, r->rr.type, d->class);
+			r->last_sent = d->now;
 			last = r;
 			r = r->list;
 		}
@@ -734,6 +739,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			r->unique++;
 			message_ns(m, r->rr.name, r->rr.type, d->class, r->rr.ttl);
 			_a_copy(m, &r->rr);
+			r->last_sent = d->now;
 			ret++;
 		}
 
@@ -813,7 +819,7 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 
 	gettimeofday(&d->now, 0);
 
-	/* Then check for paused answers */
+	/* Then check for paused answers or nearly expired records */
 	if (d->a_pause) {
 		if ((usec = _tvdiff(d->now, d->pause)) > 0)
 			d->sleep.tv_usec = usec;
@@ -841,9 +847,24 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 		RET;
 	}
 
-	/* Last resort, next gc expiration */
-	if ((sec = d->expireall - d->now.tv_sec) > 0)
-		d->sleep.tv_sec = sec;
+	/* Resend published records before TTL expires */
+	// latest expire is garbage collection
+	int minExpire = (int)(d->expireall - (unsigned long)d->now.tv_sec);
+	if (minExpire < 0)
+		return &d->sleep;
+
+	for (size_t i=0; i<SPRIME; i++) {
+		if (!d->published[i])
+			continue;
+		int expire = (int)((d->published[i]->last_sent.tv_sec + (long int)d->published[i]->rr.ttl) - d->now.tv_sec);
+		if (expire < minExpire)
+			d->a_pause = NULL;
+		minExpire = expire < minExpire ? expire : minExpire;
+		_r_push(&d->a_pause, d->published[i]);
+	}
+	// publish 2 seconds before expire.
+	d->sleep.tv_sec = minExpire > 2 ? minExpire-2 : 0;
+	d->pause.tv_sec = d->now.tv_sec + d->sleep.tv_sec;
 	RET;
 }
 
