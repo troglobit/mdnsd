@@ -113,13 +113,13 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d);
  * either answer returns -1, or another mdnsd_query() with a %NULL answer
  * will remove/unregister this query
  */
-void mdnsd_query(mdns_daemon_t *d, char *host, int type, int (*answer)(mdns_answer_t *a, void *arg), void *arg);
+void mdnsd_query(mdns_daemon_t *d, const char *host, int type, int (*answer)(mdns_answer_t *a, void *arg), void *arg);
 
 /**
  * Returns the first (if last == NULL) or next answer after last from
  * the cache mdns_answer_t only valid until an I/O function is called
  */
-mdns_answer_t *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t *last);
+mdns_answer_t *mdnsd_list(mdns_daemon_t *d, const char *host, int type, mdns_answer_t *last);
 
 
 /**
@@ -136,12 +136,18 @@ mdns_answer_t *mdnsd_list(mdns_daemon_t *d, char *host, int type, mdns_answer_t 
  * changes effectively expire the old one and attempt to create a new
  * unique record
  */
-mdns_record_t *mdnsd_unique(mdns_daemon_t *d, char *host, int type, long int ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
+mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
+
 
 /** 
  * Create a new shared record
  */
-mdns_record_t *mdnsd_shared(mdns_daemon_t *d, char *host, int type, long int ttl);
+mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl);
+
+/**
+ * Get a previously created record based on the host name. NULL if not found. Does not return records for other hosts.
+ */
+mdns_record_t *mdnsd_get_published(mdns_daemon_t *d, const char *host);
 
 /**
  * de-list the given record
@@ -152,10 +158,10 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r);
  * These all set/update the data for the given record, nothing is
  * published until they are called
  */
-void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, char *data, int len);
-void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, char *name);
+void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len);
+void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name);
 void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
-void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, int priority, int weight, int port, char *name);
+void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name);
 
 /**
  * Process input queue and output queue. Should be called at least the time which is returned in nextSleep.
