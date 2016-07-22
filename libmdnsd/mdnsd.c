@@ -827,7 +827,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
-	int sec, usec;
+	int usec;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
 
@@ -860,6 +860,7 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 
 	/* Also check for queries with known answer expiration/retry */
 	if (d->checkqlist) {
+		int sec;
 		if ((sec = (int)(d->checkqlist - (unsigned long)d->now.tv_sec)) > 0)
 			d->sleep.tv_sec = sec;
 		RET;
@@ -1014,12 +1015,12 @@ unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, boo
 	struct message m;
 
 	if (processIn) {
-		ssize_t bsize;
+		int bsize;
 		socklen_t ssize = sizeof(struct sockaddr_in);
 		unsigned char buf[MAX_PACKET_LEN];
 		struct sockaddr_in from;
 
-		while ((bsize = recvfrom(mdns_socket, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+		while ((bsize = (int)recvfrom(mdns_socket, (char*)buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 			memset(&m, 0, sizeof(struct message));
 			message_parse(&m, buf);
 			mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
@@ -1039,7 +1040,7 @@ unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, boo
 			to.sin_family = AF_INET;
 			to.sin_port = port;
 			to.sin_addr = ip;
-			if (sendto(mdns_socket, message_packet(&m), (size_t)message_packet_len(&m), 0, (struct sockaddr *)&to,
+			if (sendto(mdns_socket, (char*)message_packet(&m), (size_t)message_packet_len(&m), 0, (struct sockaddr *)&to,
 					   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
 				return 2;
 			}
