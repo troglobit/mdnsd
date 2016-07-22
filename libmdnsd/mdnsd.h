@@ -1,8 +1,10 @@
 #ifndef MDNSD_H_
 #define MDNSD_H_
 
+#include <jmorecfg.h>
 #include "mdnsd_config.h"
 #include "1035.h"
+#include <stdbool.h>
 
 #define QCLASS_IN (1)
 
@@ -128,5 +130,11 @@ void MDNSD_EXPORT mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, char *data, 
 void MDNSD_EXPORT mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, char *name);
 void MDNSD_EXPORT mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
 void MDNSD_EXPORT mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name);
+
+/**
+ * Process input queue and output queue. Should be called at least the time which is returned in nextSleep.
+ * Returns 0 on success, 1 on read error, 2 on write error
+ */
+unsigned short MDNSD_EXPORT mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep);
 
 #endif	/* MDNSD_H_ */

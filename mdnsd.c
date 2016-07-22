@@ -138,14 +138,8 @@ int main(int argc, char *argv[])
 {
 	mdns_daemon_t *d;
 	mdns_record_t *r;
-	struct message m;
 	struct in_addr ip;
 	unsigned short int port;
-	struct timeval *tv;
-	ssize_t bsize;
-	socklen_t ssize;
-	unsigned char buf[MAX_PACKET_LEN];
-	struct sockaddr_in from, to;
 	fd_set fds;
 	int s;
 	char hlocal[256], nlocal[256];
@@ -204,39 +198,24 @@ int main(int argc, char *argv[])
 	mdnsd_set_raw(d, r, (char *)packet, len);
 	free(packet);
 
+
+	struct timeval next_sleep = {.tv_sec = 0, .tv_usec = 0};
 	while (1) {
-		tv = mdnsd_sleep(d);
+
 		FD_ZERO(&fds);
 		FD_SET(s, &fds);
-		select(s + 1, &fds, 0, 0, tv);
+		select(s + 1, &fds, 0, 0, &next_sleep);
 
 		if (_shutdown)
 			break;
 
-
-		if (FD_ISSET(s, &fds)) {
-			ssize = sizeof(struct sockaddr_in);
-			while ((bsize = recvfrom(s, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
-				memset(&m, 0, sizeof(struct message));
-				message_parse(&m, buf);
-				mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
-			}
-			if (bsize < 0 && errno != EAGAIN) {
-				printf("can't read from socket %d: %s\n", errno, strerror(errno));
-				return 1;
-			}
-		}
-
-		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
-			memset(&to, 0, sizeof(to));
-			to.sin_family = AF_INET;
-			to.sin_port = port;
-			to.sin_addr = ip;
-			if (sendto(s, message_packet(&m), message_packet_len(&m), 0, (struct sockaddr *)&to,
-				   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
-				printf("can't write to socket: %s\n", strerror(errno));
-				return 1;
-			}
+		unsigned short retVal = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &next_sleep);
+		if (retVal == 1) {
+			printf("can't read from socket %d: %s\n", errno, strerror(errno));
+			break;
+		} else if (retVal == 2) {
+			printf("can't write to socket: %s\n", strerror(errno));
+			break;
 		}
 
 		if (_shutdown)

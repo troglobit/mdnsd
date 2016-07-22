@@ -2,6 +2,7 @@
 #include "mdnsd.h"
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #define SPRIME 108		/* Size of query/publish hashes */
 #define LPRIME 1009		/* Size of cache hash */
@@ -1006,4 +1007,50 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
 	r->rr.srv.weight = weight;
 	r->rr.srv.port = port;
 	mdnsd_set_host(d, r, name);
+}
+
+unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep) {
+
+	struct message m;
+
+	if (processIn) {
+		ssize_t bsize;
+		socklen_t ssize = sizeof(struct sockaddr_in);
+		unsigned char buf[MAX_PACKET_LEN];
+		struct sockaddr_in from;
+
+		while ((bsize = recvfrom(mdns_socket, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+			memset(&m, 0, sizeof(struct message));
+			message_parse(&m, buf);
+			mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
+		}
+		if (bsize < 0 && errno != EAGAIN) {
+			return 1;
+		}
+	}
+
+	if (processOut) {
+		struct sockaddr_in to;
+		struct in_addr ip;
+		unsigned short int port;
+
+		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
+			memset(&to, 0, sizeof(to));
+			to.sin_family = AF_INET;
+			to.sin_port = port;
+			to.sin_addr = ip;
+			if (sendto(mdns_socket, message_packet(&m), (size_t)message_packet_len(&m), 0, (struct sockaddr *)&to,
+					   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
+				return 2;
+			}
+		}
+	}
+
+	if (nextSleep) {
+		struct timeval *tv = mdnsd_sleep(d);
+		nextSleep->tv_sec = tv->tv_sec;
+		nextSleep->tv_usec = tv->tv_usec;
+	}
+
+	return 0;
 }
