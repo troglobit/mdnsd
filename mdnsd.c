@@ -179,9 +179,9 @@ int main(int argc, char *argv[])
 	sprintf(hlocal, "%s._http._tcp.local.", argv[1]);
 	sprintf(nlocal, "http-%s.local.", argv[1]);
 
-
+	// Announce that we have a _http._tcp service
 	r = mdnsd_shared(d, "_services._dns-sd._udp.local.", QTYPE_PTR, 120);
-	mdnsd_set_host(d, r, hlocal);
+	mdnsd_set_host(d, r, "_http._tcp.local.");
 
 	r = mdnsd_shared(d, "_http._tcp.local.", QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
