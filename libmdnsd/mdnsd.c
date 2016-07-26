@@ -413,6 +413,7 @@ static void _cache(mdns_daemon_t *d, struct resource *r)
 			if (_a_match(r, &c->rr)) {
 				c->rr.ttl = 0;
 				_c_expire(d, &d->cache[i]);
+				c = NULL;
 			}
 		}
 
@@ -494,8 +495,40 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 		r->last_sent = d->now;
 
 		_a_copy(m, &r->rr);
-		if (r->rr.ttl == 0)
+		if (r->rr.ttl == 0) {
+
+			// also remove from other lists, because record may be in multiple lists at the same time
+			if (list != &d->a_pause) {
+				mdns_record_t *tmp = d->a_pause;
+				while (tmp) {
+					if (tmp->list == r)
+						tmp->list = r->next;
+					tmp = tmp->list;
+				}
+			}
+
+			if (list != &d->a_now) {
+				mdns_record_t *tmp = d->a_now;
+				while (tmp) {
+					if (tmp->list == r)
+						tmp->list = r->next;
+					tmp = tmp->list;
+				}
+			}
+
+
+			if (list != &d->a_publish) {
+				mdns_record_t *tmp = d->a_publish;
+				while (tmp) {
+					if (tmp->list == r)
+						tmp->list = r->next;
+					tmp = tmp->list;
+				}
+			}
+
 			_r_done(d, r);
+
+		}
 	}
 
 	return ret;
@@ -547,8 +580,46 @@ void mdnsd_flush(mdns_daemon_t *d)
 
 void mdnsd_free(mdns_daemon_t *d)
 {
-	/* Loop through all hashes, free everything,
-	 * free answers if any */
+	for (size_t i = 0; i< LPRIME; i++) {
+		struct cached* cur = d->cache[i];
+		while (cur) {
+			struct cached* next = cur->next;
+			free(cur->rr.name);
+			free(cur->rr.rdata);
+			free(cur->rr.rdname);
+			free(cur);
+			cur = next;
+		}
+	}
+
+	for (size_t i = 0; i< SPRIME; i++) {
+		struct mdns_record* cur = d->published[i];
+		while (cur) {
+			struct mdns_record* next = cur->next;
+			free(cur->rr.name);
+			free(cur->rr.rdata);
+			free(cur->rr.rdname);
+			free(cur);
+			cur = next;
+		}
+
+
+		struct query* curq = d->queries[i];
+		while (curq) {
+			struct query* next = curq->next;
+			free(curq->name);
+			free(curq);
+			curq = next;
+		}
+
+	}
+
+	struct unicast *u = d->uanswers;
+	while (u) {
+		struct unicast *next = u->next;
+		free(u);
+		u=next;
+	}
 
 	free(d);
 }
@@ -787,7 +858,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			c = 0;
 			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long)d->now.tv_sec + 8 &&
 			       message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
-				message_an(m, q->name, q->type, d->class, c->rr.ttl - d->now.tv_sec);
+				message_an(m, q->name, (unsigned short)q->type, (unsigned short)d->class, c->rr.ttl - (unsigned long)d->now.tv_sec);
 				_a_copy(m, &c->rr);
 			}
 		}
