@@ -203,7 +203,7 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 		return 0;
 
 	if (r->type == QTYPE_SRV && !strcmp(r->known.srv.name, a->rdname) && a->srv.port == r->known.srv.port &&
-	    a->srv.weight == r->known.srv.weight && a->srv.priority == r->known.srv.priority)
+		a->srv.weight == r->known.srv.weight && a->srv.priority == r->known.srv.priority)
 		return 1;
 
 	if ((r->type == QTYPE_PTR || r->type == QTYPE_NS || r->type == QTYPE_CNAME) && !strcmp(a->rdname, r->known.ns.name))
@@ -435,6 +435,7 @@ static void _cache(mdns_daemon_t *d, struct resource *r)
 			if (_a_match(r, &c->rr)) {
 				c->rr.ttl = 0;
 				_c_expire(d, &d->cache[i]);
+				c = NULL;
 			}
 		}
 
@@ -454,22 +455,22 @@ static void _cache(mdns_daemon_t *d, struct resource *r)
 	memcpy(c->rr.rdata, r->rdata, r->rdlength);
 
 	switch (r->type) {
-	case QTYPE_A:
-		c->rr.ip = r->known.a.ip;
-		break;
+		case QTYPE_A:
+			c->rr.ip = r->known.a.ip;
+			break;
 
-	case QTYPE_NS:
-	case QTYPE_CNAME:
-	case QTYPE_PTR:
-		c->rr.rdname = STRDUP(r->known.ns.name);
-		break;
+		case QTYPE_NS:
+		case QTYPE_CNAME:
+		case QTYPE_PTR:
+			c->rr.rdname = STRDUP(r->known.ns.name);
+			break;
 
-	case QTYPE_SRV:
-		c->rr.rdname = STRDUP(r->known.srv.name);
-		c->rr.srv.port = r->known.srv.port;
-		c->rr.srv.weight = r->known.srv.weight;
-		c->rr.srv.priority = r->known.srv.priority;
-		break;
+		case QTYPE_SRV:
+			c->rr.rdname = STRDUP(r->known.srv.name);
+			c->rr.srv.port = r->known.srv.port;
+			c->rr.srv.weight = r->known.srv.weight;
+			c->rr.srv.priority = r->known.srv.priority;
+			break;
 	}
 
 	c->next = d->cache[i];
@@ -512,8 +513,40 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 		r->last_sent = d->now;
 
 		_a_copy(m, &r->rr);
-		if (r->rr.ttl == 0)
+		if (r->rr.ttl == 0) {
+
+			// also remove from other lists, because record may be in multiple lists at the same time
+			if (list != &d->a_pause) {
+				mdns_record_t *tmp = d->a_pause;
+				while (tmp) {
+					if (tmp->list == r)
+						tmp->list = r->next;
+					tmp = tmp->list;
+				}
+			}
+
+			if (list != &d->a_now) {
+				mdns_record_t *tmp = d->a_now;
+				while (tmp) {
+					if (tmp->list == r)
+						tmp->list = r->next;
+					tmp = tmp->list;
+				}
+			}
+
+
+			if (list != &d->a_publish) {
+				mdns_record_t *tmp = d->a_publish;
+				while (tmp) {
+					if (tmp->list == r)
+						tmp->list = r->next;
+					tmp = tmp->list;
+				}
+			}
+
 			_r_done(d, r);
+
+		}
 	}
 
 	return ret;
@@ -565,8 +598,46 @@ void mdnsd_flush(mdns_daemon_t *d)
 
 void mdnsd_free(mdns_daemon_t *d)
 {
-	/* Loop through all hashes, free everything,
-	 * free answers if any */
+	for (size_t i = 0; i< LPRIME; i++) {
+		struct cached* cur = d->cache[i];
+		while (cur) {
+			struct cached* next = cur->next;
+			free(cur->rr.name);
+			free(cur->rr.rdata);
+			free(cur->rr.rdname);
+			free(cur);
+			cur = next;
+		}
+	}
+
+	for (size_t i = 0; i< SPRIME; i++) {
+		struct mdns_record* cur = d->published[i];
+		while (cur) {
+			struct mdns_record* next = cur->next;
+			free(cur->rr.name);
+			free(cur->rr.rdata);
+			free(cur->rr.rdname);
+			free(cur);
+			cur = next;
+		}
+
+
+		struct query* curq = d->queries[i];
+		while (curq) {
+			struct query* next = curq->next;
+			free(curq->name);
+			free(curq);
+			curq = next;
+		}
+
+	}
+
+	struct unicast *u = d->uanswers;
+	while (u) {
+		struct unicast *next = u->next;
+		free(u);
+		u=next;
+	}
 
 	free(d);
 }
@@ -629,7 +700,7 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 	/* Process each answer, check for a conflict, and cache */
 	for (i = 0; i < m->ancount; i++) {
 		if ((r = _r_next(d, 0, m->an[i].name, m->an[i].type)) != 0 &&
-		    r->unique && _a_match(&m->an[i], &r->rr) == 0)
+			r->unique && _a_match(&m->an[i], &r->rr) == 0)
 			_conflict(d, r);
 
 		_cache(d, &m->an[i]);
@@ -803,7 +874,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			/* If room, add all known good entries */
 			c = 0;
 			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long)d->now.tv_sec + 8 &&
-			       message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
+				   message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
 				message_an(m, q->name, (unsigned short)q->type, (unsigned short)d->class, c->rr.ttl - (unsigned long)d->now.tv_sec);
 				_a_copy(m, &c->rr);
 			}
