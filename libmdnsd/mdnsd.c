@@ -93,6 +93,7 @@ struct mdns_daemon {
 	struct unicast *uanswers;
 	struct query *queries[SPRIME], *qlist;
 	mdnsd_record_received_callback received_callback;
+	void *received_callback_data;
 };
 
 static int _namehash(const char *s)
@@ -627,8 +628,9 @@ void mdnsd_free(mdns_daemon_t *d)
 }
 
 
-void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb) {
+void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb, void* data) {
 	d->received_callback = cb;
+	d->received_callback_data = data;
 }
 
 void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned short int port)
@@ -673,7 +675,7 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 						continue;
 
 					if (d->received_callback) {
-						d->received_callback(&m->an[j]);
+						d->received_callback(&m->an[j], d->received_callback_data);
 					}
 
 					/* Do they already have this answer? */
@@ -698,7 +700,7 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 			_conflict(d, r);
 
 		if (d->received_callback) {
-			d->received_callback(&m->an[i]);
+			d->received_callback(&m->an[i], d->received_callback_data);
 		}
 		_cache(d, &m->an[i]);
 	}
