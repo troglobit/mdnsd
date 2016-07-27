@@ -116,6 +116,7 @@ struct mdns_daemon {
 	struct mdns_record *published[SPRIME], *probing, *a_now, *a_pause, *a_publish;
 	struct unicast *uanswers;
 	struct query *queries[SPRIME], *qlist;
+	mdnsd_record_received_callback received_callback;
 };
 
 static int _namehash(const char *s)
@@ -422,7 +423,7 @@ static void _cache(mdns_daemon_t *d, struct resource *r)
 	struct cached *c = 0;
 	int i = _namehash(r->name) % LPRIME;
 
-	/* Cache flush */
+	/* Cache flush for unique entries */
 	if (r->class == 32768 + d->class) {
 		while ((c = _c_next(d, c, r->name, r->type)))
 			c->rr.ttl = 0;
@@ -562,6 +563,7 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	d->expireall = (unsigned long)(d->now.tv_sec + GC);
 	d->class = class;
 	d->frame = frame;
+	d->received_callback = NULL;
 
 	return d;
 }
@@ -642,6 +644,11 @@ void mdnsd_free(mdns_daemon_t *d)
 	free(d);
 }
 
+
+void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb) {
+	d->received_callback = cb;
+}
+
 void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned short int port)
 {
 	int i;
@@ -684,6 +691,10 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 					if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
 						continue;
 
+					if (d->received_callback) {
+						d->received_callback(&m->an[j]);
+					}
+
 					/* Do they already have this answer? */
 					if (_a_match(&m->an[j], &r->rr))
 						break;
@@ -703,6 +714,9 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 			r->unique && _a_match(&m->an[i], &r->rr) == 0)
 			_conflict(d, r);
 
+		if (d->received_callback) {
+			d->received_callback(&m->an[i]);
+		}
 		_cache(d, &m->an[i]);
 	}
 }

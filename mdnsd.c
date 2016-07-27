@@ -80,6 +80,35 @@ void conflict(char *name, int type, void *arg)
 	exit(1);
 }
 
+void record_received(const struct resource* r) {
+	char ipinput[INET_ADDRSTRLEN];
+	switch(r->type) {
+		case QTYPE_A:
+			inet_ntop(AF_INET, &(r->known.a.ip), ipinput, INET_ADDRSTRLEN);
+			printf("Got %s: A %s->%s\n", r->name,r->known.a.name, ipinput);
+			break;
+		case QTYPE_NS:
+			printf("Got %s: NS %s\n", r->name,r->known.ns.name);
+			break;
+		case QTYPE_CNAME:
+			printf("Got %s: CNAME %s\n", r->name,r->known.cname.name);
+			break;
+		case QTYPE_PTR:
+			printf("Got %s: PTR %s\n", r->name,r->known.ptr.name);
+			break;
+		case QTYPE_TXT:
+			printf("Got %s: TXT %s\n", r->name,r->rdata);
+			break;
+		case QTYPE_SRV:
+			printf("Got %s: SRV %d %d %d %s\n", r->name,r->known.srv.priority,r->known.srv.weight,r->known.srv.port,r->known.srv.name);
+			break;
+		default:
+			printf("Got %s: unknown\n", r->name);
+
+	}
+
+}
+
 void done(int sig)
 {
 	_shutdown = 1;
@@ -174,6 +203,7 @@ int main(int argc, char *argv[])
 	}
 
 
+	mdnsd_register_receive_callback(d, record_received);
 
 
 	sprintf(hlocal, "%s._http._tcp.local.", argv[1]);
