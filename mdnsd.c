@@ -80,7 +80,7 @@ void conflict(char *name, int type, void *arg)
 	exit(1);
 }
 
-void record_received(const struct resource* r) {
+void record_received(const struct resource* r, void* data) {
 	char ipinput[INET_ADDRSTRLEN];
 	switch(r->type) {
 		case QTYPE_A:
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	mdnsd_register_receive_callback(d, record_received);
+	mdnsd_register_receive_callback(d, record_received, NULL);
 
 
 	sprintf(hlocal, "%s._http._tcp.local.", argv[1]);

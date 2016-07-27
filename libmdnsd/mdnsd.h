@@ -12,8 +12,8 @@ typedef struct mdns_daemon mdns_daemon_t;
 /* Record entry */
 typedef struct mdns_record mdns_record_t;
 
-/* Callback for received record */
-typedef void (*mdnsd_record_received_callback)(const struct resource* r);
+/* Callback for received record. Data is passed from the register call */
+typedef void (*mdnsd_record_received_callback)(const struct resource* r, void* data);
 
 /* Answer data */
 typedef struct mdns_answer {
@@ -57,10 +57,10 @@ void MDNSD_EXPORT mdnsd_flush(mdns_daemon_t *d);
 void MDNSD_EXPORT mdnsd_free(mdns_daemon_t *d);
 
 /**
- * Register callback which is called when a record is received.
+ * Register callback which is called when a record is received. The data parameter is passed to the callback.
  * Calling this multiple times overwrites the previous register.
  */
-void MDNSD_EXPORT mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb);
+void MDNSD_EXPORT mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb, void* data);
 
 /**
  * I/O functions
