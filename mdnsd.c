@@ -81,11 +81,17 @@ void conflict(char *name, int type, void *arg)
 }
 
 void record_received(const struct resource* r, void* data) {
+	#ifndef _WIN32
 	char ipinput[INET_ADDRSTRLEN];
+	#endif
 	switch(r->type) {
 		case QTYPE_A:
+			#ifndef _WIN32
 			inet_ntop(AF_INET, &(r->known.a.ip), ipinput, INET_ADDRSTRLEN);
 			printf("Got %s: A %s->%s\n", r->name,r->known.a.name, ipinput);
+			#else
+			printf("Got %s: A %s\n", r->name,r->known.a.name);
+			#endif
 			break;
 		case QTYPE_NS:
 			printf("Got %s: NS %s\n", r->name,r->known.ns.name);
