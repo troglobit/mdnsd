@@ -682,7 +682,7 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 			bool hasConflict = false;
 
 			/* Check all of our potential answers */
-			mdns_record_t* r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
+			mdns_record_t* r_next;
 			for (; r != 0; r = r_next) {
 				// do this here, because _conflict deletes r and thus next is not valid anymore
 				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
