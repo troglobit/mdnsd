@@ -201,6 +201,8 @@ static int _rr_len(mdns_answer_t *rr)
 /* Compares new rdata with known a, painfully */
 static int _a_match(struct resource *r, mdns_answer_t *a)
 {
+	if (!a->name)
+		return 0;
 	if (strcmp(r->name, a->name) || r->type != a->type)
 		return 0;
 
@@ -505,7 +507,10 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 	int ret = 0;
 
 	while ((r = *list) != 0 && message_packet_len(m) + _rr_len(&r->rr) < d->frame) {
-		*list = r->list;
+		if (r != r->list)
+			*list = r->list;
+		else
+			*list = NULL;
 		ret++;
 
 		if (r->unique)
@@ -523,6 +528,8 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 				while (tmp) {
 					if (tmp->list == r)
 						tmp->list = r->next;
+					if (tmp == tmp->list)
+						break;
 					tmp = tmp->list;
 				}
 			}
@@ -532,6 +539,8 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 				while (tmp) {
 					if (tmp->list == r)
 						tmp->list = r->next;
+					if (tmp == tmp->list)
+						break;
 					tmp = tmp->list;
 				}
 			}
@@ -542,6 +551,8 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 				while (tmp) {
 					if (tmp->list == r)
 						tmp->list = r->next;
+					if (tmp == tmp->list)
+						break;
 					tmp = tmp->list;
 				}
 			}
@@ -666,13 +677,15 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 		for (i = 0; i < m->qdcount; i++) {
 			if (m->qd[i].class != d->class || (r = _r_next(d, 0, m->qd[i].name, m->qd[i].type)) == 0)
 				continue;
+			mdns_record_t* r_start = r;
 
-			/* Send the matching unicast reply */
-			if (port != 5353)
-				_u_push(d, r, m->id, ip, port);
+			bool hasConflict = false;
 
 			/* Check all of our potential answers */
-			for (; r != 0; r = _r_next(d, r, m->qd[i].name, m->qd[i].type)) {
+			mdns_record_t* r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
+			for (; r != 0; r = r_next) {
+				// do this here, because _conflict deletes r and thus next is not valid anymore
+				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
 				/* probing state, check for conflicts */
 				if (r->unique && r->unique < 5) {
 					/* Check all to-be answers against our own */
@@ -681,8 +694,11 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 							continue;
 
 						/* This answer isn't ours, conflict! */
-						if (!_a_match(&m->an[j], &r->rr))
+						if (!_a_match(&m->an[j], &r->rr)) {
 							_conflict(d, r);
+							hasConflict = true;
+							break;
+						}
 					}
 					continue;
 				}
@@ -705,6 +721,10 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 				if (j == m->ancount)
 					_r_send(d, r);
 			}
+
+			/* Send the matching unicast reply */
+			if (!hasConflict && port != 5353)
+				_u_push(d, r_start, m->id, ip, port);
 		}
 
 		return;

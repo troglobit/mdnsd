@@ -25,7 +25,7 @@
 #endif
 
 /* Should be reasonably large, for UDP */
-#define MAX_PACKET_LEN 4000
+#define MAX_PACKET_LEN 10000
 #define MAX_NUM_LABELS 20
 
 struct question {

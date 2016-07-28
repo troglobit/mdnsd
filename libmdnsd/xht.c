@@ -144,6 +144,11 @@ void xht_free(xht_t *h)
 		return;
 
 	for (i = 0; i < h->prime; i++) {
+		n = (&h->zen[i]);
+		if (n->flag) {
+			free((void *)n->key);
+			free(n->val);
+		}
 		for (n = (&h->zen[i])->next; n != 0;) {
 			f = n->next;
 			if (n->flag) {
