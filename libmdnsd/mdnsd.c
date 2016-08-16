@@ -230,6 +230,38 @@ static int _tvdiff(struct timeval old, struct timeval new)
 	return (int)((new.tv_usec - old.tv_usec) + udiff);
 }
 
+static void _r_remove_list(mdns_record_t **list, mdns_record_t *r) {
+	if (*list == r) {
+		*list = r->list;
+	} else {
+		mdns_record_t *tmp = *list;
+		while (tmp) {
+			if (tmp->list == r) {
+				tmp->list = r->list;
+				break;
+			}
+			if (tmp == tmp->list)
+				break;
+			tmp = tmp->list;
+		}
+	}
+}
+
+static void _r_remove_lists(mdns_daemon_t *d, mdns_record_t *r, mdns_record_t **skip) {
+	if (d->probing && &d->probing != skip) {
+		_r_remove_list(&d->probing, r);
+	}
+	if (d->a_now && &d->a_now != skip) {
+		_r_remove_list(&d->a_now, r);
+	}
+	if (d->a_pause && &d->a_pause != skip) {
+		_r_remove_list(&d->a_pause, r);
+	}
+	if (d->a_publish && &d->a_publish != skip) {
+		_r_remove_list(&d->a_publish, r);
+	}
+}
+
 /* Make sure not already on the list, then insert */
 static void _r_push(mdns_record_t **list, mdns_record_t *r)
 {
@@ -275,6 +307,9 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 
 	/* Known unique ones can be sent asap */
 	if (r->unique) {
+
+		// check if r already in other lists. If yes, remove it from there
+		_r_remove_lists(d,r, &d->a_now);
 		_r_push(&d->a_now, r);
 		return;
 	}
@@ -523,39 +558,7 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 		if (r->rr.ttl == 0) {
 
 			// also remove from other lists, because record may be in multiple lists at the same time
-			if (list != &d->a_pause) {
-				mdns_record_t *tmp = d->a_pause;
-				while (tmp) {
-					if (tmp->list == r)
-						tmp->list = r->next;
-					if (tmp == tmp->list)
-						break;
-					tmp = tmp->list;
-				}
-			}
-
-			if (list != &d->a_now) {
-				mdns_record_t *tmp = d->a_now;
-				while (tmp) {
-					if (tmp->list == r)
-						tmp->list = r->next;
-					if (tmp == tmp->list)
-						break;
-					tmp = tmp->list;
-				}
-			}
-
-
-			if (list != &d->a_publish) {
-				mdns_record_t *tmp = d->a_publish;
-				while (tmp) {
-					if (tmp->list == r)
-						tmp->list = r->next;
-					if (tmp == tmp->list)
-						break;
-					tmp = tmp->list;
-				}
-			}
+			_r_remove_lists(d, r, list);
 
 			_r_done(d, r);
 
