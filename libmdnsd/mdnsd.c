@@ -169,6 +169,9 @@ static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *hos
 
 static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *host, int type)
 {
+	if (host == NULL)
+		return 0;
+
 	if (r == 0)
 		r = d->published[_namehash(host) % SPRIME];
 	else
@@ -739,6 +742,8 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 
 	/* Process each answer, check for a conflict, and cache */
 	for (i = 0; i < m->ancount; i++) {
+		if (m->an[i].name == NULL)
+			continue;
 		if ((r = _r_next(d, 0, m->an[i].name, m->an[i].type)) != 0 &&
 			r->unique && _a_match(&m->an[i], &r->rr) == 0)
 			_conflict(d, r);
