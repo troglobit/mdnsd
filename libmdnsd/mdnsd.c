@@ -423,8 +423,12 @@ static void _cache(mdns_daemon_t *d, struct resource *r)
 	c->rr.type = r->type;
 	c->rr.ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
-	c->rr.rdata = malloc(r->rdlength);
-	memcpy(c->rr.rdata, r->rdata, r->rdlength);
+	if (r->rdlength && r->rdata) {
+		c->rr.rdata = malloc(r->rdlength);
+		memcpy(c->rr.rdata, r->rdata, r->rdlength);
+	} else {
+		c->rr.rdata = NULL;
+	}
 
 	switch (r->type) {
 	case QTYPE_A:
