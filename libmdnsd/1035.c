@@ -252,9 +252,17 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 		if (rr[i].rdlength + (*bufp - m->_buf) > MAX_PACKET_LEN || m->_len + rr[i].rdlength > MAX_PACKET_LEN)
 			return 1;
 
-		rr[i].rdata = m->_packet + m->_len;
-		m->_len += rr[i].rdlength;
-		memcpy(rr[i].rdata, *bufp, rr[i].rdlength);
+		/* For the following records the rdata will be parsed later. So don't set it here:
+		 * NS, CNAME, PTR, DNAME, SOA, MX, AFSDB, RT, KX, RP, PX, SRV, NSEC
+		 * See 18.14 of https://tools.ietf.org/html/rfc6762#page-47 */
+		if (rr[i].type == QTYPE_NS || rr[i].type == QTYPE_CNAME || rr[i].type == QTYPE_PTR || rr[i].type == QTYPE_SRV) {
+			rr[i].rdlength = 0;
+		} else {
+			rr[i].rdata = m->_packet + m->_len;
+			m->_len += rr[i].rdlength;
+			memcpy(rr[i].rdata, *bufp, rr[i].rdlength);
+		}
+
 
 		/* Parse commonly known ones */
 		switch (rr[i].type) {
