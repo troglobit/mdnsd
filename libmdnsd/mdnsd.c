@@ -1089,6 +1089,10 @@ mdns_record_t * mdnsd_get_published(mdns_daemon_t *d, const char *host) {
 	return d->published[_namehash(host) % SPRIME];
 }
 
+int mdnsd_has_query(mdns_daemon_t *d, const char *host) {
+	return d->queries[_namehash(host) % SPRIME]!=NULL;
+}
+
 void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 {
 	mdns_record_t *cur;
