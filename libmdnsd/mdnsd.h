@@ -171,6 +171,11 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short t
 mdns_record_t *mdnsd_get_published(mdns_daemon_t *d, const char *host);
 
 /**
+ * Check if there is already a query for the given host
+ */
+int mdnsd_has_query(mdns_daemon_t *d, const char *host);
+
+/**
  * de-list the given record
  */
 void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r);
