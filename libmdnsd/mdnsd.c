@@ -169,9 +169,6 @@ static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *hos
 
 static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *host, int type)
 {
-	if (host == NULL)
-		return 0;
-
 	if (r == 0)
 		r = d->published[_namehash(host) % SPRIME];
 	else
@@ -493,12 +490,8 @@ static void _cache(mdns_daemon_t *d, struct resource *r)
 	c->rr.type = r->type;
 	c->rr.ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
-	if (r->rdlength && r->rdata) {
-		c->rr.rdata = malloc(r->rdlength);
-		memcpy(c->rr.rdata, r->rdata, r->rdlength);
-	} else {
-		c->rr.rdata = NULL;
-	}
+	c->rr.rdata = malloc(r->rdlength);
+	memcpy(c->rr.rdata, r->rdata, r->rdlength);
 
 	switch (r->type) {
 		case QTYPE_A:
@@ -745,8 +738,6 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 
 	/* Process each answer, check for a conflict, and cache */
 	for (i = 0; i < m->ancount; i++) {
-		if (m->an[i].name == NULL)
-			continue;
 
 		MDNSD_LOG_TRACE(d, "Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
 		if ((r = _r_next(d, 0, m->an[i].name, m->an[i].type)) != 0 &&
