@@ -670,7 +670,7 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 			mdns_record_t* r_next;
 			for (; r != 0; r = r_next) {
 
-				MDNSD_LOG_TRACE("Got Query: Name: %s, Type: %d", r->rr.name, r->rr.type);
+				MDNSD_LOG_TRACE(d, "Got Query: Name: %s, Type: %d", r->rr.name, r->rr.type);
 
 				// do this here, because _conflict deletes r and thus next is not valid anymore
 				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
@@ -722,7 +722,7 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 		if (m->an[i].name == NULL)
 			continue;
 
-		MDNSD_LOG_TRACE("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
+		MDNSD_LOG_TRACE(d, "Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
 		if ((r = _r_next(d, 0, m->an[i].name, m->an[i].type)) != 0 &&
 		    r->unique && _a_match(&m->an[i], &r->rr) == 0)
 			_conflict(d, r);
@@ -752,7 +752,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 	if (d->uanswers) {
 		struct unicast *u = d->uanswers;
 
-		MDNSD_LOG_TRACE("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
+		MDNSD_LOG_TRACE(d, "Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
 
 		d->uanswers = u->next;
 		*port = u->port;
@@ -779,7 +779,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		mdns_record_t *next, *cur = d->a_publish, *last = NULL;
 
 		while (cur && message_packet_len(m) + _rr_len(&cur->rr) < d->frame) {
-			MDNSD_LOG_TRACE("Send Publish: Name: %s, Type: %d", cur->rr.name, cur->rr.type);
+			MDNSD_LOG_TRACE(d, "Send Publish: Name: %s, Type: %d", cur->rr.name, cur->rr.type);
 			next = cur->list;
 			ret++;
 			cur->tries++;
@@ -848,7 +848,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 				continue;
 			}
 
-			MDNSD_LOG_TRACE("Send Probing: Name: %s, Type: %d", r->rr.name, r->rr.type);
+			MDNSD_LOG_TRACE(d, "Send Probing: Name: %s, Type: %d", r->rr.name, r->rr.type);
 
 			message_qd(m, r->rr.name, r->rr.type, (unsigned short)d->class);
 			r->last_sent = d->now;
@@ -860,7 +860,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		for (r = d->probing; r != 0; last = r, r = r->list) {
 			r->unique++;
 
-			MDNSD_LOG_TRACE("Send Answer in Probe: Name: %s, Type: %d", r->rr.name, r->rr.type);
+			MDNSD_LOG_TRACE(d, "Send Answer in Probe: Name: %s, Type: %d", r->rr.name, r->rr.type);
 			message_ns(m, r->rr.name, r->rr.type, (unsigned short)d->class, r->rr.ttl);
 			_a_copy(m, &r->rr);
 			r->last_sent = d->now;
@@ -911,7 +911,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long)d->now.tv_sec + 8 &&
 			       message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
 
-				MDNSD_LOG_TRACE("Add known answer: Name: %s, Type: %d", c->rr.name, c->rr.type);
+				MDNSD_LOG_TRACE(d, "Add known answer: Name: %s, Type: %d", c->rr.name, c->rr.type);
 				message_an(m, q->name, (unsigned short)q->type, (unsigned short)d->class, c->rr.ttl - (unsigned long)d->now.tv_sec);
 				_a_copy(m, &c->rr);
 			}
