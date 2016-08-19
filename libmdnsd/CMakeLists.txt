@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8)
 
 project(libmdnsd C)
 
+set(MDNSD_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported")
+
 if(CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang")
   # Compiler
   #add_definitions(

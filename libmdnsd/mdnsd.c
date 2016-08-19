@@ -694,6 +694,9 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 			/* Check all of our potential answers */
 			mdns_record_t* r_next;
 			for (; r != 0; r = r_next) {
+
+				MDNSD_LOG_TRACE("Got Query: Name: %s, Type: %d", r->rr.name, r->rr.type);
+
 				// do this here, because _conflict deletes r and thus next is not valid anymore
 				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
 				/* probing state, check for conflicts */
@@ -744,6 +747,8 @@ void mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigne
 	for (i = 0; i < m->ancount; i++) {
 		if (m->an[i].name == NULL)
 			continue;
+
+		MDNSD_LOG_TRACE("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
 		if ((r = _r_next(d, 0, m->an[i].name, m->an[i].type)) != 0 &&
 			r->unique && _a_match(&m->an[i], &r->rr) == 0)
 			_conflict(d, r);
@@ -773,6 +778,8 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 	if (d->uanswers) {
 		struct unicast *u = d->uanswers;
 
+		MDNSD_LOG_TRACE("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
+
 		d->uanswers = u->next;
 		*port = u->port;
 		*ip = u->to;
@@ -794,9 +801,11 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 	/* Check if it's time to send the publish retries (unlink if done) */
 	if (d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
+
 		mdns_record_t *next, *cur = d->a_publish, *last = NULL;
 
 		while (cur && message_packet_len(m) + _rr_len(&cur->rr) < d->frame) {
+			MDNSD_LOG_TRACE("Send Publish: Name: %s, Type: %d", cur->rr.name, cur->rr.type);
 			next = cur->list;
 			ret++;
 			cur->tries++;
@@ -864,6 +873,8 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 				r = next;
 				continue;
 			}
+
+			MDNSD_LOG_TRACE("Send Probing: Name: %s, Type: %d", r->rr.name, r->rr.type);
 
 			message_qd(m, r->rr.name, r->rr.type, (unsigned short)d->class);
 			r->last_sent = d->now;

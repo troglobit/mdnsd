@@ -17,6 +17,8 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 
+#define MDNSD_LOGLEVEL ${MDNSD_LOGLEVEL}
+
 /**
  * Function Export
  * --------------- */

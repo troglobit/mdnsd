@@ -4,8 +4,51 @@
 #include "mdnsd_config.h"
 #include "1035.h"
 #include <stdbool.h>
+#include <stdio.h>
 
 #define QCLASS_IN (1)
+
+#if MDNSD_LOGLEVEL <= 100
+#define MDNSD_LOG_TRACE(...) do { \
+		printf("mdnsd: TRACE - "); printf(__VA_ARGS__); printf("\n"); } while(0)
+#else
+#define MDNSD_LOG_TRACE(...) do {} while(0)
+#endif
+
+#if MDNSD_LOGLEVEL <= 200
+#define MDNSD_LOG_DEBUG(...) do { \
+		printf("mdnsd: DEBUG - "); printf(__VA_ARGS__); printf("\n"); } while(0)
+#else
+#define MDNSD_LOG_DEBUG(...) do {} while(0)
+#endif
+
+#if MDNSD_LOGLEVEL <= 300
+#define MDNSD_LOG_INFO(...) do { \
+		printf("mdnsd: INFO  - "); printf(__VA_ARGS__); printf("\n"); } while(0)
+#else
+#define MDNSD_LOG_INFO(...) do {} while(0)
+#endif
+
+#if MDNSD_LOGLEVEL <= 400
+#define MDNSD_LOG_WARNING(...) do { \
+		printf("mdnsd: WARN  - "); printf(__VA_ARGS__); printf("\n"); } while(0)
+#else
+#define MDNSD_LOG_WARNING(...) do {} while(0)
+#endif
+
+#if MDNSD_LOGLEVEL <= 500
+#define MDNSD_LOG_ERROR(...) do { \
+		printf("mdnsd: ERROR - "); printf(__VA_ARGS__); printf("\n"); } while(0)
+#else
+#define MDNSD_LOG_ERROR(...) do {} while(0)
+#endif
+
+#if MDNSD_LOGLEVEL <= 600
+#define MDNSD_LOG_FATAL(...) do { \
+		printf("mdnsd: FATAL - "); printf(__VA_ARGS__); printf("\n"); } while(0)
+#else
+#define MDNSD_LOG_FATAL(...) do {} while(0)
+#endif
 
 /* Main daemon data */
 typedef struct mdns_daemon mdns_daemon_t;
