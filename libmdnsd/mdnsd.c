@@ -859,7 +859,9 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		/* Scan probe list again to append our to-be answers */
 		for (r = d->probing; r != 0; last = r, r = r->list) {
 			r->unique++;
-			message_ns(m, r->rr.name, r->rr.type, d->class, r->rr.ttl);
+
+			MDNSD_LOG_TRACE("Send Answer in Probe: Name: %s, Type: %d", r->rr.name, r->rr.type);
+			message_ns(m, r->rr.name, r->rr.type, (unsigned short)d->class, r->rr.ttl);
 			_a_copy(m, &r->rr);
 			r->last_sent = d->now;
 			ret++;
@@ -908,6 +910,8 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			c = 0;
 			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long)d->now.tv_sec + 8 &&
 			       message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
+
+				MDNSD_LOG_TRACE("Add known answer: Name: %s, Type: %d", c->rr.name, c->rr.type);
 				message_an(m, q->name, (unsigned short)q->type, (unsigned short)d->class, c->rr.ttl - (unsigned long)d->now.tv_sec);
 				_a_copy(m, &c->rr);
 			}
