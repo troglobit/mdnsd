@@ -1151,7 +1151,7 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
 
 #if MDNSD_LOGLEVEL <= 100
 #include <ctype.h>
-static void dumpData(char* buffer, int bufferLen) {
+static void dump_hex_pkg(char* buffer, int bufferLen) {
 	char ascii[17];
 	memset(ascii,0,17);
 	for (int i = 0; i < bufferLen; i++)
@@ -1183,7 +1183,7 @@ unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, boo
 			memset(&m, 0, sizeof(struct message));
 #if MDNSD_LOGLEVEL <= 100
 			MDNSD_LOG_TRACE("Got Data:");
-			dumpData((char*)buf, bsize);
+			dump_hex_pkg((char*)buf, bsize);
 #endif
 			message_parse(&m, buf);
 			if (mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port)!=0)
@@ -1209,7 +1209,7 @@ unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, boo
 			char* buf = (char*)message_packet(&m);
 #if MDNSD_LOGLEVEL <= 100
 			MDNSD_LOG_TRACE("Send Data:");
-			dumpData(buf, (int)len);
+			dump_hex_pkg(buf, (int)len);
 #endif
 			if (sendto(mdns_socket, buf, len, 0, (struct sockaddr *)&to,
 					   sizeof(struct sockaddr_in)) != (int)len) {
