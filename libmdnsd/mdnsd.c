@@ -763,7 +763,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 		if (d->received_callback) {
 			d->received_callback(&m->an[i], d->received_callback_data);
 		}
-		if (!_cache(d, &m->an[i]))
+		if (_cache(d, &m->an[i]) != 0)
 			return 2;
 	}
 	return 0;
@@ -1214,7 +1214,7 @@ unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, boo
 #endif
 			message_parse(&m, buf);
 			if (mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port)!=0)
-				return 1;
+				return 2;
 		}
 		if (bsize < 0 && errno != EAGAIN) {
 			return 1;
