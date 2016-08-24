@@ -171,7 +171,8 @@ void xht_free(xht_t *h)
 		return;
 
 	for (i = 0; i < h->prime; i++) {
-		n = (&h->zen[i]);
+		if ((n = (&h->zen[i])) == NULL)
+			continue;
 		if (n->flag) {
 			free(n->u.key);
 			free(n->val);
