@@ -49,6 +49,10 @@ static char *my_strdup(const char *s) {
 #define STRDUP strdup
 #endif
 
+#ifndef _WIN32
+# include <netdb.h>
+#endif
+
 /**
  * Messy, but it's the best/simplest balance I can find at the moment
  *
