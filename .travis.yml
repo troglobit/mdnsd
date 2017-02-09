@@ -8,8 +8,8 @@ os:
 - linux
 - osx
 
-dist: precise
-sudo: false
+dist: trusty
+sudo: required
 
 env:
   matrix:
