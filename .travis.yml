@@ -33,7 +33,8 @@ addons:
     packages:
       - binutils-mingw-w64-i686
       - build-essential
-      - clang
+      - clang-3.9
+      - clang-tidy-3.9
       - cmake
       - gcc-mingw-w64-i686
       - gcc-multilib
