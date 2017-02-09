@@ -4,7 +4,7 @@ set -ev
 echo "=== Updating the build environment in $LOCAL_PKG ==="
 
 echo "=== Installing from external package sources ==="
-wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+sudo wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
 echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main" | sudo tee -a /etc/apt/sources.list
 sudo add-apt-repository -y ppa:lttng/ppa
 sudo apt-get update -qq
