@@ -6,11 +6,11 @@ if [ $ANALYZE = "true" ]; then
     if [ "$CC" = "clang" ]; then
         mkdir -p build
         cd build
-        scan-build cmake -G "Unix Makefiles" ..
-        scan-build -enable-checker security.FloatLoopCounter \
+        scan-build-3.9 cmake -G "Unix Makefiles" ..
+        scan-build-3.9 -enable-checker security.FloatLoopCounter \
           -enable-checker security.insecureAPI.UncheckedReturn \
           --status-bugs -v \
-          make -j 8
+          make -j
         cd .. && rm build -rf
     else
         cppcheck --template "{file}({line}): {severity} ({id}): {message}" \
