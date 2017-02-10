@@ -1242,8 +1242,8 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			MDNSD_LOG_TRACE("Send Data:");
 			dump_hex_pkg(buf, (int)len);
 #endif
-			if ((int)sendto(mdns_socket, buf, len, 0, (struct sockaddr *)&to,
-					   sizeof(struct sockaddr_in)) != (int)len) {
+			if ((int)sendto(mdns_socket, buf, (int)len, 0, (struct sockaddr *)&to,
+							(int)sizeof(struct sockaddr_in)) != (int)len) {
 				return 2;
 			}
 		}
