@@ -1232,7 +1232,7 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 		unsigned short int port;
 
 		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
-			size_t len = (size_t)message_packet_len(&m);
+			int len = message_packet_len(&m);
 			char* buf = (char*)message_packet(&m);
 			memset(&to, 0, sizeof(to));
 			to.sin_family = AF_INET;
@@ -1242,8 +1242,9 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			MDNSD_LOG_TRACE("Send Data:");
 			dump_hex_pkg(buf, (int)len);
 #endif
-			if ((int)sendto(mdns_socket, buf, (int)len, 0, (struct sockaddr *)&to,
-							(int)sizeof(struct sockaddr_in)) != (int)len) {
+
+			if (sendto(mdns_socket, buf, (unsigned int)len, 0, (struct sockaddr *)&to,
+							sizeof(struct sockaddr_in)) != len) {
 				return 2;
 			}
 		}
