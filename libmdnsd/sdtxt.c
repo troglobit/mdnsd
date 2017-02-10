@@ -73,12 +73,12 @@ xht_t *txt2sd(unsigned char *txt, int len)
 
 	/* Loop through data breaking out each block, storing into hashtable */
 	for (; *txt <= len && len > 0; len -= *txt, txt += *txt + 1) {
+		char* val;
 		if (*txt == 0)
 			break;
 
 		memcpy(key, txt + 1, *txt);
 		key[*txt] = 0;
-		char* val;
 		if ((val = strchr(key, '=')) != 0) {
 			*val = 0;
 			val++;

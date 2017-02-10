@@ -10,6 +10,14 @@
 #include "mdnsd_config.h"
 
 #ifdef _WIN32
+
+/* Backup definition of SLIST_ENTRY on mingw winnt.h */
+#ifdef SLIST_ENTRY
+# define TMP_SLIST_ENTRY SLIST_ENTRY
+# undef SLIST_ENTRY
+#endif
+
+/* winnt.h redefines SLIST_ENTRY */
 # define _WINSOCK_DEPRECATED_NO_WARNINGS /* inet_ntoa is deprecated on MSVC but used for compatibility */
 # include <winsock2.h>
 # include <ws2tcpip.h>
@@ -17,9 +25,15 @@
 #ifndef in_addr_t
 #define in_addr_t unsigned __int32
 #endif
-# ifdef SLIST_ENTRY
-#  undef SLIST_ENTRY /* Fix redefinition of SLIST_ENTRY on mingw winnt.h */
-# endif
+
+/* restore definition */
+#ifdef TMP_SLIST_ENTRY
+# undef SLIST_ENTRY
+# define SLIST_ENTRY TMP_SLIST_ENTRY
+# undef TMP_SLIST_ENTRY
+#endif
+
+
 #else
 # include <arpa/inet.h>
 #endif

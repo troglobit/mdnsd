@@ -22,11 +22,11 @@ static int _xhter(const char *s)
 {
 	/* ELF hash uses unsigned chars and unsigned arithmetic for portability */
 	const unsigned char *name = (const unsigned char *)s;
-	unsigned long h = 0;
+	unsigned long int h = 0;
 
 	while (*name) {		/* do some fancy bitwanking on the string */
-		h = (h << 4) + (unsigned long)(*name++);
-		unsigned long g;
+		unsigned long int g;
+		h = (h << 4) + (unsigned long int)(*name++);
 		if ((g = (h & 0xF0000000UL)) != 0)
 			h ^= (g >> 24);
 		h &= ~g;

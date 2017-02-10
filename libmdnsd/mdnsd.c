@@ -12,7 +12,7 @@
 				 * default) */
 
 #ifdef _MSC_VER
-#include <stdint.h>
+#include "ms_stdint.h" /* Includes stdint.h or workaround for older Visual Studios */
 
 int gettimeofday(struct timeval * tp, struct timezone * tzp)
 {
@@ -118,8 +118,8 @@ static int _namehash(const char *s)
 	unsigned long h = 0;
 
 	while (*name) {		/* do some fancy bitwanking on the string */
-		h = (h << 4) + (unsigned long)(*name++);
-		unsigned long g;
+		unsigned long int g;
+		h = (h << 4) + (unsigned long int)(*name++);
 		if ((g = (h & 0xF0000000UL)) != 0)
 			h ^= (g >> 24);
 		h &= ~g;
@@ -394,7 +394,7 @@ static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 /* Call the answer function with this cached entry */
 static void _q_answer(mdns_daemon_t *d, struct cached *c)
 {
-	if (c->rr.ttl <= (unsigned long)d->now.tv_sec)
+	if (c->rr.ttl <= (unsigned long int)d->now.tv_sec)
 		c->rr.ttl = 0;
 	if (c->q->answer(&c->rr, c->q->arg) == -1)
 		_q_done(d, c->q);
@@ -413,7 +413,7 @@ static void _c_expire(mdns_daemon_t *d, struct cached **list)
 
 	while (cur != 0) {
 		next = cur->next;
-		if ((unsigned long)d->now.tv_sec >= cur->rr.ttl) {
+		if ((unsigned long int)d->now.tv_sec >= cur->rr.ttl) {
 			if (last)
 				last->next = next;
 
@@ -445,7 +445,7 @@ static void _gc(mdns_daemon_t *d)
 			_c_expire(d, &d->cache[i]);
 	}
 
-	d->expireall = (unsigned long)(d->now.tv_sec + GC);
+	d->expireall = (unsigned long int)(d->now.tv_sec + GC);
 }
 
 static int _cache(mdns_daemon_t *d, struct resource *r)
@@ -480,7 +480,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	c = calloc(1, sizeof(struct cached));
 	c->rr.name = STRDUP(r->name);
 	c->rr.type = r->type;
-	c->rr.ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
+	c->rr.ttl = (unsigned long int)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
 	if (r->rdlength && !r->rdata) {
 		MDNSD_LOG_ERROR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
@@ -553,9 +553,9 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 		ret++;
 
 		if (r->unique)
-			message_an(m, r->rr.name, r->rr.type, (unsigned short)(d->class + 32768), r->rr.ttl);
+			message_an(m, r->rr.name, r->rr.type, (unsigned short int)(d->class + 32768), r->rr.ttl);
 		else
-			message_an(m, r->rr.name, r->rr.type,  (unsigned short)d->class, r->rr.ttl);
+			message_an(m, r->rr.name, r->rr.type,  (unsigned short int)d->class, r->rr.ttl);
 		r->last_sent = d->now;
 
 		_a_copy(m, &r->rr);
@@ -579,7 +579,7 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 
 	d = calloc(1, sizeof(struct mdns_daemon));
 	gettimeofday(&d->now, 0);
-	d->expireall = (unsigned long)(d->now.tv_sec + GC);
+	d->expireall = (unsigned long int)(d->now.tv_sec + GC);
 	d->class = class;
 	d->frame = frame;
 	d->received_callback = NULL;
@@ -619,7 +619,8 @@ void mdnsd_flush(mdns_daemon_t *d)
 
 void mdnsd_free(mdns_daemon_t *d)
 {
-	for (size_t i = 0; i< LPRIME; i++) {
+	size_t i;
+	for (i = 0; i< LPRIME; i++) {
 		struct cached* cur = d->cache[i];
 		while (cur) {
 			struct cached* next = cur->next;
@@ -631,8 +632,9 @@ void mdnsd_free(mdns_daemon_t *d)
 		}
 	}
 
-	for (size_t i = 0; i< SPRIME; i++) {
+	for (i = 0; i< SPRIME; i++) {
 		struct mdns_record* cur = d->published[i];
+		struct query* curq = NULL;
 		while (cur) {
 			struct mdns_record* next = cur->next;
 			free(cur->rr.name);
@@ -643,7 +645,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		}
 
 
-		struct query* curq = d->queries[i];
+		curq = d->queries[i];
 		while (curq) {
 			struct query* next = curq->next;
 			free(curq->name);
@@ -653,11 +655,13 @@ void mdnsd_free(mdns_daemon_t *d)
 
 	}
 
-	struct unicast *u = d->uanswers;
-	while (u) {
-		struct unicast *next = u->next;
-		free(u);
-		u=next;
+	{
+		struct unicast *u = d->uanswers;
+		while (u) {
+			struct unicast *next = u->next;
+			free(u);
+			u=next;
+		}
 	}
 
 	free(d);
@@ -682,14 +686,14 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 	if (m->header.qr == 0) {
 		/* Process each query */
 		for (i = 0; i < m->qdcount; i++) {
+			mdns_record_t *r_start, *r_next = NULL;
+			bool hasConflict = false;
 			if (m->qd[i].class != d->class || (r = _r_next(d, 0, m->qd[i].name, m->qd[i].type)) == 0)
 				continue;
-			mdns_record_t* r_start = r;
+			r_start = r;
 
-			bool hasConflict = false;
 
 			/* Check all of our potential answers */
-			mdns_record_t* r_next;
 			for (; r != 0; r = r_next) {
 
 				MDNSD_LOG_TRACE("Got Query: Name: %s, Type: %d", r->rr.name, r->rr.type);
@@ -699,7 +703,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 				/* probing state, check for conflicts */
 				if (r->unique && r->unique < 5) {
 					/* Check all to-be answers against our own */
-					for (int j = 0; j < m->nscount; j++) {
+					int j;
+					for (j = 0; j < m->nscount; j++) {
 						if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
 							continue;
 
@@ -714,22 +719,24 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 				}
 
 				/* Check the known answers for this question */
-				int j;
-				for (j = 0; j < m->ancount; j++) {
-					if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
-						continue;
+				{
+					int j;
+					for (j = 0; j < m->ancount; j++) {
+						if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
+							continue;
 
-					if (d->received_callback) {
-						d->received_callback(&m->an[j], d->received_callback_data);
+						if (d->received_callback) {
+							d->received_callback(&m->an[j], d->received_callback_data);
+						}
+
+						/* Do they already have this answer? */
+						if (_a_match(&m->an[j], &r->rr))
+							break;
 					}
-
-					/* Do they already have this answer? */
-					if (_a_match(&m->an[j], &r->rr))
-						break;
+					if (j == m->ancount)
+						_r_send(d, r);
 				}
 
-				if (j == m->ancount)
-					_r_send(d, r);
 			}
 
 			/* Send the matching unicast reply */
@@ -784,9 +791,9 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		d->uanswers = u->next;
 		*port = u->port;
 		*ip = u->to;
-		m->id = (unsigned short)u->id;
-		message_qd(m, u->r->rr.name, u->r->rr.type, (unsigned short)d->class);
-		message_an(m, u->r->rr.name, u->r->rr.type, (unsigned short)d->class, u->r->rr.ttl);
+		m->id = (unsigned short int)u->id;
+		message_qd(m, u->r->rr.name, u->r->rr.type, (unsigned short int)d->class);
+		message_an(m, u->r->rr.name, u->r->rr.type, (unsigned short int)d->class, u->r->rr.ttl);
 		u->r->last_sent = d->now;
 		_a_copy(m, &u->r->rr);
 		free(u);
@@ -819,9 +826,9 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			cur->tries++;
 
 			if (cur->unique)
-				message_an(m, cur->rr.name, cur->rr.type, (unsigned short)(d->class + 32768), cur->rr.ttl);
+				message_an(m, cur->rr.name, cur->rr.type, (unsigned short int)(d->class + 32768), cur->rr.ttl);
 			else
-				message_an(m, cur->rr.name, cur->rr.type, (unsigned short)d->class, cur->rr.ttl);
+				message_an(m, cur->rr.name, cur->rr.type, (unsigned short int)d->class, cur->rr.ttl);
 			_a_copy(m, &cur->rr);
 			cur->last_sent = d->now;
 
@@ -884,7 +891,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 			MDNSD_LOG_TRACE("Send Probing: Name: %s, Type: %d", r->rr.name, r->rr.type);
 
-			message_qd(m, r->rr.name, r->rr.type, (unsigned short)d->class);
+			message_qd(m, r->rr.name, r->rr.type, (unsigned short int)d->class);
 			r->last_sent = d->now;
 			last = r;
 			r = r->list;
@@ -895,7 +902,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			r->unique++;
 
 			MDNSD_LOG_TRACE("Send Answer in Probe: Name: %s, Type: %d", r->rr.name, r->rr.type);
-			message_ns(m, r->rr.name, r->rr.type, (unsigned short)d->class, r->rr.ttl);
+			message_ns(m, r->rr.name, r->rr.type, (unsigned short int)d->class, r->rr.ttl);
 			_a_copy(m, &r->rr);
 			r->last_sent = d->now;
 			ret++;
@@ -910,22 +917,22 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 	}
 
 	/* Process qlist for retries or expirations */
-	if (d->checkqlist && (unsigned long)d->now.tv_sec >= d->checkqlist) {
+	if (d->checkqlist && (unsigned long int)d->now.tv_sec >= d->checkqlist) {
 		struct query *q;
 		struct cached *c;
 		unsigned long int nextbest = 0;
 
 		/* Ask questions first, track nextbest time */
 		for (q = d->qlist; q != 0; q = q->list) {
-			if (q->nexttry > 0 && q->nexttry <= (unsigned long)d->now.tv_sec && q->tries < 3)
-				message_qd(m, q->name, (unsigned short)q->type, (unsigned short)d->class);
+			if (q->nexttry > 0 && q->nexttry <= (unsigned long int)d->now.tv_sec && q->tries < 3)
+				message_qd(m, q->name, (unsigned short int)q->type, (unsigned short int)d->class);
 			else if (q->nexttry > 0 && (nextbest == 0 || q->nexttry < nextbest))
 				nextbest = q->nexttry;
 		}
 
 		/* Include known answers, update questions */
 		for (q = d->qlist; q != 0; q = q->list) {
-			if (q->nexttry == 0 || q->nexttry > (unsigned long)d->now.tv_sec)
+			if (q->nexttry == 0 || q->nexttry > (unsigned long int)d->now.tv_sec)
 				continue;
 
 			/* Done retrying, expire and reset */
@@ -936,24 +943,24 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			}
 
 			ret++;
-			q->nexttry = (unsigned long)(d->now.tv_sec + ++q->tries);
+			q->nexttry = (unsigned long int)(d->now.tv_sec + ++q->tries);
 			if (nextbest == 0 || q->nexttry < nextbest)
 				nextbest = q->nexttry;
 
 			/* If room, add all known good entries */
 			c = 0;
-			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long)d->now.tv_sec + 8 &&
+			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long int)d->now.tv_sec + 8 &&
 				   message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
 
 				MDNSD_LOG_TRACE("Add known answer: Name: %s, Type: %d", c->rr.name, c->rr.type);
-				message_an(m, q->name, (unsigned short)q->type, (unsigned short)d->class, c->rr.ttl - (unsigned long)d->now.tv_sec);
+				message_an(m, q->name, (unsigned short int)q->type, (unsigned short int)d->class, c->rr.ttl - (unsigned long int)d->now.tv_sec);
 				_a_copy(m, &c->rr);
 			}
 		}
 		d->checkqlist = nextbest;
 	}
 
-	if ((unsigned long)d->now.tv_sec > d->expireall)
+	if ((unsigned long int)d->now.tv_sec > d->expireall)
 		_gc(d);
 
 	return ret;
@@ -969,7 +976,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
-	int usec;
+	int usec, minExpire;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
 
@@ -1003,25 +1010,29 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 	/* Also check for queries with known answer expiration/retry */
 	if (d->checkqlist) {
 		int sec;
-		if ((sec = (int)(d->checkqlist - (unsigned long)d->now.tv_sec)) > 0)
+		if ((sec = (int)(d->checkqlist - (unsigned long int)d->now.tv_sec)) > 0)
 			d->sleep.tv_sec = sec;
 		RET;
 	}
 
 	/* Resend published records before TTL expires */
 	// latest expire is garbage collection
-	int minExpire = (int)(d->expireall - (unsigned long)d->now.tv_sec);
+	minExpire = (int)(d->expireall - (unsigned long int)d->now.tv_sec);
 	if (minExpire < 0)
 		return &d->sleep;
 
-	for (size_t i=0; i<SPRIME; i++) {
-		if (!d->published[i])
-			continue;
-		int expire = (int)((d->published[i]->last_sent.tv_sec + (long int)d->published[i]->rr.ttl) - d->now.tv_sec);
-		if (expire < minExpire)
-			d->a_pause = NULL;
-		minExpire = expire < minExpire ? expire : minExpire;
-		_r_push(&d->a_pause, d->published[i]);
+	{
+		size_t i;
+		for (i=0; i<SPRIME; i++) {
+			int expire;
+			if (!d->published[i])
+				continue;
+			expire = (int)((d->published[i]->last_sent.tv_sec + (long int)d->published[i]->rr.ttl) - d->now.tv_sec);
+			if (expire < minExpire)
+				d->a_pause = NULL;
+			minExpire = expire < minExpire ? expire : minExpire;
+			_r_push(&d->a_pause, d->published[i]);
+		}
 	}
 	// publish 2 seconds before expire.
 	d->sleep.tv_sec = minExpire > 2 ? minExpire-2 : 0;
@@ -1046,13 +1057,15 @@ void mdnsd_query(mdns_daemon_t *d, const char *host, int type, int (*answer)(mdn
 		d->qlist = d->queries[i] = q;
 
 		/* Any cached entries should be associated */
-		struct cached *cur = 0;
-		while ((cur = _c_next(d, cur, q->name, q->type)))
-			cur->q = q;
+		{
+			struct cached *cur = 0;
+			while ((cur = _c_next(d, cur, q->name, q->type)))
+				cur->q = q;
+		}
 		_q_reset(d, q);
 
 		/* New question, immediately send out */
-		q->nexttry = d->checkqlist = (unsigned long)d->now.tv_sec;
+		q->nexttry = d->checkqlist = (unsigned long int)d->now.tv_sec;
 	}
 
 	/* No answer means we don't care anymore */
@@ -1078,7 +1091,7 @@ const mdns_answer_t *mdnsd_record_data(const mdns_record_t* r) {
 	return &r->rr;
 }
 
-mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl)
+mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short int type, unsigned long int ttl)
 {
 	int i = _namehash(host) % SPRIME;
 	mdns_record_t *r;
@@ -1093,7 +1106,7 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short t
 	return r;
 }
 
-mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg)
+mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short int type, unsigned long int ttl, void (*conflict)(char *host, int type, void *arg), void *arg)
 {
 	mdns_record_t *r;
 
@@ -1138,7 +1151,7 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 	_r_send(d, r);
 }
 
-void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len)
+void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short int len)
 {
 	free(r->rr.rdata);
 	r->rr.rdata = malloc(len);
@@ -1160,7 +1173,7 @@ void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip)
 	_r_publish(d, r);
 }
 
-void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name)
+void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short int priority, unsigned short int weight, unsigned short int port, char *name)
 {
 	r->rr.srv.priority = priority;
 	r->rr.srv.weight = weight;
@@ -1188,7 +1201,7 @@ static void dump_hex_pkg(char* buffer, int bufferLen) {
 }
 #endif
 
-unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep) {
+unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep) {
 
 	struct message m;
 
@@ -1219,17 +1232,17 @@ unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, boo
 		unsigned short int port;
 
 		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
+			size_t len = (size_t)message_packet_len(&m);
+			char* buf = (char*)message_packet(&m);
 			memset(&to, 0, sizeof(to));
 			to.sin_family = AF_INET;
 			to.sin_port = port;
 			to.sin_addr = ip;
-			size_t len = (size_t)message_packet_len(&m);
-			char* buf = (char*)message_packet(&m);
 #if MDNSD_LOGLEVEL <= 100
 			MDNSD_LOG_TRACE("Send Data:");
 			dump_hex_pkg(buf, (int)len);
 #endif
-			if (sendto(mdns_socket, buf, len, 0, (struct sockaddr *)&to,
+			if ((int)sendto(mdns_socket, buf, len, 0, (struct sockaddr *)&to,
 					   sizeof(struct sockaddr_in)) != (int)len) {
 				return 2;
 			}

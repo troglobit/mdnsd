@@ -1,9 +1,20 @@
 #ifndef MDNSD_H_
 #define MDNSD_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "mdnsd_config.h"
 #include "1035.h"
+#if defined(_MSC_VER) && _MSC_VER < 1600
+// VS 2008 has no stdbool.h
+#define bool	short
+#define true	1
+#define false	0
+#else
 #include <stdbool.h>
+#endif
 #include <stdio.h>
 
 #define QCLASS_IN (1)
@@ -172,12 +183,12 @@ const mdns_answer_t MDNSD_EXPORT *mdnsd_record_data(const mdns_record_t* r) ;
  * changes effectively expire the old one and attempt to create a new
  * unique record
  */
-mdns_record_t MDNSD_EXPORT * mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
+mdns_record_t MDNSD_EXPORT * mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short int type, unsigned long int ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
 
 /** 
  * Create a new shared record
  */
-mdns_record_t MDNSD_EXPORT * mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl);
+mdns_record_t MDNSD_EXPORT * mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short int type, unsigned long int ttl);
 
 /**
  * Get a previously created record based on the host name. NULL if not found. Does not return records for other hosts.
@@ -199,15 +210,19 @@ void MDNSD_EXPORT mdnsd_done(mdns_daemon_t *d, mdns_record_t *r);
  * These all set/update the data for the given record, nothing is
  * published until they are called
  */
-void MDNSD_EXPORT mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len);
+void MDNSD_EXPORT mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short int len);
 void MDNSD_EXPORT mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name);
 void MDNSD_EXPORT mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
-void MDNSD_EXPORT mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name);
+void MDNSD_EXPORT mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short int priority, unsigned short int weight, unsigned short int port, char *name);
 
 /**
  * Process input queue and output queue. Should be called at least the time which is returned in nextSleep.
  * Returns 0 on success, 1 on read error, 2 on write error
  */
-unsigned short MDNSD_EXPORT mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep);
+unsigned short int MDNSD_EXPORT mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	/* MDNSD_H_ */

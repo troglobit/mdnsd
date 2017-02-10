@@ -235,35 +235,42 @@ int main(int argc, char *argv[])
 	free(packet);
 
 	// example for getting a previously published record:
-	mdns_record_t *get_r = mdnsd_get_published(d, "_http._tcp.local.");
-	while(get_r) {
-		const mdns_answer_t *data = mdnsd_record_data(get_r);
-		printf("Found record of type %d\n", data->type);
-		get_r = mdnsd_record_next(get_r);
+	{
+		mdns_record_t *get_r = mdnsd_get_published(d, "_http._tcp.local.");
+		while(get_r) {
+			const mdns_answer_t *data = mdnsd_record_data(get_r);
+			printf("Found record of type %d\n", data->type);
+			get_r = mdnsd_record_next(get_r);
+		}
 	}
 
+	{
+		struct timeval next_sleep;
+		next_sleep.tv_sec = 0;
+		next_sleep.tv_usec = 0;
+		while (1) {
 
-	struct timeval next_sleep = {.tv_sec = 0, .tv_usec = 0};
-	while (1) {
+			FD_ZERO(&fds);
+			FD_SET(s, &fds);
+			select(s + 1, &fds, 0, 0, &next_sleep);
 
-		FD_ZERO(&fds);
-		FD_SET(s, &fds);
-		select(s + 1, &fds, 0, 0, &next_sleep);
+			if (_shutdown)
+				break;
 
-		if (_shutdown)
-			break;
+			{
+				unsigned short retVal = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &next_sleep);
+				if (retVal == 1) {
+					printf("can't read from socket %d: %s\n", errno, strerror(errno));
+					break;
+				} else if (retVal == 2) {
+					printf("can't write to socket: %s\n", strerror(errno));
+					break;
+				}
+			}
 
-		unsigned short retVal = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &next_sleep);
-		if (retVal == 1) {
-			printf("can't read from socket %d: %s\n", errno, strerror(errno));
-			break;
-		} else if (retVal == 2) {
-			printf("can't write to socket: %s\n", strerror(errno));
-			break;
+			if (_shutdown)
+				break;
 		}
-
-		if (_shutdown)
-			break;
 	}
 
 	mdnsd_shutdown(d);

@@ -2,6 +2,10 @@
 #ifndef MDNS_XHT_H_
 #define MDNS_XHT_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "mdnsd_config.h"
 typedef struct xht xht_t;
 
@@ -41,5 +45,9 @@ void MDNSD_EXPORT xht_free(xht_t *h);
  */
 typedef void (*xht_walker)(xht_t *h, char *key, void *val, void *arg);
 void xht_walk(xht_t *h, xht_walker w, void *arg);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	/* MDNS_XHT_H_ */
