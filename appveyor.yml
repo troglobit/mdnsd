@@ -16,19 +16,15 @@ environment:
         - CC_NAME: MinGW Makefiles
           CC_SHORTNAME: mingw
           MAKE: mingw32-make
-          FORCE_CXX: OFF
         - CC_NAME: Visual Studio 9 2008
           CC_SHORTNAME: vs2008
           MAKE: msbuild mdnsd.sln /m
-          FORCE_CXX: ON
         - CC_NAME: Visual Studio 12 2013
           CC_SHORTNAME: vs2013
           MAKE: msbuild mdnsd.sln /m
-          FORCE_CXX: OFF
         - CC_NAME: Visual Studio 12 2013 Win64
           CC_SHORTNAME: vs2013-x64
           MAKE: msbuild mdnsd.sln /m
-          FORCE_CXX: OFF
 
 
 cache:

@@ -7,7 +7,7 @@ extern "C" {
 
 #include "mdnsd_config.h"
 #include "1035.h"
-#if defined(_MSC_VER) && _MSC_VER < 1600
+#if !defined(__bool_true_false_are_defined) && defined(_MSC_VER) && _MSC_VER < 1600
 // VS 2008 has no stdbool.h
 #define bool	short
 #define true	1
