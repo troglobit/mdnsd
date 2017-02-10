@@ -44,7 +44,7 @@
 
 struct question {
 	char *name;
-	unsigned short int type, class;
+	unsigned short int type, clazz;
 };
 
 #define QTYPE_A      1
@@ -56,7 +56,7 @@ struct question {
 
 struct resource {
 	char *name;
-	unsigned short int type, class;
+	unsigned short int type, clazz;
 	unsigned long int ttl;
 	unsigned short int rdlength;
 	unsigned char *rdata;
@@ -133,14 +133,14 @@ struct message *message_wire(void);
 /**
  * append a question to the wire message
  */
-void MDNSD_EXPORT message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class);
+void MDNSD_EXPORT message_qd(struct message *m, char *name, unsigned short int type, unsigned short int clazz);
 
 /**
  * append a resource record to the message, all called in order!
  */
-void MDNSD_EXPORT message_an(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
-void MDNSD_EXPORT message_ns(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
-void MDNSD_EXPORT message_ar(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl);
+void MDNSD_EXPORT message_an(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl);
+void MDNSD_EXPORT message_ns(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl);
+void MDNSD_EXPORT message_ar(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl);
 
 /**
  * Append various special types of resource data blocks

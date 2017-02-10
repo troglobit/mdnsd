@@ -92,7 +92,7 @@ typedef struct mdns_answer {
  * Create a new mdns daemon for the given class of names (usually 1) and
  * maximum frame size
  */
-mdns_daemon_t MDNSD_EXPORT * mdnsd_new(int class, int frame);
+mdns_daemon_t MDNSD_EXPORT * mdnsd_new(int clazz, int frame);
 
 /**
  * Gracefully shutdown the daemon, use mdnsd_out() to get the last

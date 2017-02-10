@@ -247,10 +247,10 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 	for (i = 0; i < count; i++) {
 		_label(m, bufp, &(rr[i].name));
 		rr[i].type     = net2short(bufp);
-		rr[i].class    = net2short(bufp);
+		rr[i].clazz    = net2short(bufp);
 		rr[i].ttl      = net2long(bufp);
 		rr[i].rdlength = net2short(bufp);
-//		fprintf(stderr, "Record type %d class 0x%2x ttl %lu len %d\n", rr[i].type, rr[i].class, rr[i].ttl, rr[i].rdlength);
+//		fprintf(stderr, "Record type %d class 0x%2x ttl %lu len %d\n", rr[i].type, rr[i].clazz, rr[i].ttl, rr[i].rdlength);
 
 		/* If not going to overflow, make copy of source rdata */
 		if (rr[i].rdlength + (*bufp - m->_buf) > MAX_PACKET_LEN || m->_len + rr[i].rdlength > MAX_PACKET_LEN)
@@ -369,7 +369,7 @@ void message_parse(struct message *m, unsigned char *packet)
 	for (i = 0; i < m->qdcount; i++) {
 		_label(m, &buf, &(m->qd[i].name));
 		m->qd[i].type  = net2short(&buf);
-		m->qd[i].class = net2short(&buf);
+		m->qd[i].clazz = net2short(&buf);
 	}
 
 	/* Process rrs */
@@ -384,42 +384,42 @@ void message_parse(struct message *m, unsigned char *packet)
 		return;
 }
 
-void message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class)
+void message_qd(struct message *m, char *name, unsigned short int type, unsigned short int clazz)
 {
 	m->qdcount++;
 	if (m->_buf == 0)
 		m->_buf = m->_packet + 12;
 	_host(m, &(m->_buf), name);
 	short2net(type, &(m->_buf));
-	short2net(class, &(m->_buf));
+	short2net(clazz, &(m->_buf));
 }
 
-static void _rrappend(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+static void _rrappend(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl)
 {
 	if (m->_buf == 0)
 		m->_buf = m->_packet + 12;
 	_host(m, &(m->_buf), name);
 	short2net(type, &(m->_buf));
-	short2net(class, &(m->_buf));
+	short2net(clazz, &(m->_buf));
 	long2net(ttl, &(m->_buf));
 }
 
-void message_an(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+void message_an(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl)
 {
 	m->ancount++;
-	_rrappend(m, name, type, class, ttl);
+	_rrappend(m, name, type, clazz, ttl);
 }
 
-void message_ns(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+void message_ns(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl)
 {
 	m->nscount++;
-	_rrappend(m, name, type, class, ttl);
+	_rrappend(m, name, type, clazz, ttl);
 }
 
-void message_ar(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+void message_ar(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl)
 {
 	m->arcount++;
-	_rrappend(m, name, type, class, ttl);
+	_rrappend(m, name, type, clazz, ttl);
 }
 
 void message_rdata_long(struct message *m, struct in_addr l)
