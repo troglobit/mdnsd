@@ -29,8 +29,6 @@ addons:
   apt:
     sources:
       # see https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
-      - kalakris-cmake
-      - ubuntu-toolchain-r-test
     packages:
       - binutils-mingw-w64-i686
       - build-essential
