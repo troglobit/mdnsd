@@ -212,14 +212,14 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 }
 
 /* Compare time values easily */
-static int _tvdiff(struct timeval old, struct timeval new)
+static int _tvdiff(struct timeval old_time, struct timeval new_time)
 {
 	int udiff = 0;
 
-	if (old.tv_sec != new.tv_sec)
-		udiff = (int)((new.tv_sec - old.tv_sec) * 1000000);
+	if (old_time.tv_sec != new_time.tv_sec)
+		udiff = (int)((new_time.tv_sec - old_time.tv_sec) * 1000000);
 
-	return (int)((new.tv_usec - old.tv_usec) + udiff);
+	return (int)((new_time.tv_usec - old_time.tv_usec) + udiff);
 }
 
 static void _r_remove_list(mdns_record_t **list, mdns_record_t *r) {
@@ -317,7 +317,7 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long in
 {
 	struct unicast *u;
 
-	u = calloc(1, sizeof(struct unicast));
+	u = (struct unicast *)calloc(1, sizeof(struct unicast));
 	u->r = r;
 	u->id = id;
 	u->to = to;
@@ -477,7 +477,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	 * XXX: The c->rr.ttl is a hack for now, BAD SPEC, start
 	 *      retrying just after half-waypoint, then expire
 	 */
-	c = calloc(1, sizeof(struct cached));
+	c = (struct cached *)calloc(1, sizeof(struct cached));
 	c->rr.name = STRDUP(r->name);
 	c->rr.type = r->type;
 	c->rr.ttl = (unsigned long int)d->now.tv_sec + (r->ttl / 2) + 8;
@@ -489,7 +489,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 		return 1;
 	}
 	if (r->rdlength) {
-		c->rr.rdata = malloc(r->rdlength);
+		c->rr.rdata = (unsigned char *)malloc(r->rdlength);
 		memcpy(c->rr.rdata, r->rdata, r->rdlength);
 	} else {
 		c->rr.rdata = NULL;
@@ -577,7 +577,7 @@ mdns_daemon_t *mdnsd_new(int clazz, int frame)
 {
 	mdns_daemon_t *d;
 
-	d = calloc(1, sizeof(struct mdns_daemon));
+	d = (mdns_daemon_t *)calloc(1, sizeof(struct mdns_daemon));
 	gettimeofday(&d->now, 0);
 	d->expireall = (unsigned long int)(d->now.tv_sec + GC);
 	d->clazz = clazz;
@@ -1049,7 +1049,7 @@ void mdnsd_query(mdns_daemon_t *d, const char *host, int type, int (*answer)(mdn
 		if (!answer)
 			return;
 
-		q = calloc(1, sizeof(struct query));
+		q = (struct query *)calloc(1, sizeof(struct query));
 		q->name = STRDUP(host);
 		q->type = type;
 		q->next = d->queries[i];
@@ -1096,7 +1096,7 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short i
 	int i = _namehash(host) % SPRIME;
 	mdns_record_t *r;
 
-	r = calloc(1, sizeof(struct mdns_record));
+	r = (struct mdns_record *)calloc(1, sizeof(struct mdns_record));
 	r->rr.name = STRDUP(host);
 	r->rr.type = type;
 	r->rr.ttl = ttl;
@@ -1154,7 +1154,7 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short int len)
 {
 	free(r->rr.rdata);
-	r->rr.rdata = malloc(len);
+	r->rr.rdata = (unsigned char *)malloc(len);
 	memcpy(r->rr.rdata, data, len);
 	r->rr.rdlen = len;
 	_r_publish(d, r);
