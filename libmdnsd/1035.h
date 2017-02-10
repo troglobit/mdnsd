@@ -13,8 +13,9 @@
 
 /* Backup definition of SLIST_ENTRY on mingw winnt.h */
 #ifdef SLIST_ENTRY
-# define TMP_SLIST_ENTRY SLIST_ENTRY
+# pragma push_macro("SLIST_ENTRY")
 # undef SLIST_ENTRY
+# define POP_SLIST_ENTRY
 #endif
 
 /* winnt.h redefines SLIST_ENTRY */
@@ -27,10 +28,10 @@
 #endif
 
 /* restore definition */
-#ifdef TMP_SLIST_ENTRY
+#ifdef POP_SLIST_ENTRY
 # undef SLIST_ENTRY
-# define SLIST_ENTRY TMP_SLIST_ENTRY
-# undef TMP_SLIST_ENTRY
+# undef POP_SLIST_ENTRY
+# pragma pop_macro("SLIST_ENTRY")
 #endif
 
 
