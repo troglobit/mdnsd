@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(libmdnsd C)
+project(libmdnsd)
 
 set(MDNSD_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported")
 

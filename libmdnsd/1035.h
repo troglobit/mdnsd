@@ -7,6 +7,10 @@
 #ifndef MDNS_1035_H_
 #define MDNS_1035_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "mdnsd_config.h"
 
 #ifdef _WIN32
@@ -158,5 +162,9 @@ void MDNSD_EXPORT message_rdata_raw  (struct message *m, unsigned char *rdata, u
  */
 unsigned char MDNSD_EXPORT * message_packet     (struct message *m);
 int   MDNSD_EXPORT           message_packet_len (struct message *m);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	/* MDNS_1035_H_ */
