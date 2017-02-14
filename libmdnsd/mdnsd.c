@@ -1121,11 +1121,11 @@ mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short i
 	return r;
 }
 
-mdns_record_t * mdnsd_get_published(mdns_daemon_t *d, const char *host) {
+mdns_record_t * mdnsd_get_published(const mdns_daemon_t *d, const char *host) {
 	return d->published[_namehash(host) % SPRIME];
 }
 
-int mdnsd_has_query(mdns_daemon_t *d, const char *host) {
+int mdnsd_has_query(const mdns_daemon_t *d, const char *host) {
 	return d->queries[_namehash(host) % SPRIME]!=NULL;
 }
 
