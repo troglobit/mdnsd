@@ -40,7 +40,7 @@ rm -rf $LOCAL_PKG/*
 
 # Install newer valgrind
 echo "=== Installing valgrind ==="
-wget http://valgrind.org/downloads/valgrind-3.13.0.tar.bz2
+wget ftp://sourceware.org/pub/valgrind/valgrind-3.13.0.tar.bz2
 tar xf valgrind-3.13.0.tar.bz2
 cd valgrind-3.13.0
 ./configure --prefix=$LOCAL_PKG
