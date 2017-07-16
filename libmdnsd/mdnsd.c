@@ -1223,8 +1223,14 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 		struct sockaddr_in to;
 		struct in_addr ip;
 		unsigned short int port;
-
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-align"
+#endif
 		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif	
 			int len = message_packet_len(&m);
 			char* buf = (char*)message_packet(&m);
 			memset(&to, 0, sizeof(to));
