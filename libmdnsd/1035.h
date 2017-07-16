@@ -96,8 +96,9 @@ struct message {
 	/* External data */
 	unsigned short int id;
 	struct {
+		//it would be better to use unsigned short, but gcc < 5 complaints when using pedantic
 		//cppcheck-suppress unusedStructMember
-		unsigned short qr:1, opcode:4, aa:1, tc:1, rd:1, ra:1, z:3, rcode:4;
+		unsigned int qr:1, opcode:4, aa:1, tc:1, rd:1, ra:1, z:3, rcode:4;
 	} header;
 	unsigned short int qdcount, ancount, nscount, arcount;
 	struct question *qd;
