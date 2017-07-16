@@ -268,13 +268,6 @@ static void _r_push(mdns_record_t **list, mdns_record_t *r)
 	*list = r;
 }
 
-/* Set this r to probing, set next probe time */
-static void _r_probe(mdns_daemon_t *d, mdns_record_t *r)
-{
-	(void)d;
-	(void)r;
-}
-
 /* Force any r out right away, if valid */
 static void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 {
@@ -750,7 +743,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 	/* Process each answer, check for a conflict, and cache */
 	for (i = 0; i < m->ancount; i++) {
 		if (m->an[i].name == NULL) {
-			MDNSD_LOG_ERROR("Got answer with NULL name at %p. Type: %d, TTL: %ld\n",&m->an[i], m->an[i].type, m->an[i].ttl);
+			MDNSD_LOG_ERROR("Got answer with NULL name at %p. Type: %d, TTL: %ld\n", (void*)&m->an[i], m->an[i].type, m->an[i].ttl);
 			return 3;
 		}
 
