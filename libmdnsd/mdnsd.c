@@ -38,7 +38,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 
 #if defined(__MINGW32__)
 static char *my_strdup(const char *s) {
-    char *p = malloc(strlen(s) + 1);
+    char *p = (char *)malloc(strlen(s) + 1);
     if(p) { strcpy(p, s); }
     return p;
 }
