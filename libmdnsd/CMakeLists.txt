@@ -9,12 +9,18 @@ option(MDNSD_COMPILE_AS_CXX "Force compilation with a C++ compiler" OFF)
 mark_as_advanced(MDNSD_COMPILE_AS_CXX)
 
 if(NOT MDNSD_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang"))
-  # Compiler
-  #add_definitions(
-  add_definitions(-std=c99 -pipe -Wall -Wextra -Werror -Wformat -Wno-unused-parameter
-          -Wno-unused-function -Wno-unused-label -Wpointer-arith -Wreturn-type -Wsign-compare
-          -Wmultichar -Wstrict-overflow -Wcast-qual -Wmissing-prototypes -Wstrict-prototypes
-          -Winit-self -Wuninitialized -Wformat-security -Wformat-nonliteral)
+  add_definitions(-std=c99 -pipe
+                  -Wall -Wextra -Werror -Wpedantic
+                  -Wno-unused-parameter # some methods may require unused arguments to cast to a method pointer
+                  -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls
+                  -Wformat -Wformat-security -Wformat-nonliteral
+                  -Wuninitialized -Winit-self
+                  -Wcast-qual -Wcast-align
+                  -Wstrict-overflow
+                  -Wnested-externs
+                  -Wmultichar
+                  -Wundef
+                  -Wc++-compat)
   if(NOT WIN32 AND NOT CYGWIN)
     add_definitions(-Wshadow -Wconversion -fvisibility=hidden -fPIC)
   endif()

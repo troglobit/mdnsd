@@ -38,7 +38,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 
 #if defined(__MINGW32__)
 static char *my_strdup(const char *s) {
-    char *p = malloc(strlen(s) + 1);
+    char *p = (char *)malloc(strlen(s) + 1);
     if(p) { strcpy(p, s); }
     return p;
 }
@@ -1223,8 +1223,14 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 		struct sockaddr_in to;
 		struct in_addr ip;
 		unsigned short int port;
-
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-align"
+#endif
 		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif	
 			int len = message_packet_len(&m);
 			char* buf = (char*)message_packet(&m);
 			memset(&to, 0, sizeof(to));
