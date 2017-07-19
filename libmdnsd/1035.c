@@ -312,8 +312,8 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 	while (m->_len & 7)			\
 		m->_len++;			\
 		                        \
-	memcpy(x, (m->_packet + m->_len), sizeof(cast)); \
-	m->_len += y;         
+	x = (cast)(void *)(m->_packet + m->_len);	\
+	m->_len += y;
 
 void message_parse(struct message *m, unsigned char *packet)
 {
@@ -366,7 +366,7 @@ void message_parse(struct message *m, unsigned char *packet)
 	}
 
 	/* Process questions */
-	my(m->qd, (int)(sizeof(struct question) * m->qdcount), struct question);
+	my(m->qd, (int)(sizeof(struct question) * m->qdcount), struct question *);
 	for (i = 0; i < m->qdcount; i++) {
 		_label(m, &buf, &(m->qd[i].name));
 		m->qd[i].type  = net2short(&buf);
@@ -374,9 +374,9 @@ void message_parse(struct message *m, unsigned char *packet)
 	}
 
 	/* Process rrs */
-	my(m->an, (int)(sizeof(struct resource) * m->ancount), struct resource);
-	my(m->ns, (int)(sizeof(struct resource) * m->nscount), struct resource);
-	my(m->ar, (int)(sizeof(struct resource) * m->arcount), struct resource);
+	my(m->an, (int)(sizeof(struct resource) * m->ancount), struct resource *);
+	my(m->ns, (int)(sizeof(struct resource) * m->nscount), struct resource *);
+	my(m->ar, (int)(sizeof(struct resource) * m->arcount), struct resource *);
 	if (_rrparse(m, m->an, m->ancount, &buf))
 		return;
 	if (_rrparse(m, m->ns, m->nscount, &buf))
