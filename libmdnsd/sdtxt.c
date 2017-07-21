@@ -50,12 +50,12 @@ unsigned char *sd2txt(xht_t *h, int *len)
 	xht_walk(h, _sd2txt_count, (void *)len);
 	if (!*len) {
 		*len = 1;
-		buf = (unsigned char *)malloc(1);
+		buf = (unsigned char *)MDNSD_malloc(1);
 		*buf = 0;
 		return buf;
 	}
 
-	raw = buf = (unsigned char *)malloc((size_t)(*len));
+	raw = buf = (unsigned char *)MDNSD_malloc((size_t)(*len));
 	xht_walk(h, _sd2txt_write, &buf);
 
 	return raw;

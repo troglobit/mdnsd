@@ -38,7 +38,7 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 
 #if defined(__MINGW32__)
 static char *my_strdup(const char *s) {
-    char *p = (char *)malloc(strlen(s) + 1);
+    char *p = (char *)MDNSD_malloc(strlen(s) + 1);
     if(p) { strcpy(p, s); }
     return p;
 }
@@ -310,7 +310,7 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long in
 {
 	struct unicast *u;
 
-	u = (struct unicast *)calloc(1, sizeof(struct unicast));
+	u = (struct unicast *)MDNSD_calloc(1, sizeof(struct unicast));
 	u->r = r;
 	u->id = id;
 	u->to = to;
@@ -361,8 +361,8 @@ static void _q_done(mdns_daemon_t *d, struct query *q)
 		cur->next = q->next;
 	}
 
-	free(q->name);
-	free(q);
+	MDNSD_free(q->name);
+	MDNSD_free(q);
 }
 
 /* buh-bye, remove from hash and free */
@@ -378,10 +378,10 @@ static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 		if (cur)
 			cur->next = r->next;
 	}
-	free(r->rr.name);
-	free(r->rr.rdata);
-	free(r->rr.rdname);
-	free(r);
+	MDNSD_free(r->rr.name);
+	MDNSD_free(r->rr.rdata);
+	MDNSD_free(r->rr.rdname);
+	MDNSD_free(r);
 }
 
 /* Call the answer function with this cached entry */
@@ -417,10 +417,10 @@ static void _c_expire(mdns_daemon_t *d, struct cached **list)
 			if (cur->q)
 				_q_answer(d, cur);
 
-			free(cur->rr.name);
-			free(cur->rr.rdata);
-			free(cur->rr.rdname);
-			free(cur);
+			MDNSD_free(cur->rr.name);
+			MDNSD_free(cur->rr.rdata);
+			MDNSD_free(cur->rr.rdname);
+			MDNSD_free(cur);
 		} else {
 			last = cur;
 		}
@@ -470,19 +470,19 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	 * XXX: The c->rr.ttl is a hack for now, BAD SPEC, start
 	 *      retrying just after half-waypoint, then expire
 	 */
-	c = (struct cached *)calloc(1, sizeof(struct cached));
+	c = (struct cached *)MDNSD_calloc(1, sizeof(struct cached));
 	c->rr.name = STRDUP(r->name);
 	c->rr.type = r->type;
 	c->rr.ttl = (unsigned long int)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
 	if (r->rdlength && !r->rdata) {
 		MDNSD_LOG_ERROR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
-		free(c->rr.name);
-		free(c);
+		MDNSD_free(c->rr.name);
+		MDNSD_free(c);
 		return 1;
 	}
 	if (r->rdlength) {
-		c->rr.rdata = (unsigned char *)malloc(r->rdlength);
+		c->rr.rdata = (unsigned char *)MDNSD_malloc(r->rdlength);
 		memcpy(c->rr.rdata, r->rdata, r->rdlength);
 	} else {
 		c->rr.rdata = NULL;
@@ -570,7 +570,7 @@ mdns_daemon_t *mdnsd_new(int clazz, int frame)
 {
 	mdns_daemon_t *d;
 
-	d = (mdns_daemon_t *)calloc(1, sizeof(struct mdns_daemon));
+	d = (mdns_daemon_t *)MDNSD_calloc(1, sizeof(struct mdns_daemon));
 	gettimeofday(&d->now, 0);
 	d->expireall = (unsigned long int)(d->now.tv_sec + GC);
 	d->clazz = clazz;
@@ -617,10 +617,10 @@ void mdnsd_free(mdns_daemon_t *d)
 		struct cached* cur = d->cache[i];
 		while (cur) {
 			struct cached* next = cur->next;
-			free(cur->rr.name);
-			free(cur->rr.rdata);
-			free(cur->rr.rdname);
-			free(cur);
+			MDNSD_free(cur->rr.name);
+			MDNSD_free(cur->rr.rdata);
+			MDNSD_free(cur->rr.rdname);
+			MDNSD_free(cur);
 			cur = next;
 		}
 	}
@@ -630,10 +630,10 @@ void mdnsd_free(mdns_daemon_t *d)
 		struct query* curq = NULL;
 		while (cur) {
 			struct mdns_record* next = cur->next;
-			free(cur->rr.name);
-			free(cur->rr.rdata);
-			free(cur->rr.rdname);
-			free(cur);
+			MDNSD_free(cur->rr.name);
+			MDNSD_free(cur->rr.rdata);
+			MDNSD_free(cur->rr.rdname);
+			MDNSD_free(cur);
 			cur = next;
 		}
 
@@ -641,8 +641,8 @@ void mdnsd_free(mdns_daemon_t *d)
 		curq = d->queries[i];
 		while (curq) {
 			struct query* next = curq->next;
-			free(curq->name);
-			free(curq);
+			MDNSD_free(curq->name);
+			MDNSD_free(curq);
 			curq = next;
 		}
 
@@ -652,12 +652,12 @@ void mdnsd_free(mdns_daemon_t *d)
 		struct unicast *u = d->uanswers;
 		while (u) {
 			struct unicast *next = u->next;
-			free(u);
+			MDNSD_free(u);
 			u=next;
 		}
 	}
 
-	free(d);
+	MDNSD_free(d);
 }
 
 
@@ -789,7 +789,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		message_an(m, u->r->rr.name, u->r->rr.type, (unsigned short int)d->clazz, u->r->rr.ttl);
 		u->r->last_sent = d->now;
 		_a_copy(m, &u->r->rr);
-		free(u);
+		MDNSD_free(u);
 
 		return 1;
 	}
@@ -1042,7 +1042,7 @@ void mdnsd_query(mdns_daemon_t *d, const char *host, int type, int (*answer)(mdn
 		if (!answer)
 			return;
 
-		q = (struct query *)calloc(1, sizeof(struct query));
+		q = (struct query *)MDNSD_calloc(1, sizeof(struct query));
 		q->name = STRDUP(host);
 		q->type = type;
 		q->next = d->queries[i];
@@ -1089,7 +1089,7 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short i
 	int i = _namehash(host) % SPRIME;
 	mdns_record_t *r;
 
-	r = (struct mdns_record *)calloc(1, sizeof(struct mdns_record));
+	r = (struct mdns_record *)MDNSD_calloc(1, sizeof(struct mdns_record));
 	r->rr.name = STRDUP(host);
 	r->rr.type = type;
 	r->rr.ttl = ttl;
@@ -1146,8 +1146,8 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 
 void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short int len)
 {
-	free(r->rr.rdata);
-	r->rr.rdata = (unsigned char *)malloc(len);
+	MDNSD_free(r->rr.rdata);
+	r->rr.rdata = (unsigned char *)MDNSD_malloc(len);
 	memcpy(r->rr.rdata, data, len);
 	r->rr.rdlen = len;
 	_r_publish(d, r);
@@ -1155,7 +1155,7 @@ void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigne
 
 void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name)
 {
-	free(r->rr.rdname);
+	MDNSD_free(r->rr.rdname);
 	r->rr.rdname = STRDUP(name);
 	_r_publish(d, r);
 }

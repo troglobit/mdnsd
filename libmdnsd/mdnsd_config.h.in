@@ -17,6 +17,11 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 
+#define MDNSD_free(ptr) free(ptr)
+#define MDNSD_malloc(size) malloc(size)
+#define MDNSD_calloc(num, size) calloc(num, size)
+#define MDNSD_realloc(ptr, size) realloc(ptr, size)
+
 #define MDNSD_LOGLEVEL ${MDNSD_LOGLEVEL}
 
 /**

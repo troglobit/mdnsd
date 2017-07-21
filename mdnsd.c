@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
 	packet = sd2txt(h, &len);
 	xht_free(h);
 	mdnsd_set_raw(d, r, (char *)packet, len);
-	free(packet);
+	MDNSD_free(packet);
 
 	// example for getting a previously published record:
 	{

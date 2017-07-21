@@ -50,9 +50,9 @@ xht_t *xht_new(int prime)
 {
 	xht_t *xnew;
 
-	xnew = (xht_t *)malloc(sizeof(struct xht));
+	xnew = (xht_t *)MDNSD_malloc(sizeof(struct xht));
 	xnew->prime = prime;
-	xnew->zen = (xhn_t *)calloc(1, (sizeof(struct xhn) * (size_t)prime));	/* array of xhn_t size of prime */
+	xnew->zen = (xhn_t *)MDNSD_calloc(1, (sizeof(struct xhn) * (size_t)prime));	/* array of xhn_t size of prime */
 
 	return xnew;
 }
@@ -77,15 +77,15 @@ static xhn_t *_xht_set(xht_t *h, char *key, void *val, char flag)
 	/* if none, make a new one, link into this index */
 	if (n == NULL) {
 		if (h->zen != NULL) {
-			n = (xhn_t *)malloc(sizeof(struct xhn));
+			n = (xhn_t *)MDNSD_malloc(sizeof(struct xhn));
 			n->next = NULL;
 			n->next = h->zen[i].next;
 			h->zen[i].next = n;
 		}
 	} else if (n->flag) {
 		/* When flag is set, we manage their mem and free em first */
-		free((void *)n->key);
-		free(n->val);
+		MDNSD_free((void *)n->key);
+		MDNSD_free(n->val);
 	}
 
 	if (n != NULL) {
@@ -93,8 +93,8 @@ static xhn_t *_xht_set(xht_t *h, char *key, void *val, char flag)
 		n->key = key;
 		n->val = val;
 	} else {
-		free(key);
-		free(val);
+		MDNSD_free(key);
+		MDNSD_free(val);
 	}
 
 	return n;
@@ -114,10 +114,10 @@ void xht_store(xht_t *h, char *key, int klen, void *val, int vlen)
 	if (h == 0 || key == 0 || klen == 0)
 		return;
 
-	ckey = (char *)malloc((size_t)klen + 1);
+	ckey = (char *)MDNSD_malloc((size_t)klen + 1);
 	memcpy(ckey, key, (size_t)klen);
 	ckey[klen] = '\0';
-	cval = (char *)malloc((size_t)vlen + 1);
+	cval = (char *)MDNSD_malloc((size_t)vlen + 1);
 	memcpy(cval, val, (size_t)vlen);
 	cval[vlen] = '\0';	/* convenience, in case it was a string too */
 	_xht_set(h, ckey, cval, 1);
@@ -147,22 +147,22 @@ void xht_free(xht_t *h)
 		if ((n = (&h->zen[i])) == NULL)
 			continue;
 		if (n->flag) {
-			free((void *)n->key);
-			free(n->val);
+			MDNSD_free((void *)n->key);
+			MDNSD_free(n->val);
 		}
 		for (n = (&h->zen[i])->next; n != 0;) {
 			f = n->next;
 			if (n->flag) {
-				free((void *)n->key);
-				free(n->val);
+				MDNSD_free((void *)n->key);
+				MDNSD_free(n->val);
 			}
-			free(n);
+			MDNSD_free(n);
 			n = f;
 		}
 	}
 
-	free(h->zen);
-	free(h);
+	MDNSD_free(h->zen);
+	MDNSD_free(h);
 }
 
 void xht_walk(xht_t *h, xht_walker w, void *arg)
