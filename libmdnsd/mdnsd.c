@@ -1214,7 +1214,7 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			if (mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port)!=0)
 				return 2;
 		}
-#ifdef __WIN32
+#ifdef _WIN32
 		if (bsize < 0 && WSAGetLastError() != WSAEWOULDBLOCK)
 #else
 		if (bsize < 0 && errno != EAGAIN)
