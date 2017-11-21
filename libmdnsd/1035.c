@@ -106,7 +106,10 @@ static void _label(struct message *m, unsigned char **bufp, char **namep)
 	for (label = (char *)*bufp; *label != 0; name += *label + 1, label += *label + 1) {
 		/* Skip past any compression pointers, kick out if end encountered (bad data prolly) */
 		while (*label & 0xc0) {
-			if (*(label = (char *)m->_buf + _ldecomp(label)) == 0)
+			unsigned short int offset = _ldecomp(label);
+			if (offset > m->_len)
+				return;
+			if (*(label = (char *)m->_buf + offset) == 0)
 				break;
 		}
 
