@@ -4,10 +4,7 @@
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
 
-#define snprintf c99_snprintf
-#define vsnprintf c99_vsnprintf
-
-__inline int c99_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
+__inline int msnds_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
 {
     int count = -1;
 
@@ -19,17 +16,9 @@ __inline int c99_vsnprintf(char *outBuf, size_t size, const char *format, va_lis
     return count;
 }
 
-__inline int c99_snprintf(char *outBuf, size_t size, const char *format, ...)
-{
-    int count;
-    va_list ap;
+#else
 
-    va_start(ap, format);
-    count = c99_vsnprintf(outBuf, size, format, ap);
-    va_end(ap);
-
-    return count;
-}
+#define msnds_snprintf snprintf
 
 #endif
 
@@ -278,7 +267,7 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 				return 1;
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
-			snprintf(rr[i].known.a.name,15, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
+			msnds_snprintf(rr[i].known.a.name,15, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
 			rr[i].known.a.ip.s_addr = (in_addr_t)net2long(bufp);
 			break;
 
