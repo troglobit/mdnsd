@@ -268,7 +268,7 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
 			msnds_snprintf(rr[i].known.a.name,15, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
-			rr[i].known.a.ip.s_addr = (in_addr_t)net2long(bufp);
+			rr[i].known.a.ip.s_addr = (in_addr_t)(*(*bufp) | (*(*bufp + 1) << 8) | (*(*bufp + 2) << 16) | (*(*bufp + 3) << 24));
 			break;
 
 		case QTYPE_NS:
