@@ -476,7 +476,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	c->rr.ttl = (unsigned long int)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
 	if (r->rdlength && !r->rdata) {
-		MDNSD_LOG_ERROR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
+		//MDNSD_LOG_ERROR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
 		MDNSD_free(c->rr.name);
 		MDNSD_free(c);
 		return 1;
