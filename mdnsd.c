@@ -141,7 +141,7 @@ int msock(void)
 	int s, flag = 1, ittl = 255;
 	struct sockaddr_in in;
 	struct ip_mreq mc;
-	char ttl = 255; // send to any reachable net, not only the subnet
+	unsigned char ttl = 255; // send to any reachable net, not only the subnet
 
 	memset(&in, 0, sizeof(in));
 	in.sin_family = AF_INET;
