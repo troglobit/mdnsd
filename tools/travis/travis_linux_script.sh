@@ -1,13 +1,15 @@
 #!/bin/bash
 set -ev
 
+echo "\n\n---------------------------------------------------\n###### Running with $CC and Analyze=$ANALYZE ######\n---------------------------------------------------\n\n"
+
 if [ $ANALYZE = "true" ]; then
     echo "=== Running static code analysis ==="
-    if [ "$CC" = "clang" ]; then
+    if ! case $CC in clang*) false;; esac; then
         mkdir -p build
         cd build
-        scan-build-3.9 cmake -G "Unix Makefiles" ..
-        scan-build-3.9 -enable-checker security.FloatLoopCounter \
+        scan-build cmake -G "Unix Makefiles" ..
+        scan-build -enable-checker security.FloatLoopCounter \
           -enable-checker security.insecureAPI.UncheckedReturn \
           --status-bugs -v \
           make -j
@@ -27,8 +29,7 @@ if [ $ANALYZE = "true" ]; then
 else
     echo "=== Building ==="
 
-    # cross compilation only with gcc
-    if [ "$CC" = "gcc" ]; then
+    if [ $MINGW = "true" ]; then
         echo "Cross compile release build for MinGW 32 bit"
         mkdir -p build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-mingw32.cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -46,11 +47,6 @@ else
         cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-gcc-m32.cmake -DCMAKE_BUILD_TYPE=Release ..
         make -j
         cd .. && rm build -rf
-    fi
-
-    if [ "$CC" = "gcc" ]; then
-        echo "Upgrade to gcc 4.8"
-        export CXX="g++-4.8" CC="gcc-4.8"
     fi
 
     echo "Compile release build for 64-bit linux"

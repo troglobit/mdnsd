@@ -205,7 +205,8 @@ static int _host(struct message *m, unsigned char **bufp, char *name)
 			if (_lmatch(m, label + x, m->_labels[y])) {
 				/* Matching label, set up pointer */
 				l = label + x;
-				short2net((unsigned short)((unsigned char *)m->_labels[y] - m->_packet), (unsigned char **)&l);
+				unsigned char* target = (unsigned char *) &(l);
+				short2net((unsigned short)((unsigned char *)m->_labels[y] - m->_packet), &target);
 				label[x] = (char)(label[x] | 0xc0);
 				len = x + 2;
 				break;

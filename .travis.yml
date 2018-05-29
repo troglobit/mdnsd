@@ -1,47 +1,120 @@
-language: c
-
-compiler:
-- gcc
-- clang
-
-os:
-- linux
-- osx
+# using c for language overwrites our compilers
+language: generic
 
 dist: trusty
-sudo: required
-
-env:
-  matrix:
-    # Do both, compile with static code analysis and without
-    - ANALYZE=false
-    - ANALYZE=true
+sudo: false
 
 matrix:
-  exclude:
-  # This excludes OSX GCC builds.
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - binutils-mingw-w64-i686
+            - build-essential
+            - gcc-multilib
+            - gcc-4.9
+            - gcc-mingw-w64-i686
+            - g++-4.9
+            - g++-multilib
+            - g++-mingw-w64
+            - libc6-dev-i386
+            - linux-libc-dev:i386
+            - mingw-w64
+      env:
+         - ANALYZE=false
+         - MINGW=true
+         - CC=gcc-4.9
+         - CXX=g++-4.9
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-7
+            - gcc-7-multilib
+            - g++-7
+            - g++-7-multilib
+      env:
+         - ANALYZE=false
+         - CC=gcc-7
+         - CXX=g++-7
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-3.9
+      env:
+         - ANALYZE=false
+         - CC=clang-3.9
+         - CXX=clang++-3.9
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - clang-tidy-6.0
+      env:
+         - ANALYZE=false
+         - CC=clang-6.0
+         - CXX=clang++-6.0
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-7
+            - gcc-7-multilib
+            - g++-7
+            - g++-7-multilib
+            - linux-libc-dev:i386
+      env:
+         - ANALYZE=true
+         - CC=gcc-7
+         - CXX=g++-7
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - clang-tidy-6.0
+      env:
+         - ANALYZE=true
+         - CC=clang-6.0
+         - CXX=clang++-6.0
     - os: osx
-      compiler: gcc
-    - os: osx
-      env: ANALYZE=true
+      compiler: clang
+      env:
+         - ANALYZE=false
 
-addons:
-  apt:
-    sources:
-      # see https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
-    packages:
-      - binutils-mingw-w64-i686
-      - build-essential
-      - cmake
-      - gcc-mingw-w64-i686
-      - gcc-multilib
-      - g++-multilib
-      - gcc-4.8
-      - g++-4.8
-      - g++-4.8-multilib
-      - libc6-dbg # for valgrind compilation
-      - mingw-w64
-      - g++-mingw-w64
+#addons:
+#  apt:
+#    sources:
+#      # see https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
+#    packages:
+#      - binutils-mingw-w64-i686
+#      - build-essential
+#      - cmake
+#      - mingw32-gcc
+#      - gcc-mingw-w64-i686
+#      - gcc-mingw-w64
+#      - g++-mingw-w64
+#      - gcc-multilib
+#      - g++-multilib
+#      - libc6-dbg # for valgrind compilation
 
 cache:
   pip: true

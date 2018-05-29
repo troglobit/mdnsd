@@ -3,12 +3,12 @@ set -ev
 
 echo "=== Updating the build environment in $LOCAL_PKG ==="
 
-echo "=== Installing from external package sources ==="
-wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main" | sudo tee -a /etc/apt/sources.list
-sudo add-apt-repository -y ppa:lttng/ppa
-sudo apt-get update -qq
-sudo apt-get install -y clang-3.9 clang-tidy-3.9
+#echo "=== Installing from external package sources ==="
+#wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+#echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main" | sudo tee -a /etc/apt/sources.list
+#sudo add-apt-repository -y ppa:lttng/ppa
+#sudo apt-get update -qq
+#sudo apt-get install -y clang-3.9 clang-tidy-3.9
 
 echo "=== Installing python packages ==="
 pip install --user cpp-coveralls
@@ -43,7 +43,7 @@ echo "=== Installing valgrind ==="
 wget ftp://sourceware.org/pub/valgrind/valgrind-3.13.0.tar.bz2
 tar xf valgrind-3.13.0.tar.bz2
 cd valgrind-3.13.0
-./configure --prefix=$LOCAL_PKG
+CC=clang CXX=clang++ ./configure --prefix=$LOCAL_PKG
 make -s -j8 install
 cd ..
 
@@ -66,8 +66,8 @@ echo "=== Installing cppcheck ==="
 wget https://github.com/danmar/cppcheck/archive/1.73.tar.gz -O cppcheck-1.73.tar.gz
 tar xf cppcheck-1.73.tar.gz
 cd cppcheck-1.73
-make PREFIX="$LOCAL_PKG" SRCDIR=build CFGDIR="$LOCAL_PKG/cppcheck-cfg" HAVE_RULES=yes CXXFLAGS="-O2 -DNDEBUG -Wall -Wno-sign-compare -Wno-unused-function" -j8
-make PREFIX="$LOCAL_PKG" SRCDIR=build CFGDIR="$LOCAL_PKG/cppcheck-cfg" HAVE_RULES=yes install
+CC=clang CXX=clang++ make PREFIX="$LOCAL_PKG" SRCDIR=build CFGDIR="$LOCAL_PKG/cppcheck-cfg" HAVE_RULES=yes CXXFLAGS="-O2 -DNDEBUG -Wno-sign-compare -Wno-unused-function -std=gnu++0x" -j
+CC=clang CXX=clang++ make PREFIX="$LOCAL_PKG" SRCDIR=build CFGDIR="$LOCAL_PKG/cppcheck-cfg" HAVE_RULES=yes install
 cd ..
 
 # create cached flag
