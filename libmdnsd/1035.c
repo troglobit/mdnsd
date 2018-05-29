@@ -16,6 +16,18 @@ __inline int msnds_vsnprintf(char *outBuf, size_t size, const char *format, va_l
     return count;
 }
 
+__inline int msnds_snprintf(char *outBuf, size_t size, const char *format, ...)
+{
+    int count;
+    va_list ap;
+
+    va_start(ap, format);
+    count = msnds_vsnprintf(outBuf, size, format, ap);
+    va_end(ap);
+
+    return count;
+}
+
 #else
 
 #define msnds_snprintf snprintf
