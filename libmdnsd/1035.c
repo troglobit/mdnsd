@@ -16,6 +16,18 @@ __inline int msnds_vsnprintf(char *outBuf, size_t size, const char *format, va_l
     return count;
 }
 
+__inline int msnds_snprintf(char *outBuf, size_t size, const char *format, ...)
+{
+    int count;
+    va_list ap;
+
+    va_start(ap, format);
+    count = msnds_vsnprintf(outBuf, size, format, ap);
+    va_end(ap);
+
+    return count;
+}
+
 #else
 
 #define msnds_snprintf snprintf
@@ -205,7 +217,8 @@ static int _host(struct message *m, unsigned char **bufp, char *name)
 			if (_lmatch(m, label + x, m->_labels[y])) {
 				/* Matching label, set up pointer */
 				l = label + x;
-				short2net((unsigned short)((unsigned char *)m->_labels[y] - m->_packet), (unsigned char **)&l);
+				unsigned char* target = (unsigned char *) &(l);
+				short2net((unsigned short)((unsigned char *)m->_labels[y] - m->_packet), &target);
 				label[x] = (char)(label[x] | 0xc0);
 				len = x + 2;
 				break;
@@ -267,7 +280,7 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 				return 1;
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
-			msnds_snprintf(rr[i].known.a.name,15, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
+			msnds_snprintf(rr[i].known.a.name,16, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
 			rr[i].known.a.ip.s_addr = (in_addr_t)(*(*bufp) | (*(*bufp + 1) << 8) | (*(*bufp + 2) << 16) | (*(*bufp + 3) << 24));
 			break;
 

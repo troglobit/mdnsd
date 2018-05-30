@@ -10,7 +10,7 @@ mark_as_advanced(MDNSD_COMPILE_AS_CXX)
 
 if(NOT MDNSD_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang"))
   add_definitions(-std=c99 -pipe
-                  -Wall -Wextra -Werror -Wpedantic
+                  -Wall -Wextra -Werror
                   -Wno-unused-parameter # some methods may require unused arguments to cast to a method pointer
                   -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls
                   -Wformat -Wformat-security -Wformat-nonliteral
@@ -21,6 +21,13 @@ if(NOT MDNSD_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER
                   -Wmultichar
                   -Wundef
                   -Wc++-compat)
+  if(NOT MINGW AND NOT MSYS AND NOT MSVC)
+    add_definitions(-Wpedantic)
+  endif()
+  if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
+    # new feature since 7.0
+    add_definitions(-Wformat-truncation=1)
+  endif()
   if(NOT WIN32 AND NOT CYGWIN)
     add_definitions(-Wshadow -Wconversion -fvisibility=hidden -fPIC)
   endif()

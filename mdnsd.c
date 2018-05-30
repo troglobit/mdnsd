@@ -120,7 +120,9 @@ void done(int sig)
 	_shutdown = 1;
 	mdnsd_shutdown(_d);
 	// wake up select
-	write(daemon_socket, "\0", 1);
+	if (write(daemon_socket, "\0", 1) == -1) {
+		printf("Could not write zero byte to socket\n");
+	}
 }
 
 static void socket_set_nonblocking(int sockfd) {
@@ -139,7 +141,7 @@ int msock(void)
 	int s, flag = 1, ittl = 255;
 	struct sockaddr_in in;
 	struct ip_mreq mc;
-	char ttl = 255; // send to any reachable net, not only the subnet
+	unsigned char ttl = 255; // send to any reachable net, not only the subnet
 
 	memset(&in, 0, sizeof(in));
 	in.sin_family = AF_INET;
