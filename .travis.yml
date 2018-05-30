@@ -38,6 +38,7 @@ matrix:
             - gcc-7-multilib
             - g++-7
             - g++-7-multilib
+            - linux-libc-dev:i386
       env:
          - ANALYZE=false
          - CC=gcc-7
