@@ -1,6 +1,9 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
-[![Travis Status][]][Travis]
+
+[![Ohloh Project Status](https://www.ohloh.net/p/mdnsd_pro/widgets/project_thin_badge.gif)](https://www.ohloh.net/p/mdnsd_pro)
+[![Build Status](https://travis-ci.org/Pro/mdnsd.png?branch=master)](https://travis-ci.org/Pro/mdnsd)
+[![Build status](https://ci.appveyor.com/api/projects/status/gv4lros88uubrkwd?svg=true)](https://ci.appveyor.com/project/Pro/mdnsd)
 
 This package is intended for software developers and integrators, there
 isn't really anything here for an end user.  The project license is the
@@ -14,6 +17,11 @@ to improve it in the future.  Also included are some other utilities,
 `xht.*` for simple fast hashtables, and `1035.*` which mdnsd uses for
 standalone DNS parsing.
 
+**Differences to the base repo (https://github.com/troglobit/mdnsd)**:
+* Use CMake for the build
+* Strict compilation flags for better portability
+* Support of Linux, MinGW, **OS X** and **Windows**
+* Continuous Integration
 
 Build & Install
 ---------------

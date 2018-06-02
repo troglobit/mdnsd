@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-int _sd2txt_len(const char *key, char *val)
+static size_t _sd2txt_len(const char *key, char *val)
 {
-	int ret = strlen(key);
+	size_t ret = strlen(key);
 
 	if (!*val)
 		return ret;
@@ -15,20 +15,20 @@ int _sd2txt_len(const char *key, char *val)
 	return ret;
 }
 
-void _sd2txt_count(xht_t *h __attribute__ ((unused)), const char *key, void *val, void *arg)
+static void _sd2txt_count(xht_t *h, char *key, void *val, void *arg)
 {
 	int *count = (int *)arg;
 
-	*count += _sd2txt_len(key, (char *)val) + 1;
+	*count += (int)_sd2txt_len(key, (char *)val) + 1;
 }
 
-void _sd2txt_write(xht_t *h __attribute__ ((unused)), const char *key, void *val, void *arg)
+static void _sd2txt_write(xht_t *h, char *key, void *val, void *arg)
 {
 	unsigned char **txtp = (unsigned char **)arg;
 	char *cval = (char *)val;
 
 	/* Copy in lengths, then strings */
-	**txtp = _sd2txt_len(key, (char *)val);
+	**txtp = (unsigned char)_sd2txt_len(key, (char *)val);
 	(*txtp)++;
 	memcpy(*txtp, key, strlen(key));
 	*txtp += strlen(key);
@@ -50,12 +50,12 @@ unsigned char *sd2txt(xht_t *h, int *len)
 	xht_walk(h, _sd2txt_count, (void *)len);
 	if (!*len) {
 		*len = 1;
-		buf = malloc(1);
+		buf = (unsigned char *)MDNSD_malloc(1);
 		*buf = 0;
 		return buf;
 	}
 
-	raw = buf = malloc(*len);
+	raw = buf = (unsigned char *)MDNSD_malloc((size_t)(*len));
 	xht_walk(h, _sd2txt_write, &buf);
 
 	return raw;
@@ -63,7 +63,7 @@ unsigned char *sd2txt(xht_t *h, int *len)
 
 xht_t *txt2sd(unsigned char *txt, int len)
 {
-	char key[256], *val;
+	char key[256];
 	xht_t *h = 0;
 
 	if (txt == 0 || len == 0 || *txt == 0)
@@ -73,6 +73,7 @@ xht_t *txt2sd(unsigned char *txt, int len)
 
 	/* Loop through data breaking out each block, storing into hashtable */
 	for (; *txt <= len && len > 0; len -= *txt, txt += *txt + 1) {
+		char* val;
 		if (*txt == 0)
 			break;
 
@@ -82,7 +83,8 @@ xht_t *txt2sd(unsigned char *txt, int len)
 			*val = 0;
 			val++;
 		}
-		xht_store(h, key, strlen(key), val, strlen(val));
+		if (val != NULL)
+			xht_store(h, key, (int)strlen(key), val, (int)strlen(val));
 	}
 
 	return h;

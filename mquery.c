@@ -1,26 +1,35 @@
-#include <arpa/inet.h>
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <libmdnsd/mdnsd.h>
 
+#ifdef _WIN32
+# define CLOSESOCKET(S) closesocket((SOCKET)S)
+# define ssize_t int
+#else
+# include <unistd.h> // read, write, close
+# define CLOSESOCKET(S) close(S)
+#endif
+
 /* Print an answer */
-int ans(mdns_answer_t *a, void *arg __attribute__ ((unused)))
+int ans(mdns_answer_t *a, void *arg)
 {
 	int now;
 
 	if (a->ttl == 0)
 		now = 0;
 	else
-		now = a->ttl - time(0);
+		now = (int)(a->ttl - (unsigned long)time(0));
 
 	switch (a->type) {
 	case QTYPE_A:
@@ -32,15 +41,27 @@ int ans(mdns_answer_t *a, void *arg __attribute__ ((unused)))
 		break;
 
 	case QTYPE_SRV:
-		printf("SRV %s for %d seconds to %s:%d\n", a->name, now, a->rdname, a->srv.port);
+		printf("SRV %s for %d seconds to %s:%hu\n", a->name, now, a->rdname, a->srv.port);
 		break;
 
 	default:
-		printf("%d %s for %d seconds with %d data\n", a->type, a->name, now, a->rdlen);
+		printf("%hu %s for %d seconds with %hu data\n", a->type, a->name, now, a->rdlen);
 	}
 
 	return 0;
 }
+
+
+static void socket_set_nonblocking(int sockfd) {
+#ifdef _WIN32
+	u_long iMode = 1;
+    ioctlsocket(sockfd, FIONBIO, &iMode);
+#else
+	int opts = fcntl(sockfd, F_GETFL);
+	fcntl(sockfd, F_SETFL, opts|O_NONBLOCK);
+#endif
+}
+
 
 /* Create multicast 224.0.0.251:5353 socket */
 int msock(void)
@@ -48,14 +69,14 @@ int msock(void)
 	int s, flag = 1, ittl = 255;
 	struct sockaddr_in in;
 	struct ip_mreq mc;
-	char ttl = 255;
+	char ttl = (char) 255;
 
 	memset(&in, 0, sizeof(in));
 	in.sin_family = AF_INET;
 	in.sin_port = htons(5353);
 	in.sin_addr.s_addr = 0;
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if ((s = (int)socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		return 0;
 
 #ifdef SO_REUSEPORT
@@ -63,19 +84,18 @@ int msock(void)
 #endif
 	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
 	if (bind(s, (struct sockaddr *)&in, sizeof(in))) {
-		close(s);
+		CLOSESOCKET(s);
 		return 0;
 	}
 
 	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
 	mc.imr_interface.s_addr = htonl(INADDR_ANY);
-	setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
-	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
-	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ittl, sizeof(ittl));
+	setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void*)&mc, sizeof(mc));
+	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, (void*)&ttl, sizeof(ttl));
+	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, (void*)&ittl, sizeof(ittl));
 
-	flag = fcntl(s, F_GETFL, 0);
-	flag |= O_NONBLOCK;
-	fcntl(s, F_SETFL, flag);
+	socket_set_nonblocking(s);
+
 
 	return s;
 }
@@ -86,7 +106,6 @@ int main(int argc, char *argv[])
 	struct message m;
 	unsigned long int ip;
 	unsigned short int port;
-	struct timeval *tv;
 	ssize_t bsize;
 	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
@@ -108,7 +127,7 @@ int main(int argc, char *argv[])
 	mdnsd_query(d, argv[2], atoi(argv[1]), ans, 0);
 
 	while (1) {
-		tv = mdnsd_sleep(d);
+		struct timeval *tv = mdnsd_sleep(d);
 		FD_ZERO(&fds);
 		FD_SET(s, &fds);
 		select(s + 1, &fds, 0, 0, tv);
