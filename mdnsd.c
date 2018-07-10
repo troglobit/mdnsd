@@ -14,10 +14,10 @@
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
 
+volatile sig_atomic_t running = 1;
+
 char *prognm  = PACKAGE_NAME;
-int _shutdown = 0;
 mdns_daemon_t *_d;
-int _zzz[2];
 
 static void conflict(char *name, int type, void *arg)
 {
@@ -27,9 +27,8 @@ static void conflict(char *name, int type, void *arg)
 
 static void done(int sig)
 {
-	_shutdown = 1;
+	running = 0;
 	mdnsd_shutdown(_d);
-	write(_zzz[1], " ", 1);
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
@@ -116,7 +115,6 @@ int main(int argc, char *argv[])
 	signal(SIGHUP, done);
 	signal(SIGQUIT, done);
 	signal(SIGTERM, done);
-	pipe(_zzz);
 	_d = d = mdnsd_new(QCLASS_IN, 1000);
 	if ((s = msock()) == 0) {
 		printf("can't create socket: %s\n", strerror(errno));
@@ -140,16 +138,11 @@ int main(int argc, char *argv[])
 	mdnsd_set_raw(d, r, (char *)packet, len);
 	free(packet);
 
-	while (1) {
+	while (running) {
 		tv = mdnsd_sleep(d);
 		FD_ZERO(&fds);
-		FD_SET(_zzz[0], &fds);
 		FD_SET(s, &fds);
 		select(s + 1, &fds, 0, 0, tv);
-
-		/* Only used when we wake-up from a signal, shutting down */
-		if (FD_ISSET(_zzz[0], &fds))
-			read(_zzz[0], buf, MAX_PACKET_LEN);
 
 		if (FD_ISSET(s, &fds)) {
 			ssize = sizeof(struct sockaddr_in);
@@ -177,9 +170,6 @@ int main(int argc, char *argv[])
 
 			printf(">> %s", inet_ntoa(from.sin_addr));
 		}
-
-		if (_shutdown)
-			break;
 	}
 
 	mdnsd_shutdown(d);
