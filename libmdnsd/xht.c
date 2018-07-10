@@ -69,9 +69,10 @@ static xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 	i = _xhter(key) % h->prime;
 
 	/* check for existing key first, or find an empty one */
-	if ((n = _xht_node_find(&h->zen[i], key)) == 0) {
+	n = _xht_node_find(&h->zen[i], key);
+	if (n == NULL) {
 		for (n = &h->zen[i]; n != 0; n = n->next) {
-			if (n->val == 0)
+			if (n->val == NULL)
 				break;
 		}
 	}
@@ -98,7 +99,7 @@ static xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 
 void xht_set(xht_t *h, const char *key, void *val)
 {
-	if (h == 0 || key == 0)
+	if (h == NULL || key == NULL)
 		return;
 	_xht_set(h, key, val, 0);
 }
@@ -107,7 +108,7 @@ void xht_store(xht_t *h, const char *key, int klen, void *val, int vlen)
 {
 	char *ckey, *cval;
 
-	if (h == 0 || key == 0 || klen == 0)
+	if (h == NULL || key == NULL || klen == 0)
 		return;
 
 	ckey = malloc(klen + 1);
@@ -124,8 +125,12 @@ void *xht_get(xht_t *h, const char *key)
 {
 	xhn_t *n;
 
-	if (h == 0 || key == 0 || (n = _xht_node_find(&h->zen[_xhter(key) % h->prime], key)) == 0)
-		return 0;
+	if (h == NULL || key == NULL)
+		return NULL;
+
+	n = _xht_node_find(&h->zen[_xhter(key) % h->prime], key);
+	if (n == NULL)
+		return NULL;
 
 	return n->val;
 }
@@ -136,7 +141,7 @@ void xht_free(xht_t *h)
 	int i;
 	xhn_t *n, *f;
 
-	if (h == 0)
+	if (h == NULL)
 		return;
 
 	for (i = 0; i < h->prime; i++) {
@@ -160,7 +165,7 @@ void xht_walk(xht_t *h, xht_walker w, void *arg)
 	int i;
 	xhn_t *n;
 
-	if (h == 0 || w == 0)
+	if (h == NULL || w == NULL)
 		return;
 
 	for (i = 0; i < h->prime; i++) {
