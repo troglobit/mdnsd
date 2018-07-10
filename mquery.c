@@ -13,7 +13,7 @@
 #include <libmdnsd/mdnsd.h>
 
 /* Print an answer */
-static int ans(mdns_answer_t *a, void *arg __attribute__ ((unused)))
+static int ans(mdns_answer_t *a, void *arg)
 {
 	int now;
 

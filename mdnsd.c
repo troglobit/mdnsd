@@ -19,13 +19,13 @@ int _shutdown = 0;
 mdns_daemon_t *_d;
 int _zzz[2];
 
-static void conflict(char *name, int type, void *arg __attribute__ ((unused)))
+static void conflict(char *name, int type, void *arg)
 {
 	printf("conflicting name detected %s for type %d\n", name, type);
 	exit(1);
 }
 
-static void done(int sig __attribute__ ((unused)))
+static void done(int sig)
 {
 	_shutdown = 1;
 	mdnsd_shutdown(_d);

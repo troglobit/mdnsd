@@ -1,9 +1,12 @@
 ACLOCAL_AMFLAGS         = -I m4
+AM_CFLAGS               = -W -Wall -Wextra -Wno-unused-parameter
 
 sbin_PROGRAMS           = mdnsd
 bin_PROGRAMS            = mquery
+
 mdnsd_SOURCES           = mdnsd.c
 mdnsd_LDADD             = libmdnsd/libmdnsd.la
+
 mquery_SOURCES          = mquery.c
 mquery_LDADD            = libmdnsd/libmdnsd.la
 
