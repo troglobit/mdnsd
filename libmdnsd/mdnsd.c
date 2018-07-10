@@ -309,7 +309,7 @@ static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 /* Call the answer function with this cached entry */
 static void _q_answer(mdns_daemon_t *d, struct cached *c)
 {
-	if (c->rr.ttl <= d->now.tv_sec)
+	if (c->rr.ttl <= (unsigned long)d->now.tv_sec)
 		c->rr.ttl = 0;
 	if (c->q->answer(&c->rr, c->q->arg) == -1)
 		_q_done(d, c->q);
@@ -328,7 +328,7 @@ static void _c_expire(mdns_daemon_t *d, struct cached **list)
 
 	while (cur != 0) {
 		next = cur->next;
-		if (d->now.tv_sec >= cur->rr.ttl) {
+		if ((unsigned long)d->now.tv_sec >= cur->rr.ttl) {
 			if (last)
 				last->next = next;
 
@@ -360,7 +360,7 @@ static void _gc(mdns_daemon_t *d)
 			_c_expire(d, &d->cache[i]);
 	}
 
-	d->expireall = d->now.tv_sec + GC;
+	d->expireall = (unsigned long)(d->now.tv_sec + GC);
 }
 
 static void _cache(mdns_daemon_t *d, struct resource *r)
@@ -394,7 +394,7 @@ static void _cache(mdns_daemon_t *d, struct resource *r)
 	c = calloc(1, sizeof(struct cached));
 	c->rr.name = strdup(r->name);
 	c->rr.type = r->type;
-	c->rr.ttl = d->now.tv_sec + (r->ttl / 2) + 8;
+	c->rr.ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
 	c->rr.rdata = malloc(r->rdlength);
 	memcpy(c->rr.rdata, r->rdata, r->rdlength);
@@ -471,7 +471,7 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 
 	d = calloc(1, sizeof(struct mdns_daemon));
 	gettimeofday(&d->now, 0);
-	d->expireall = d->now.tv_sec + GC;
+	d->expireall = (unsigned long)d->now.tv_sec + GC;
 	d->class = class;
 	d->frame = frame;
 
@@ -710,14 +710,14 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 	}
 
 	/* Process qlist for retries or expirations */
-	if (d->checkqlist && d->now.tv_sec >= d->checkqlist) {
+	if (d->checkqlist && (unsigned long)d->now.tv_sec >= d->checkqlist) {
 		struct query *q;
 		struct cached *c;
 		unsigned long int nextbest = 0;
 
 		/* Ask questions first, track nextbest time */
 		for (q = d->qlist; q != 0; q = q->list) {
-			if (q->nexttry > 0 && q->nexttry <= d->now.tv_sec && q->tries < 3)
+			if (q->nexttry > 0 && q->nexttry <= (unsigned long)d->now.tv_sec && q->tries < 3)
 				message_qd(m, q->name, q->type, d->class);
 			else if (q->nexttry > 0 && (nextbest == 0 || q->nexttry < nextbest))
 				nextbest = q->nexttry;
@@ -725,7 +725,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 		/* Include known answers, update questions */
 		for (q = d->qlist; q != 0; q = q->list) {
-			if (q->nexttry == 0 || q->nexttry > d->now.tv_sec)
+			if (q->nexttry == 0 || q->nexttry > (unsigned long)d->now.tv_sec)
 				continue;
 
 			/* Done retrying, expire and reset */
@@ -742,7 +742,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 			/* If room, add all known good entries */
 			c = 0;
-			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > d->now.tv_sec + 8 &&
+			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long)d->now.tv_sec + 8 &&
 			       message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
 				message_an(m, q->name, q->type, d->class, c->rr.ttl - d->now.tv_sec);
 				_a_copy(m, &c->rr);
@@ -751,7 +751,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		d->checkqlist = nextbest;
 	}
 
-	if (d->now.tv_sec > d->expireall)
+	if ((unsigned long)d->now.tv_sec > d->expireall)
 		_gc(d);
 
 	return ret;
