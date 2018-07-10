@@ -1,3 +1,4 @@
+#include <config.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -13,6 +14,7 @@
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
 
+char *prognm  = PACKAGE_NAME;
 int _shutdown = 0;
 mdns_daemon_t *_d;
 int _zzz[2];
@@ -68,6 +70,19 @@ int msock(void)
 	return s;
 }
 
+static char *progname(char *arg0)
+{
+       char *nm;
+
+       nm = strrchr(arg0, '/');
+       if (nm)
+	       nm++;
+       else
+	       nm = arg0;
+
+       return nm;
+}
+
 int main(int argc, char *argv[])
 {
 	mdns_daemon_t *d;
@@ -88,8 +103,9 @@ int main(int argc, char *argv[])
 	xht_t *h;
 	char *path = NULL;
 
+	prognm = progname(argv[0]);
 	if (argc < 4) {
-		printf("usage: %s 'unique name' 12.34.56.78 80 '/optionalpath'\n", argv[0]);
+		printf("usage: %s 'unique name' 12.34.56.78 80 '/optionalpath'\n", prognm);
 		return 1;
 	}
 
