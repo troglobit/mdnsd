@@ -1,5 +1,6 @@
 ACLOCAL_AMFLAGS         = -I m4
 AM_CFLAGS               = -W -Wall -Wextra -Wno-unused-parameter
+AM_CPPFLAGS             = -D_GNU_SOURCE -D_BSD_SOURCE -D_DEFAULT_SOURCE
 
 sbin_PROGRAMS           = mdnsd
 bin_PROGRAMS            = mquery
