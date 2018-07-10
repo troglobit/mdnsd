@@ -35,10 +35,9 @@ static void done(int sig)
 /* Create multicast 224.0.0.251:5353 socket */
 static int msock(void)
 {
-	int s, flag = 1, ittl = 255;
+	int s, flag = 1;
 	struct sockaddr_in in;
 	struct ip_mreq mc;
-	char ttl = 255;
 
 	memset(&in, 0, sizeof(in));
 	in.sin_family = AF_INET;
@@ -60,8 +59,6 @@ static int msock(void)
 	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
 	mc.imr_interface.s_addr = htonl(INADDR_ANY);
 	setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
-	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
-	setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ittl, sizeof(ittl));
 
 	flag = fcntl(s, F_GETFL, 0);
 	flag |= O_NONBLOCK;
