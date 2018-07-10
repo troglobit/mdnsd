@@ -1,6 +1,6 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
-[![Travis Status][]][Travis]
+[![License Badge][]][License] [![Travis Status][]][Travis]
 
 This package is intended for software developers and integrators, there
 isn't really anything here for an end user.  The project license is the
@@ -60,5 +60,7 @@ and maintain it for the long haul.
 
 [jeremie]:       https://github.com/quartzjer
 [announced]:     http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
+[License]:       https://en.wikipedia.org/wiki/BSD_licenses
+[License Badge]: https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
 [Travis]:        https://travis-ci.org/troglobit/mdnsd
 [Travis Status]: https://travis-ci.org/troglobit/mdnsd.png?branch=master
