@@ -23,6 +23,7 @@ script:
   - make -j5 all
   - DESTDIR=~/tmp make install-strip
   - tree ~/tmp
-  - ldd ~/tmp/sbin/mdnsd
+  - LD_LIBRARY_PATH=~/tmp/lib ldd ~/tmp/sbin/mdnsd
   - size ~/tmp/sbin/mdnsd
-  - ~/tmp/sbin/mdnsd -h
+  - size ~/tmp/lib/libmdnsd.so.0.0.0
+  - LD_LIBRARY_PATH=~/tmp/lib ~/tmp/sbin/mdnsd -h
