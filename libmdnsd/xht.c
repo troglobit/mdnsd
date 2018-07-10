@@ -5,7 +5,10 @@
 typedef struct xhn {
 	char flag;
 	struct xhn *next;
-	const char *key;
+	union {
+		char *key;
+		const char *ckey;
+	} u;
 	void *val;
 } xhn_t;
 
@@ -39,7 +42,7 @@ static int _xhter(const char *s)
 static xhn_t *_xht_node_find(xhn_t *n, const char *key)
 {
 	for (; n != 0; n = n->next)
-		if (n->key != 0 && strcmp(key, n->key) == 0)
+		if (n->u.ckey && strcmp(key, n->u.ckey) == 0)
 			return n;
 	return 0;
 }
@@ -82,12 +85,12 @@ static xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 
 	/* When flag is set, we manage their mem and free em first */
 	if (n->flag) {
-		free((void *)n->key);
+		free(n->u.key);
 		free(n->val);
 	}
 
 	n->flag = flag;
-	n->key = key;
+	n->u.ckey = key;
 	n->val = val;
 
 	return n;
@@ -140,7 +143,7 @@ void xht_free(xht_t *h)
 		for (n = (&h->zen[i])->next; n != 0;) {
 			f = n->next;
 			if (n->flag) {
-				free((void *)n->key);
+				free(n->u.key);
 				free(n->val);
 			}
 			free(n);
@@ -162,8 +165,8 @@ void xht_walk(xht_t *h, xht_walker w, void *arg)
 
 	for (i = 0; i < h->prime; i++) {
 		for (n = &h->zen[i]; n != 0; n = n->next) {
-			if (n->key != 0 && n->val != 0)
-				(*w)(h, n->key, n->val, arg);
+			if (n->u.ckey != 0 && n->val != 0)
+				(*w)(h, n->u.ckey, n->val, arg);
 		}
 	}
 }
