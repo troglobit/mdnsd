@@ -1,4 +1,5 @@
 #include <config.h>
+#include <getopt.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -66,6 +67,18 @@ static int msock(void)
 	return s;
 }
 
+static int usage(int code)
+{
+	printf("Usage: %s [-hv] NAME ADDRESS PORT [PATH]\n"
+	       "\n"
+	       "    -h        This help text\n"
+	       "    -v        Show program version\n"
+	       "\n"
+	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
+
+	return code;
+}
+
 static char *progname(char *arg0)
 {
        char *nm;
@@ -92,7 +105,7 @@ int main(int argc, char *argv[])
 	unsigned char buf[MAX_PACKET_LEN];
 	struct sockaddr_in from, to;
 	fd_set fds;
-	int s;
+	int c, s;
 	char hlocal[256], nlocal[256];
 	unsigned char *packet;
 	int len = 0;
@@ -100,10 +113,23 @@ int main(int argc, char *argv[])
 	char *path = NULL;
 
 	prognm = progname(argv[0]);
-	if (argc < 4) {
-		printf("usage: %s 'unique name' 12.34.56.78 80 '/optionalpath'\n", prognm);
-		return 1;
+	while ((c = getopt(argc, argv, "hv?")) != EOF) {
+		switch (c) {
+		case 'h':
+		case '?':
+			return usage(0);
+
+		case 'v':
+			puts(PACKAGE_VERSION);
+			return 0;
+
+		default:
+			break;
+		}
 	}
+
+	if (argc - optind < 3)
+		return usage(1);
 
 	inet_aton(argv[2], &ip);
 	port = atoi(argv[3]);

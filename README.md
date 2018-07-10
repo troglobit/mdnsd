@@ -15,6 +15,22 @@ to improve it in the future.  Also included are some other utilities,
 standalone DNS parsing.
 
 
+Usage
+-----
+
+    Usage: mdnsd 'unique name' 12.34.56.78 80 '/optionalpath'
+
+
+Running
+-------
+
+To test the included example applications you need to first start the
+`mdnsd` daemon before calling `mquery`:
+
+    ./mdnsd _name._service 192.168.1.2 80 &
+    ./mquery 12 _http._tcp.local.
+
+
 Build & Install
 ---------------
 
@@ -28,16 +44,6 @@ first need to call `./autogen.sh` to generate the configure script.
     ./configure
     make all
     make install
-
-
-Running
--------
-
-To test the included example applications you need to first start the
-`mdnsd` daemon before calling `mquery`:
-
-    ./mdnsd _name._service 192.168.1.2 80 &
-    ./mquery 12 _http._tcp.local.
 
 
 Origin & References
