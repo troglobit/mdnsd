@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	char *path = NULL;
 
 	if (argc < 4) {
-		printf("usage: mhttp 'unique name' 12.34.56.78 80 '/optionalpath'\n");
+		printf("usage: %s 'unique name' 12.34.56.78 80 '/optionalpath'\n", argv[0]);
 		return 1;
 	}
 
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 	}
 
 	sprintf(hlocal, "%s._http._tcp.local.", argv[1]);
-	sprintf(nlocal, "http-%s.local.", argv[1]);
+	sprintf(nlocal, "%s.local.", argv[1]);
 	r = mdnsd_shared(d, "_http._tcp.local.", QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
 	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, 0);
@@ -160,6 +160,9 @@ int main(int argc, char *argv[])
 				   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
 				printf("can't write to socket: %s\n", strerror(errno));
 				return 1;
+			}
+			else {
+				printf(">> %s", inet_ntoa(from.sin_addr));
 			}
 		}
 
