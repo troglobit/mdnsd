@@ -84,8 +84,8 @@ static void _label(struct message *m, unsigned char **bufp, char **namep)
 			return;
 
 		/* Copy chars for this label */
-		memcpy(name, label + 1, *label);
-		name[*label] = '.';
+		memcpy(name, label + 1, (size_t)*label);
+		name[(size_t)*label] = '.';
 	}
 
 	/* Advance buffer */
