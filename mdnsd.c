@@ -161,9 +161,8 @@ int main(int argc, char *argv[])
 				printf("can't write to socket: %s\n", strerror(errno));
 				return 1;
 			}
-			else {
-				printf(">> %s", inet_ntoa(from.sin_addr));
-			}
+
+			printf(">> %s", inet_ntoa(from.sin_addr));
 		}
 
 		if (_shutdown)
