@@ -10,8 +10,19 @@ compiler:
   - gcc
   - clang
 
+addons:
+  apt:
+    packages:
+      - tree
+
 # We don't have the configure script checked in, and no test rule yet
 script:
   - ./autogen.sh
-  - ./configure --disable-silent-rules
-  - make -j5 clean all
+  - ./configure --disable-silent-rules --prefix=
+  - make clean
+  - make -j5 all
+  - DESTDIR=~/tmp make install-strip
+  - tree ~/tmp
+  - ldd ~/tmp/sbin/mdnsd
+  - size ~/tmp/sbin/mdnsd
+  - ~/tmp/sbin/mdnsd -h
