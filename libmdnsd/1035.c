@@ -50,7 +50,7 @@ void long2net(unsigned long int l, unsigned char **bufp)
 	*bufp += 4;
 }
 
-unsigned short int _ldecomp(char *ptr)
+static unsigned short int _ldecomp(char *ptr)
 {
 	unsigned short int i;
 
@@ -63,7 +63,7 @@ unsigned short int _ldecomp(char *ptr)
 	return i;
 }
 
-void _label(struct message *m, unsigned char **bufp, char **namep)
+static void _label(struct message *m, unsigned char **bufp, char **namep)
 {
 	int x;
 	char *label, *name;
@@ -110,7 +110,7 @@ void _label(struct message *m, unsigned char **bufp, char **namep)
 }
 
 /* Internal label matching */
-int _lmatch(struct message *m, char *l1, char *l2)
+static int _lmatch(struct message *m, char *l1, char *l2)
 {
 	int len;
 
@@ -145,7 +145,7 @@ int _lmatch(struct message *m, char *l1, char *l2)
 }
 
 /* Nasty, convert host into label using compression */
-int _host(struct message *m, unsigned char **bufp, char *name)
+static int _host(struct message *m, unsigned char **bufp, char *name)
 {
 	char label[256], *l;
 	int len = 0, x = 1, y = 0, last = 0;
@@ -209,7 +209,7 @@ int _host(struct message *m, unsigned char **bufp, char *name)
 	return len;
 }
 
-int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **bufp)
+static int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **bufp)
 {
 	int i;
 
@@ -355,7 +355,7 @@ void message_qd(struct message *m, char *name, unsigned short int type, unsigned
 	short2net(class, &(m->_buf));
 }
 
-void _rrappend(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
+static void _rrappend(struct message *m, char *name, unsigned short int type, unsigned short int class, unsigned long int ttl)
 {
 	if (m->_buf == 0)
 		m->_buf = m->_packet + 12;

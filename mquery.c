@@ -13,7 +13,7 @@
 #include <libmdnsd/mdnsd.h>
 
 /* Print an answer */
-int ans(mdns_answer_t *a, void *arg __attribute__ ((unused)))
+static int ans(mdns_answer_t *a, void *arg __attribute__ ((unused)))
 {
 	int now;
 
@@ -43,7 +43,7 @@ int ans(mdns_answer_t *a, void *arg __attribute__ ((unused)))
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
-int msock(void)
+static int msock(void)
 {
 	int s, flag = 1, ittl = 255;
 	struct sockaddr_in in;

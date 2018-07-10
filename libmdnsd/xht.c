@@ -18,7 +18,7 @@ struct xht {
  * This function uses the ELF hashing algorithm as reprinted in 
  * Andrew Binstock, "Hashing Rehashed," Dr. Dobb's Journal, April 1996.
  */
-int _xhter(const char *s)
+static int _xhter(const char *s)
 {
 	/* ELF hash uses unsigned chars and unsigned arithmetic for portability */
 	const unsigned char *name = (const unsigned char *)s;
@@ -36,7 +36,7 @@ int _xhter(const char *s)
 }
 
 
-xhn_t *_xht_node_find(xhn_t *n, const char *key)
+static xhn_t *_xht_node_find(xhn_t *n, const char *key)
 {
 	for (; n != 0; n = n->next)
 		if (n->key != 0 && strcmp(key, n->key) == 0)
@@ -57,7 +57,7 @@ xht_t *xht_new(int prime)
 }
 
 /* does the set work, used by xht_set and xht_store */
-xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
+static xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 {
 	int i;
 	xhn_t *n;

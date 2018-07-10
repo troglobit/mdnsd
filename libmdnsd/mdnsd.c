@@ -65,7 +65,7 @@ struct mdns_daemon {
 	struct query *queries[SPRIME], *qlist;
 };
 
-int _namehash(const char *s)
+static int _namehash(const char *s)
 {
 	const unsigned char *name = (const unsigned char *)s;
 	unsigned long h = 0, g;
@@ -81,7 +81,7 @@ int _namehash(const char *s)
 }
 
 /* Basic linked list and hash primitives */
-struct query *_q_next(mdns_daemon_t *d, struct query *q, char *host, int type)
+static struct query *_q_next(mdns_daemon_t *d, struct query *q, char *host, int type)
 {
 	if (q == 0)
 		q = d->queries[_namehash(host) % SPRIME];
@@ -96,7 +96,7 @@ struct query *_q_next(mdns_daemon_t *d, struct query *q, char *host, int type)
 	return 0;
 }
 
-struct cached *_c_next(mdns_daemon_t *d, struct cached *c, char *host, int type)
+static struct cached *_c_next(mdns_daemon_t *d, struct cached *c, char *host, int type)
 {
 	if (c == 0)
 		c = d->cache[_namehash(host) % LPRIME];
@@ -111,7 +111,7 @@ struct cached *_c_next(mdns_daemon_t *d, struct cached *c, char *host, int type)
 	return 0;
 }
 
-mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, char *host, int type)
+static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, char *host, int type)
 {
 	if (r == 0)
 		r = d->published[_namehash(host) % SPRIME];
@@ -126,7 +126,7 @@ mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, char *host, int type)
 	return 0;
 }
 
-int _rr_len(mdns_answer_t *rr)
+static int _rr_len(mdns_answer_t *rr)
 {
 	int len = 12;		/* name is always compressed (dup of earlier), plus normal stuff */
 
@@ -143,7 +143,7 @@ int _rr_len(mdns_answer_t *rr)
 }
 
 /* Compares new rdata with known a, painfully */
-int _a_match(struct resource *r, mdns_answer_t *a)
+static int _a_match(struct resource *r, mdns_answer_t *a)
 {
 	if (strcmp(r->name, a->name) || r->type != a->type)
 		return 0;
@@ -162,7 +162,7 @@ int _a_match(struct resource *r, mdns_answer_t *a)
 }
 
 /* Compare time values easily */
-int _tvdiff(struct timeval old, struct timeval new)
+static int _tvdiff(struct timeval old, struct timeval new)
 {
 	int udiff = 0;
 
@@ -173,7 +173,7 @@ int _tvdiff(struct timeval old, struct timeval new)
 }
 
 /* Make sure not already on the list, then insert */
-void _r_push(mdns_record_t **list, mdns_record_t *r)
+static void _r_push(mdns_record_t **list, mdns_record_t *r)
 {
 	mdns_record_t *cur;
 
@@ -187,14 +187,14 @@ void _r_push(mdns_record_t **list, mdns_record_t *r)
 }
 
 /* Set this r to probing, set next probe time */
-void _r_probe(mdns_daemon_t *d, mdns_record_t *r)
+static void _r_probe(mdns_daemon_t *d, mdns_record_t *r)
 {
 	(void)d;
 	(void)r;
 }
 
 /* Force any r out right away, if valid */
-void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
+static void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 {
 	if (r->unique && r->unique < 5)
 		return;		/* Probing already */
@@ -206,7 +206,7 @@ void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* send r out asap */
-void _r_send(mdns_daemon_t *d, mdns_record_t *r)
+static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 {
 	/* Being published, make sure that happens soon */
 	if (r->tries < 4) {
@@ -228,7 +228,7 @@ void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* Create generic unicast response struct */
-void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long int to, unsigned short int port)
+static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long int to, unsigned short int port)
 {
 	struct unicast *u;
 
@@ -241,7 +241,7 @@ void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long int to, u
 	d->uanswers = u;
 }
 
-void _q_reset(mdns_daemon_t *d, struct query *q)
+static void _q_reset(mdns_daemon_t *d, struct query *q)
 {
 	struct cached *cur = 0;
 
@@ -258,7 +258,7 @@ void _q_reset(mdns_daemon_t *d, struct query *q)
 }
 
 /* No more query, update all it's cached entries, remove from lists */
-void _q_done(mdns_daemon_t *d, struct query *q)
+static void _q_done(mdns_daemon_t *d, struct query *q)
 {
 	struct cached *c = 0;
 	struct query *cur;
@@ -288,7 +288,7 @@ void _q_done(mdns_daemon_t *d, struct query *q)
 }
 
 /* buh-bye, remove from hash and free */
-void _r_done(mdns_daemon_t *d, mdns_record_t *r)
+static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 {
 	mdns_record_t *cur = 0;
 	int i = _namehash(r->rr.name) % SPRIME;
@@ -307,7 +307,7 @@ void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* Call the answer function with this cached entry */
-void _q_answer(mdns_daemon_t *d, struct cached *c)
+static void _q_answer(mdns_daemon_t *d, struct cached *c)
 {
 	if (c->rr.ttl <= d->now.tv_sec)
 		c->rr.ttl = 0;
@@ -315,14 +315,14 @@ void _q_answer(mdns_daemon_t *d, struct cached *c)
 		_q_done(d, c->q);
 }
 
-void _conflict(mdns_daemon_t *d, mdns_record_t *r)
+static void _conflict(mdns_daemon_t *d, mdns_record_t *r)
 {
 	r->conflict(r->rr.name, r->rr.type, r->arg);
 	mdnsd_done(d, r);
 }
 
 /* Expire any old entries in this list */
-void _c_expire(mdns_daemon_t *d, struct cached **list)
+static void _c_expire(mdns_daemon_t *d, struct cached **list)
 {
 	struct cached *next, *cur = *list, *last = 0;
 
@@ -351,7 +351,7 @@ void _c_expire(mdns_daemon_t *d, struct cached **list)
 }
 
 /* Brute force expire any old cached records */
-void _gc(mdns_daemon_t *d)
+static void _gc(mdns_daemon_t *d)
 {
 	int i;
 
@@ -363,7 +363,7 @@ void _gc(mdns_daemon_t *d)
 	d->expireall = d->now.tv_sec + GC;
 }
 
-void _cache(mdns_daemon_t *d, struct resource *r)
+static void _cache(mdns_daemon_t *d, struct resource *r)
 {
 	struct cached *c = 0;
 	int i = _namehash(r->name) % LPRIME;
@@ -426,7 +426,7 @@ void _cache(mdns_daemon_t *d, struct resource *r)
 }
 
 /* Copy the data bits only */
-void _a_copy(struct message *m, mdns_answer_t *a)
+static void _a_copy(struct message *m, mdns_answer_t *a)
 {
 	if (a->rdata) {
 		message_rdata_raw(m, a->rdata, a->rdlen);
@@ -442,7 +442,7 @@ void _a_copy(struct message *m, mdns_answer_t *a)
 }
 
 /* Copy a published record into an outgoing message */
-int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
+static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 {
 	mdns_record_t *r;
 	int ret = 0;

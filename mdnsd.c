@@ -19,13 +19,13 @@ int _shutdown = 0;
 mdns_daemon_t *_d;
 int _zzz[2];
 
-void conflict(char *name, int type, void *arg __attribute__ ((unused)))
+static void conflict(char *name, int type, void *arg __attribute__ ((unused)))
 {
 	printf("conflicting name detected %s for type %d\n", name, type);
 	exit(1);
 }
 
-void done(int sig __attribute__ ((unused)))
+static void done(int sig __attribute__ ((unused)))
 {
 	_shutdown = 1;
 	mdnsd_shutdown(_d);
@@ -33,7 +33,7 @@ void done(int sig __attribute__ ((unused)))
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
-int msock(void)
+static int msock(void)
 {
 	int s, flag = 1, ittl = 255;
 	struct sockaddr_in in;
