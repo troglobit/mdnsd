@@ -96,9 +96,10 @@ static int msock(void)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hv] NAME ADDRESS PORT [PATH]\n"
+	printf("Usage: %s [-hv] [-n NAME] ADDRESS PORT [PATH]\n"
 	       "\n"
 	       "    -h        This help text\n"
+	       "    -n NAME   Name of service/host to announce, default: hostname\n"
 	       "    -v        Show program version\n"
 	       "\n"
 	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
@@ -134,17 +135,22 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	int c, s;
 	char hlocal[256], nlocal[256];
+	char hostname[256] = { 0 };
 	unsigned char *packet;
 	int len = 0;
 	xht_t *h;
 	char *path = NULL;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "hv?")) != EOF) {
+	while ((c = getopt(argc, argv, "hn:v?")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
 			return usage(0);
+
+		case 'n':
+			strncpy(hostname, optarg, sizeof(hostname));
+			break;
 
 		case 'v':
 			puts(PACKAGE_VERSION);
@@ -155,14 +161,18 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (argc - optind < 3)
+	if (argc - optind < 2)
 		return usage(1);
 
-	inet_aton(argv[2], &ip);
-	port = atoi(argv[3]);
+	inet_aton(argv[1], &ip);
+	port = atoi(argv[2]);
 	if (argc == 5)
-		path = argv[4];
-	printf("Announcing .local site named '%s' to %s:%d and extra path '%s'\n", argv[1], inet_ntoa(ip), port, argv[4]);
+		path = argv[3];
+
+	if (!hostname[0])
+		gethostname(hostname, sizeof(hostname));
+
+	printf("Announcing .local site named '%s' to %s:%d and extra path '%s'\n", hostname, inet_ntoa(ip), port, argv[3]);
 
 	signal(SIGINT, done);
 	signal(SIGHUP, done);
@@ -174,8 +184,8 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	sprintf(hlocal, "%s._http._tcp.local.", argv[1]);
-	sprintf(nlocal, "%s.local.", argv[1]);
+	sprintf(hlocal, "%s._http._tcp.local.", hostname);
+	sprintf(nlocal, "%s.local.", hostname);
 	r = mdnsd_shared(d, "_http._tcp.local.", QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
 	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, 0);
