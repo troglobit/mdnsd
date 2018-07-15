@@ -33,50 +33,14 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <syslog.h>
 
 #define QCLASS_IN (1)
 
-#if MDNSD_LOGLEVEL <= 100
-#define MDNSD_LOG_TRACE(...) do { \
-		printf("mdnsd: TRACE - "); printf(__VA_ARGS__); printf("\n"); } while(0)
-#else
-#define MDNSD_LOG_TRACE(...) do {} while(0)
-#endif
-
-#if MDNSD_LOGLEVEL <= 200
-#define MDNSD_LOG_DEBUG(...) do { \
-		printf("mdnsd: DEBUG - "); printf(__VA_ARGS__); printf("\n"); } while(0)
-#else
-#define MDNSD_LOG_DEBUG(...) do {} while(0)
-#endif
-
-#if MDNSD_LOGLEVEL <= 300
-#define MDNSD_LOG_INFO(...) do { \
-		printf("mdnsd: INFO  - "); printf(__VA_ARGS__); printf("\n"); } while(0)
-#else
-#define MDNSD_LOG_INFO(...) do {} while(0)
-#endif
-
-#if MDNSD_LOGLEVEL <= 400
-#define MDNSD_LOG_WARNING(...) do { \
-		printf("mdnsd: WARN  - "); printf(__VA_ARGS__); printf("\n"); } while(0)
-#else
-#define MDNSD_LOG_WARNING(...) do {} while(0)
-#endif
-
-#if MDNSD_LOGLEVEL <= 500
-#define MDNSD_LOG_ERROR(...) do { \
-		printf("mdnsd: ERROR - "); printf(__VA_ARGS__); printf("\n"); } while(0)
-#else
-#define MDNSD_LOG_ERROR(...) do {} while(0)
-#endif
-
-#if MDNSD_LOGLEVEL <= 600
-#define MDNSD_LOG_FATAL(...) do { \
-		printf("mdnsd: FATAL - "); printf(__VA_ARGS__); printf("\n"); } while(0)
-#else
-#define MDNSD_LOG_FATAL(...) do {} while(0)
-#endif
+#define DBG(fmt, args...)  mdnsd_log(LOG_DEBUG, fmt, ##args)
+#define INFO(fmt, args...) mdnsd_log(LOG_INFO, fmt, ##args)
+#define WARN(fmt, args...) mdnsd_log(LOG_WARNING, fmt, ##args)
+#define ERR(fmt, args...)  mdnsd_log(LOG_ERR, fmt, ##args)
 
 /* Main daemon data */
 typedef struct mdns_daemon mdns_daemon_t;
@@ -103,6 +67,26 @@ typedef struct mdns_answer {
 /**
  * Global functions
  */
+
+/**
+ * Enable logging to syslog, stdout/stderr is used by default
+ */
+void mdnsd_log_open(const char *ident);
+
+/**
+ * Adjust log level, by default LOG_NOTICE
+ */
+int mdnsd_log_level(char *level);
+
+/**
+ * HEX dump a buffer to log
+ */
+void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len);
+
+/**
+ * Log to syslog or stdio
+ */
+void mdnsd_log(int severity, const char *fmt, ...);
 
 /**
  * Create a new mdns daemon for the given class of names (usually 1) and

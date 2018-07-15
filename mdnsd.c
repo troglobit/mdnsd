@@ -51,37 +51,45 @@ mdns_daemon_t *_d;
 
 static void conflict(char *name, int type, void *arg)
 {
-	printf("conflicting name detected %s for type %d\n", name, type);
+	ERR("conflicting name detected %s for type %d", name, type);
 	exit(1);
 }
 
-void record_received(const struct resource* r, void* data) {
+static void record_received(const struct resource* r, void* data)
+{
 	char ipinput[INET_ADDRSTRLEN];
+
 	switch(r->type) {
-		case QTYPE_A:
-			inet_ntop(AF_INET, &(r->known.a.ip), ipinput, INET_ADDRSTRLEN);
-			printf("Got %s: A %s->%s\n", r->name,r->known.a.name, ipinput);
-			break;
-		case QTYPE_NS:
-			printf("Got %s: NS %s\n", r->name,r->known.ns.name);
-			break;
-		case QTYPE_CNAME:
-			printf("Got %s: CNAME %s\n", r->name,r->known.cname.name);
-			break;
-		case QTYPE_PTR:
-			printf("Got %s: PTR %s\n", r->name,r->known.ptr.name);
-			break;
-		case QTYPE_TXT:
-			printf("Got %s: TXT %s\n", r->name,r->rdata);
-			break;
-		case QTYPE_SRV:
-			printf("Got %s: SRV %d %d %d %s\n", r->name,r->known.srv.priority,r->known.srv.weight,r->known.srv.port,r->known.srv.name);
-			break;
-		default:
-			printf("Got %s: unknown\n", r->name);
+	case QTYPE_A:
+		inet_ntop(AF_INET, &(r->known.a.ip), ipinput, INET_ADDRSTRLEN);
+		DBG("Got %s: A %s->%s", r->name, r->known.a.name, ipinput);
+		break;
+
+	case QTYPE_NS:
+		DBG("Got %s: NS %s", r->name, r->known.ns.name);
+		break;
+
+	case QTYPE_CNAME:
+		DBG("Got %s: CNAME %s", r->name, r->known.cname.name);
+		break;
+
+	case QTYPE_PTR:
+		DBG("Got %s: PTR %s", r->name, r->known.ptr.name);
+		break;
+
+	case QTYPE_TXT:
+		DBG("Got %s: TXT %s", r->name, r->rdata);
+		break;
+
+	case QTYPE_SRV:
+		DBG("Got %s: SRV %d %d %d %s", r->name, r->known.srv.priority,
+		    r->known.srv.weight, r->known.srv.port, r->known.srv.name);
+		break;
+
+	default:
+		DBG("Got %s: unknown", r->name);
 
 	}
-
 }
 
 static void done(int sig)
@@ -210,7 +218,8 @@ int main(int argc, char *argv[])
 	if (!hostname[0])
 		gethostname(hostname, sizeof(hostname));
 
-	printf("Announcing .local site named '%s' to %s:%d and extra path '%s'\n", hostname, inet_ntoa(ip), port, path);
+	INFO("Announcing .local site named '%s' to %s:%d and extra path '%s'",
+	     hostname, inet_ntoa(ip), port, path);
 
 	signal(SIGINT, done);
 	signal(SIGHUP, done);
@@ -218,7 +227,7 @@ int main(int argc, char *argv[])
 	signal(SIGTERM, done);
 	_d = d = mdnsd_new(QCLASS_IN, 1000);
 	if ((s = msock()) == 0) {
-		printf("can't create socket: %s\n", strerror(errno));
+		ERR("Failed creating socket: %s", strerror(errno));
 		return 1;
 	}
 
@@ -254,7 +263,7 @@ int main(int argc, char *argv[])
 
 		data = mdnsd_record_data(r);
 		if (data)
-			printf("Found record of type %d\n", data->type);
+			DBG("Found record of type %d", data->type);
 
 		r = mdnsd_record_next(r);
 	}
@@ -268,11 +277,11 @@ int main(int argc, char *argv[])
 
 		rc = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &tv);
 		if (rc == 1) {
-			printf("can't read from socket %d: %s\n", errno, strerror(errno));
+			ERR("Failed reading from socket %d: %s", errno, strerror(errno));
 			break;
 		}
 		if (rc == 2) {
-			printf("can't write to socket: %s\n", strerror(errno));
+			ERR("Failed writing to socket: %s", strerror(errno));
 			break;
 		}
 	}
