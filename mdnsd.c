@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
 	while (running) {
 		FD_ZERO(&fds);
 		FD_SET(s, &fds);
-		select(s + 1, &fds, 0, 0, &next_sleep);
+		select(s + 1, &fds, NULL, NULL, &next_sleep);
 
 		unsigned short retVal = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &next_sleep);
 		if (retVal == 1) {
