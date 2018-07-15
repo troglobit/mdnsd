@@ -18,8 +18,18 @@ standalone DNS parsing.
 Usage
 -----
 
-    Usage: mdnsd 'unique name' 12.34.56.78 80 '/optionalpath'
+```
+Usage: mdnsd [-hv] [-l LEVEL] [-n NAME] [-a ADDRESS] [-p PORT] [PATH]
 
+    -a ADDR   Address of service/host to announce, default: auto
+    -h        This help text
+    -l LEVEL  Set log level: none, err, info (default), debug
+    -n NAME   Name of service/host to announce, default: hostname
+    -p PORT   Port of service to announce, default: 80
+    -v        Show program version
+
+Bug report address: https://github.com/troglobit/mdnsd/issues
+```
 
 Running
 -------
@@ -27,8 +37,8 @@ Running
 To test the included example applications you need to first start the
 `mdnsd` daemon before calling `mquery`:
 
-    ./mdnsd _name._service 192.168.1.2 80 &
-    ./mquery 12 _http._tcp.local.
+    mdnsd &
+    mquery 12 _http._tcp.local.
 
 
 Build & Install
