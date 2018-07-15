@@ -32,6 +32,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <err.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -41,6 +42,7 @@
 
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
+#include "mdnsd.h"
 
 volatile sig_atomic_t running = 1;
 
@@ -96,8 +98,9 @@ static int msock(void)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hv] [-n NAME] ADDRESS PORT [PATH]\n"
+	printf("Usage: %s [-hv] [-n NAME] [-a ADDRESS] [-p PORT] [PATH]\n"
 	       "\n"
+	       "    -a ADDR   Address of service/host to announce, default: auto\n"
 	       "    -h        This help text\n"
 	       "    -n NAME   Name of service/host to announce, default: hostname\n"
 	       "    -p PORT   Port of service to announce, default: 80\n"
@@ -126,7 +129,7 @@ int main(int argc, char *argv[])
 	mdns_daemon_t *d;
 	mdns_record_t *r;
 	struct message m;
-	struct in_addr ip;
+	struct in_addr ip = { 0 };
 	unsigned short int port = 80;
 	struct timeval *tv;
 	ssize_t bsize;
@@ -137,14 +140,19 @@ int main(int argc, char *argv[])
 	int c, s;
 	char hlocal[256], nlocal[256];
 	char hostname[256] = { 0 };
+	char address[20];
 	unsigned char *packet;
 	int len = 0;
 	xht_t *h;
 	char *path = NULL;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "hn:p:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:hn:p:v?")) != EOF) {
 		switch (c) {
+		case 'a':
+			inet_aton(optarg, &ip);
+			break;
+
 		case 'h':
 		case '?':
 			return usage(0);
@@ -166,18 +174,19 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (argc - optind < 2)
-		return usage(1);
+	if (optind < argc)
+		path = argv[optind];
 
-	inet_aton(argv[1], &ip);
-	port = atoi(argv[2]);
-	if (argc == 5)
-		path = argv[3];
+	if (!ip.s_addr) {
+		if (!getaddr(address, sizeof(address)))
+			errx(1, "Cannot find default interface, use -a ADDRESS");
+		inet_aton(address, &ip);
+	}
 
 	if (!hostname[0])
 		gethostname(hostname, sizeof(hostname));
 
-	printf("Announcing .local site named '%s' to %s:%d and extra path '%s'\n", hostname, inet_ntoa(ip), port, argv[3]);
+	printf("Announcing .local site named '%s' to %s:%d and extra path '%s'\n", hostname, inet_ntoa(ip), port, path);
 
 	signal(SIGINT, done);
 	signal(SIGHUP, done);

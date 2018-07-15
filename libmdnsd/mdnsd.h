@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MDNSD_H_
-#define MDNSD_H_
+#ifndef LIB_MDNSD_H_
+#define LIB_MDNSD_H_
 
 #include "1035.h"
 #include <arpa/inet.h>
@@ -156,4 +156,4 @@ void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, char *name);
 void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
 void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, int priority, int weight, int port, char *name);
 
-#endif	/* MDNSD_H_ */
+#endif	/* LIB_MDNSD_H_ */
