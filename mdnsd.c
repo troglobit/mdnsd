@@ -100,6 +100,7 @@ static int usage(int code)
 	       "\n"
 	       "    -h        This help text\n"
 	       "    -n NAME   Name of service/host to announce, default: hostname\n"
+	       "    -p PORT   Port of service to announce, default: 80\n"
 	       "    -v        Show program version\n"
 	       "\n"
 	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
 	mdns_record_t *r;
 	struct message m;
 	struct in_addr ip;
-	unsigned short int port;
+	unsigned short int port = 80;
 	struct timeval *tv;
 	ssize_t bsize;
 	socklen_t ssize;
@@ -142,7 +143,7 @@ int main(int argc, char *argv[])
 	char *path = NULL;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "hn:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "hn:p:v?")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
@@ -150,6 +151,10 @@ int main(int argc, char *argv[])
 
 		case 'n':
 			strncpy(hostname, optarg, sizeof(hostname));
+			break;
+
+		case 'p':
+			port = atoi(optarg);
 			break;
 
 		case 'v':
