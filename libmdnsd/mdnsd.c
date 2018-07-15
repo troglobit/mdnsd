@@ -718,8 +718,9 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 	/* Process each answer, check for a conflict, and cache */
 	for (i = 0; i < m->ancount; i++) {
 		if (m->an[i].name == NULL) {
-			MDNSD_LOG_ERROR("Got answer with NULL name at %p. Type: %d, TTL: %ld\n", (void*)&m->an[i], m->an[i].type, m->an[i].ttl);
-			return 3;
+			MDNSD_LOG_ERROR("Got answer with NULL name at %p. Type: %d, TTL: %ld, skipping",
+					(void*)&m->an[i], m->an[i].type, m->an[i].ttl);
+			continue;
 		}
 
 		MDNSD_LOG_TRACE("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
@@ -730,8 +731,10 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 		if (d->received_callback) {
 			d->received_callback(&m->an[i], d->received_callback_data);
 		}
-		if (_cache(d, &m->an[i]) != 0)
-			return 2;
+		if (_cache(d, &m->an[i]) != 0) {
+			MDNSD_LOG_ERROR("Failed caching answer, possibly too long packet, skipping.");
+			continue;
+		}
 	}
 	return 0;
 }
