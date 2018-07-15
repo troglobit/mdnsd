@@ -296,6 +296,9 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long in
 	struct unicast *u;
 
 	u = calloc(1, sizeof(struct unicast));
+	if (!u)
+		return;
+
 	u->r = r;
 	u->id = id;
 	u->to = to;
@@ -456,7 +459,14 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	 *      retrying just after half-waypoint, then expire
 	 */
 	c = calloc(1, sizeof(struct cached));
+	if (!c)
+		return 1;
+
 	c->rr.name = strdup(r->name);
+	if (!c->rr.name) {
+		free(c);
+		return 1;
+	}
 	c->rr.type = r->type;
 	c->rr.ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
@@ -556,6 +566,9 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	mdns_daemon_t *d;
 
 	d = calloc(1, sizeof(struct mdns_daemon));
+	if (!d)
+		return NULL;
+
 	gettimeofday(&d->now, 0);
 	d->expireall = (unsigned long)d->now.tv_sec + GC;
 	d->class = class;
