@@ -155,6 +155,7 @@ static char *progname(char *arg0)
 
 int main(int argc, char *argv[])
 {
+	struct timeval tv = { 0 };
 	mdns_daemon_t *d;
 	mdns_record_t *r;
 	struct in_addr ip = { 0 };
@@ -246,25 +247,31 @@ int main(int argc, char *argv[])
 	mdnsd_set_raw(d, r, (char *)packet, len);
 	free(packet);
 
-	// example for getting a previously published record:
-	mdns_record_t *get_r = mdnsd_get_published(d, "_http._tcp.local.");
-	while(get_r) {
-		const mdns_answer_t *data = mdnsd_record_data(get_r);
-		printf("Found record of type %d\n", data->type);
-		get_r = mdnsd_record_next(get_r);
+	/* example: how to read a previously published record */
+	r = mdnsd_get_published(d, "_http._tcp.local.");
+	while (r) {
+		const mdns_answer_t *data;
+
+		data = mdnsd_record_data(r);
+		if (data)
+			printf("Found record of type %d\n", data->type);
+
+		r = mdnsd_record_next(r);
 	}
 
-	struct timeval next_sleep = {.tv_sec = 0, .tv_usec = 0};
 	while (running) {
+		int rc;
+
 		FD_ZERO(&fds);
 		FD_SET(s, &fds);
-		select(s + 1, &fds, NULL, NULL, &next_sleep);
+		select(s + 1, &fds, NULL, NULL, &tv);
 
-		unsigned short retVal = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &next_sleep);
-		if (retVal == 1) {
+		rc = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &tv);
+		if (rc == 1) {
 			printf("can't read from socket %d: %s\n", errno, strerror(errno));
 			break;
-		} else if (retVal == 2) {
+		}
+		if (rc == 2) {
 			printf("can't write to socket: %s\n", strerror(errno));
 			break;
 		}

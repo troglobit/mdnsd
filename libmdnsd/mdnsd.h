@@ -130,7 +130,7 @@ void mdnsd_free(mdns_daemon_t *d);
  * Register callback which is called when a record is received. The data parameter is passed to the callback.
  * Calling this multiple times overwrites the previous register.
  */
-void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb, void* data);
+void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb, void *data);
 
 /**
  * I/O functions
@@ -177,12 +177,12 @@ mdns_answer_t *mdnsd_list(mdns_daemon_t *d, const char *host, int type, mdns_ans
  * @param r the base record
  * @return r->next
  */
-mdns_record_t *mdnsd_record_next(const mdns_record_t* r) ;
+mdns_record_t *mdnsd_record_next(const mdns_record_t *r);
 
 /**
  * Gets the record data
  */
-const mdns_answer_t *mdnsd_record_data(const mdns_record_t* r) ;
+const mdns_answer_t *mdnsd_record_data(const mdns_record_t *r);
 
 
 /**
@@ -236,6 +236,6 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
  * Process input queue and output queue. Should be called at least the time which is returned in nextSleep.
  * Returns 0 on success, 1 on read error, 2 on write error
  */
-unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep);
+int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *tv);
 
 #endif	/* LIB_MDNSD_H_ */

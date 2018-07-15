@@ -205,36 +205,38 @@ static int _tvdiff(struct timeval old, struct timeval new)
 	return (new.tv_usec - old.tv_usec) + udiff;
 }
 
-static void _r_remove_list(mdns_record_t **list, mdns_record_t *r) {
+static void _r_remove_list(mdns_record_t **list, mdns_record_t *r)
+{
+	mdns_record_t *tmp;
+
 	if (*list == r) {
 		*list = r->list;
-	} else {
-		mdns_record_t *tmp = *list;
-		while (tmp) {
-			if (tmp->list == r) {
-				tmp->list = r->list;
-				break;
-			}
-			if (tmp == tmp->list)
-				break;
-			tmp = tmp->list;
+		return;
+	}
+
+	for (tmp = *list; tmp; tmp = tmp->list) {
+		if (tmp->list == r) {
+			tmp->list = r->list;
+			break;
 		}
+		if (tmp == tmp->list)
+			break;
 	}
 }
 
-static void _r_remove_lists(mdns_daemon_t *d, mdns_record_t *r, mdns_record_t **skip) {
-	if (d->probing && &d->probing != skip) {
+static void _r_remove_lists(mdns_daemon_t *d, mdns_record_t *r, mdns_record_t **skip)
+{
+	if (d->probing && &d->probing != skip)
 		_r_remove_list(&d->probing, r);
-	}
-	if (d->a_now && &d->a_now != skip) {
+
+	if (d->a_now && &d->a_now != skip)
 		_r_remove_list(&d->a_now, r);
-	}
-	if (d->a_pause && &d->a_pause != skip) {
+
+	if (d->a_pause && &d->a_pause != skip)
 		_r_remove_list(&d->a_pause, r);
-	}
-	if (d->a_publish && &d->a_publish != skip) {
+
+	if (d->a_publish && &d->a_publish != skip)
 		_r_remove_list(&d->a_publish, r);
-	}
 }
 
 /* Make sure not already on the list, then insert */
@@ -276,7 +278,7 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 	/* Known unique ones can be sent asap */
 	if (r->unique) {
 
-		// check if r already in other lists. If yes, remove it from there
+		/* check if r already in other lists. If yes, remove it from there */
 		_r_remove_lists(d,r, &d->a_now);
 		_r_push(&d->a_now, r);
 		return;
@@ -536,12 +538,12 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 
 		_a_copy(m, &r->rr);
 		if (r->rr.ttl == 0) {
-
-			// also remove from other lists, because record may be in multiple lists at the same time
+			/*
+			 * also remove from other lists, because record
+			 * may be in multiple lists at the same time
+			 */
 			_r_remove_lists(d, r, list);
-
 			_r_done(d, r);
-
 		}
 	}
 
@@ -595,10 +597,14 @@ void mdnsd_flush(mdns_daemon_t *d)
 
 void mdnsd_free(mdns_daemon_t *d)
 {
+	struct unicast *u;
+
 	for (size_t i = 0; i< LPRIME; i++) {
-		struct cached* cur = d->cache[i];
+		struct cached *cur = d->cache[i];
+
 		while (cur) {
-			struct cached* next = cur->next;
+			struct cached *next = cur->next;
+
 			free(cur->rr.name);
 			free(cur->rr.rdata);
 			free(cur->rr.rdname);
@@ -608,9 +614,12 @@ void mdnsd_free(mdns_daemon_t *d)
 	}
 
 	for (size_t i = 0; i< SPRIME; i++) {
-		struct mdns_record* cur = d->published[i];
+		struct mdns_record *cur = d->published[i];
+		struct query *curq;
+
 		while (cur) {
-			struct mdns_record* next = cur->next;
+			struct mdns_record *next = cur->next;
+
 			free(cur->rr.name);
 			free(cur->rr.rdata);
 			free(cur->rr.rdname);
@@ -618,29 +627,30 @@ void mdnsd_free(mdns_daemon_t *d)
 			cur = next;
 		}
 
-
-		struct query* curq = d->queries[i];
+		curq = d->queries[i];
 		while (curq) {
-			struct query* next = curq->next;
+			struct query *next = curq->next;
+
 			free(curq->name);
 			free(curq);
 			curq = next;
 		}
-
 	}
 
-	struct unicast *u = d->uanswers;
+	u = d->uanswers;
 	while (u) {
 		struct unicast *next = u->next;
+
 		free(u);
-		u=next;
+		u = next;
 	}
 
 	free(d);
 }
 
 
-void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb, void* data) {
+void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_callback cb, void* data)
+{
 	d->received_callback = cb;
 	d->received_callback_data = data;
 }
@@ -658,20 +668,19 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 	if (m->header.qr == 0) {
 		/* Process each query */
 		for (i = 0; i < m->qdcount; i++) {
+			mdns_record_t *r_start, *r_next;
+			bool has_conflict = false;
+
 			if (m->qd[i].class != d->class || (r = _r_next(d, 0, m->qd[i].name, m->qd[i].type)) == 0)
 				continue;
-			mdns_record_t* r_start = r;
-
-			bool hasConflict = false;
 
 			/* Check all of our potential answers */
-			mdns_record_t* r_next;
-			for (; r != 0; r = r_next) {
-
+			for (r_start = r; r != 0; r = r_next) {
 				MDNSD_LOG_TRACE("Got Query: Name: %s, Type: %d", r->rr.name, r->rr.type);
 
-				// do this here, because _conflict deletes r and thus next is not valid anymore
+				/* do this here, because _conflict deletes r and thus next is not valid anymore */
 				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
+
 				/* probing state, check for conflicts */
 				if (r->unique && r->unique < 5) {
 					/* Check all to-be answers against our own */
@@ -682,7 +691,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 						/* This answer isn't ours, conflict! */
 						if (!_a_match(&m->an[j], &r->rr)) {
 							_conflict(d, r);
-							hasConflict = true;
+							has_conflict = true;
 							break;
 						}
 					}
@@ -694,9 +703,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 					if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
 						continue;
 
-					if (d->received_callback) {
+					if (d->received_callback)
 						d->received_callback(&m->an[j], d->received_callback_data);
-					}
 
 					/* Do they already have this answer? */
 					if (_a_match(&m->an[j], &r->rr))
@@ -708,7 +716,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 			}
 
 			/* Send the matching unicast reply */
-			if (!hasConflict && port != 5353)
+			if (!has_conflict && port != 5353)
 				_u_push(d, r_start, m->id, ip, port);
 		}
 
@@ -728,14 +736,15 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 		    r->unique && _a_match(&m->an[i], &r->rr) == 0)
 			_conflict(d, r);
 
-		if (d->received_callback) {
+		if (d->received_callback)
 			d->received_callback(&m->an[i], d->received_callback_data);
-		}
+
 		if (_cache(d, &m->an[i]) != 0) {
 			MDNSD_LOG_ERROR("Failed caching answer, possibly too long packet, skipping.");
 			continue;
 		}
 	}
+
 	return 0;
 }
 
@@ -947,6 +956,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
+	long expire;
 	int sec, usec;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
@@ -986,23 +996,28 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 	}
 
 	/* Resend published records before TTL expires */
-	// latest expire is garbage collection
-	int minExpire = (int)(d->expireall - (unsigned long)d->now.tv_sec);
-	if (minExpire < 0)
+	expire = (long)d->expireall - d->now.tv_sec;
+	if (expire < 0)
 		return &d->sleep;
 
-	for (size_t i=0; i<SPRIME; i++) {
+	for (size_t i = 0; i < SPRIME; i++) {
+		long next;
+
 		if (!d->published[i])
 			continue;
-		int expire = (int)((d->published[i]->last_sent.tv_sec + (long int)d->published[i]->rr.ttl) - d->now.tv_sec);
-		if (expire < minExpire)
+
+		next = d->published[i]->last_sent.tv_sec + (long)d->published[i]->rr.ttl - d->now.tv_sec;
+		if (next < expire) {
 			d->a_pause = NULL;
-		minExpire = expire < minExpire ? expire : minExpire;
+			expire = next;
+		}
 		_r_push(&d->a_pause, d->published[i]);
 	}
-	// publish 2 seconds before expire.
-	d->sleep.tv_sec = minExpire > 2 ? minExpire-2 : 0;
+
+	/* Publish 2 seconds before expiration */
+	d->sleep.tv_sec = expire > 2 ? expire - 2 : 0;
 	d->pause.tv_sec = d->now.tv_sec + d->sleep.tv_sec;
+
 	RET;
 }
 
@@ -1047,11 +1062,13 @@ mdns_answer_t *mdnsd_list(mdns_daemon_t *d,const char *host, int type, mdns_answ
 	return (mdns_answer_t *)_c_next(d, (struct cached *)last, host, type);
 }
 
-mdns_record_t *mdnsd_record_next(const mdns_record_t* r) {
+mdns_record_t *mdnsd_record_next(const mdns_record_t* r)
+{
 	return r ? r->next : NULL;
 }
 
-const mdns_answer_t *mdnsd_record_data(const mdns_record_t* r) {
+const mdns_answer_t *mdnsd_record_data(const mdns_record_t* r)
+{
 	return &r->rr;
 }
 
@@ -1085,12 +1102,14 @@ mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short t
 	return r;
 }
 
-mdns_record_t * mdnsd_get_published(mdns_daemon_t *d, const char *host) {
+mdns_record_t * mdnsd_get_published(mdns_daemon_t *d, const char *host)
+{
 	return d->published[_namehash(host) % SPRIME];
 }
 
-int mdnsd_has_query(mdns_daemon_t *d, const char *host) {
-	return d->queries[_namehash(host) % SPRIME]!=NULL;
+int mdnsd_has_query(mdns_daemon_t *d, const char *host)
+{
+	return d->queries[_namehash(host) % SPRIME] != NULL;
 }
 
 void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
@@ -1147,78 +1166,99 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
 
 #if MDNSD_LOGLEVEL <= 100
 #include <ctype.h>
-static void dump_hex_pkg(char* buffer, int bufferLen) {
+static void dump_hex_pkg(unsigned char *buffer, ssize_t len)
+{
 	char ascii[17];
-	memset(ascii,0,17);
-	for (int i = 0; i < bufferLen; i++)
-	{
-		if (i%16 == 0)
+
+	memset(ascii, 0, sizeof(ascii));
+	for (int i = 0; i < len; i++) {
+		if (i % 16 == 0)
 			printf("%s\n%06x ", ascii, i);
 		if (isprint((int)(buffer[i])))
 			ascii[i%16] = buffer[i];
 		else
 			ascii[i%16] = '.';
-		printf("%02X ", (unsigned char)buffer[i]);
+		printf("%02X ", buffer[i]);
 	}
-	printf("%s\n%06x ", ascii, bufferLen);
+	printf("%s\n%06x ", ascii, (int)len);
 	printf("\n");
 }
 #endif
 
-unsigned short mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep) {
+static int process_in(mdns_daemon_t *d, int sd)
+{
+	struct sockaddr_in from;
+	unsigned char buf[MAX_PACKET_LEN];
+	socklen_t ssize = sizeof(struct sockaddr_in);
+	ssize_t bsize;
 
+	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+		struct message m;
+		int rc;
+
+#if MDNSD_LOGLEVEL <= 100
+		MDNSD_LOG_TRACE("Got Data:");
+		dump_hex_pkg(buf, bsize);
+#endif
+
+		memset(&m, 0, sizeof(m));
+		message_parse(&m, buf);
+		rc = mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
+		if (rc)
+			return 1;
+	}
+
+	if (bsize < 0 && errno != EAGAIN)
+		return 1;
+
+	return 0;
+}
+
+static int process_out(mdns_daemon_t *d, int sd)
+{
+	unsigned short int port;
+	struct sockaddr_in to;
+	struct in_addr ip;
 	struct message m;
 
-	if (processIn) {
-		ssize_t bsize;
-		socklen_t ssize = sizeof(struct sockaddr_in);
-		unsigned char buf[MAX_PACKET_LEN];
-		struct sockaddr_in from;
+	while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
+		unsigned char *buf;
+		ssize_t len;
 
-		while ((bsize = recvfrom(mdns_socket, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
-			memset(&m, 0, sizeof(struct message));
+		memset(&to, 0, sizeof(to));
+		to.sin_family = AF_INET;
+		to.sin_port = port;
+		to.sin_addr = ip;
+
+		len = message_packet_len(&m);
+		buf = message_packet(&m);
 #if MDNSD_LOGLEVEL <= 100
-			MDNSD_LOG_TRACE("Got Data:");
-			dump_hex_pkg((char*)buf, bsize);
+		MDNSD_LOG_TRACE("Send Data:");
+		dump_hex_pkg(buf, len);
 #endif
-			message_parse(&m, buf);
-			if (mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port)!=0)
-				return 2;
-		}
-		if (bsize < 0 && errno != EAGAIN) {
-			return 1;
-		}
-	}
-
-	if (processOut) {
-		struct sockaddr_in to;
-		struct in_addr ip;
-		unsigned short int port;
-
-		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
-			memset(&to, 0, sizeof(to));
-			to.sin_family = AF_INET;
-			to.sin_port = port;
-			to.sin_addr = ip;
-
-			size_t len = (size_t)message_packet_len(&m);
-			char* buf = (char*)message_packet(&m);
-#if MDNSD_LOGLEVEL <= 100
-			MDNSD_LOG_TRACE("Send Data:");
-			dump_hex_pkg(buf, (int)len);
-#endif
-			if (sendto(mdns_socket, buf, len, 0, (struct sockaddr *)&to,
-					   sizeof(struct sockaddr_in)) != (int)len) {
-				return 2;
-			}
-		}
-	}
-
-	if (nextSleep) {
-		struct timeval *tv = mdnsd_sleep(d);
-		nextSleep->tv_sec = tv->tv_sec;
-		nextSleep->tv_usec = tv->tv_usec;
+		if (sendto(sd, buf, len, 0, (struct sockaddr *)&to,
+			   sizeof(struct sockaddr_in)) != len)
+			return 2;
 	}
 
 	return 0;
+}
+
+int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
+{
+	int rc = 0;
+
+	if (in)
+		rc = process_in(d, sd);
+	if (!rc && out)
+		rc = process_out(d, sd);
+
+	if (tv) {
+		struct timeval *delay;
+
+		delay = mdnsd_sleep(d);
+		memcpy(tv, delay, sizeof(*tv));
+	}
+
+	return rc;
 }
