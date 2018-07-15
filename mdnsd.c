@@ -135,10 +135,11 @@ static int msock(void)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hv] [-n NAME] [-a ADDRESS] [-p PORT] [PATH]\n"
+	printf("Usage: %s [-hv] [-l LEVEL] [-n NAME] [-a ADDRESS] [-p PORT] [PATH]\n"
 	       "\n"
 	       "    -a ADDR   Address of service/host to announce, default: auto\n"
 	       "    -h        This help text\n"
+	       "    -l LEVEL  Set log level: none, err, info (default), debug\n"
 	       "    -n NAME   Name of service/host to announce, default: hostname\n"
 	       "    -p PORT   Port of service to announce, default: 80\n"
 	       "    -v        Show program version\n"
@@ -179,7 +180,7 @@ int main(int argc, char *argv[])
 	char *path = NULL;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:hn:p:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:hl:n:p:v?")) != EOF) {
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ip);
@@ -188,6 +189,11 @@ int main(int argc, char *argv[])
 		case 'h':
 		case '?':
 			return usage(0);
+
+		case 'l':
+			if (-1 == mdnsd_log_level(optarg))
+				return usage(1);
+			break;
 
 		case 'n':
 			strncpy(hostname, optarg, sizeof(hostname));
