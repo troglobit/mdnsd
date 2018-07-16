@@ -1,4 +1,5 @@
-/*
+/* Service discovery TXT record parsing/generation
+ *
  * Copyright (c) 2003  Jeremie Miller <jer@jabber.org>
  * All rights reserved.
  *

@@ -1,4 +1,5 @@
-/*
+/* Simple string->void* hashtable, very static and bare minimal, but efficient
+ *
  * Copyright (c) 2003  Jeremie Miller <jer@jabber.org>
  * All rights reserved.
  *
@@ -25,7 +26,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*  Simple string->void* hashtable, very static and bare minimal, but efficient */
 #ifndef MDNS_XHT_H_
 #define MDNS_XHT_H_
 

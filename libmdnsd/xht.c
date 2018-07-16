@@ -1,4 +1,5 @@
-/*
+/* Simple string->void* hashtable, very static and bare minimal, but efficient
+ *
  * Copyright (c) 2003  Jeremie Miller <jer@jabber.org>
  * All rights reserved.
  *
@@ -24,6 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 #include "xht.h"
 #include <string.h>
 #include <stdlib.h>

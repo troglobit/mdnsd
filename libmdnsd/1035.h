@@ -1,4 +1,5 @@
-/*
+/* Standalone DNS parsing, RFC10350
+ *
  * Copyright (c) 2003  Jeremie Miller <jer@jabber.org>
  * All rights reserved.
  *
