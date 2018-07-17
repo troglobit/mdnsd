@@ -55,7 +55,7 @@ static void conflict(char *name, int type, void *arg)
 	exit(1);
 }
 
-static void record_received(const struct resource* r, void* data)
+static void record_received(const struct resource *r, void *data)
 {
 	char ipinput[INET_ADDRSTRLEN];
 
@@ -249,11 +249,11 @@ int main(int argc, char *argv[])
 
 	r = mdnsd_shared(d, "_http._tcp.local.", QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
-	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, 0);
+	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, NULL);
 	mdnsd_set_srv(d, r, 0, 0, port, nlocal);
-	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, conflict, 0);
+	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, conflict, NULL);
 	mdnsd_set_raw(d, r, (char *)&ip.s_addr, 4);
-	r = mdnsd_unique(d, hlocal, QTYPE_TXT, 600, conflict, 0);
+	r = mdnsd_unique(d, hlocal, QTYPE_TXT, 600, conflict, NULL);
 	h = xht_new(11);
 	if (path && strlen(path))
 		xht_set(h, "path", path);
