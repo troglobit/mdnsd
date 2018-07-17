@@ -2,17 +2,9 @@ mdnsd - embeddable Multicast DNS Daemon
 =======================================
 [![License Badge][]][License] [![Travis Status][]][Travis]
 
-This package is intended for software developers and integrators, there
-isn't really anything here for an end user.  The project license is the
-modified 3-clause BSD, https://en.wikipedia.org/wiki/BSD_licenses
-
-You should be able to just type make and it will build the included
-example apps.  Otherwise, check out `mdnsd.h` to get started, the API is
-as simple as I could make it, but I hope to find some easier/better ways
-to improve it in the future.  Also included are some other utilities,
-`sdtxt.*` for service discovery TXT record parsing/generation, and
-`xht.*` for simple fast hashtables, and `1035.*` which mdnsd uses for
-standalone DNS parsing.
+This is [Jeremie Miller's][jeremie] original mDNS/mDNS-SD library and
+example daemon.  The project is open source software under the modified
+[3-clause BSD license][License].
 
 
 Usage
