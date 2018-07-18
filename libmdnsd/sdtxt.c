@@ -78,9 +78,7 @@ unsigned char *sd2txt(xht_t *h, int *len)
 	xht_walk(h, _sd2txt_count, (void *)len);
 	if (!*len) {
 		*len = 1;
-		buf = malloc(1);
-		*buf = 0;
-		return buf;
+		return (unsigned char *)strdup("");
 	}
 
 	raw = buf = malloc(*len);
