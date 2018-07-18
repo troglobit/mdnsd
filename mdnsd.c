@@ -45,9 +45,8 @@
 #include "mdnsd.h"
 
 volatile sig_atomic_t running = 1;
-
 char *prognm  = PACKAGE_NAME;
-mdns_daemon_t *_d;
+
 
 static void conflict(char *name, int type, void *arg)
 {
@@ -95,13 +94,20 @@ static void record_received(const struct resource *r, void *data)
 static void done(int sig)
 {
 	running = 0;
-	mdnsd_shutdown(_d);
+}
+
+static void sig_init(void)
+{
+	signal(SIGINT, done);
+	signal(SIGHUP, done);
+	signal(SIGQUIT, done);
+	signal(SIGTERM, done);
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
-static int msock(void)
+static int multicast_socket(void)
 {
-	int s, flag = 1;
+	int sd, flag = 1;
 	struct sockaddr_in in;
 	struct ip_mreq mc;
 
@@ -110,38 +116,35 @@ static int msock(void)
 	in.sin_port = htons(5353);
 	in.sin_addr.s_addr = 0;
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-		return 0;
+	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	if (sd < 0)
+		return -1;
 
 #ifdef SO_REUSEPORT
-	setsockopt(s, SOL_SOCKET, SO_REUSEPORT, (char *)&flag, sizeof(flag));
+	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, (char *)&flag, sizeof(flag));
 #endif
-	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
-	if (bind(s, (struct sockaddr *)&in, sizeof(in))) {
-		close(s);
-		return 0;
+	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
+	if (bind(sd, (struct sockaddr *)&in, sizeof(in))) {
+		close(sd);
+		return -1;
 	}
 
 	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
 	mc.imr_interface.s_addr = htonl(INADDR_ANY);
-	setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
+	setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
 
-	flag = fcntl(s, F_GETFL, 0);
-	flag |= O_NONBLOCK;
-	fcntl(s, F_SETFL, flag);
-
-	return s;
+	return sd;
 }
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hv] [-l LEVEL] [-n NAME] [-a ADDRESS] [-p PORT] [PATH]\n"
+	printf("Usage: %s [-hv] [-a ADDRESS] [-f FILE] [-l LEVEL]\n"
 	       "\n"
 	       "    -a ADDR   Address of service/host to announce, default: auto\n"
+//	       "    -f FILE   Read service data from FILE, default: /etc/mdns.d/*\n"
+	       "    -f FILE   Read service data from FILE, default: /etc/mdnsd.conf\n"
 	       "    -h        This help text\n"
 	       "    -l LEVEL  Set log level: none, err, info (default), debug\n"
-	       "    -n NAME   Name of service/host to announce, default: hostname\n"
-	       "    -p PORT   Port of service to announce, default: 80\n"
 	       "    -v        Show program version\n"
 	       "\n"
 	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
@@ -170,7 +173,7 @@ int main(int argc, char *argv[])
 	struct in_addr ip = { 0 };
 	unsigned short int port = 80;
 	fd_set fds;
-	int c, s;
+	int c, sd;
 	char hlocal[256], nlocal[256];
 	char hostname[256] = { 0 };
 	char address[20];
@@ -227,12 +230,16 @@ int main(int argc, char *argv[])
 	INFO("Announcing .local site named '%s' to %s:%d and extra path '%s'",
 	     hostname, inet_ntoa(ip), port, path);
 
-	signal(SIGINT, done);
-	signal(SIGHUP, done);
-	signal(SIGQUIT, done);
-	signal(SIGTERM, done);
-	_d = d = mdnsd_new(QCLASS_IN, 1000);
-	if ((s = msock()) == 0) {
+	sig_init();
+
+	d = mdnsd_new(QCLASS_IN, 1000);
+	if (!d) {
+		ERR("Failed creating daemon context: %s", strerror(errno));
+		return 1;
+	}
+
+	sd = multicast_socket();
+	if (sd < 0) {
 		ERR("Failed creating socket: %s", strerror(errno));
 		return 1;
 	}
@@ -241,7 +248,6 @@ int main(int argc, char *argv[])
 	sprintf(nlocal, "%s.local.", hostname);
 
 	mdnsd_register_receive_callback(d, record_received, NULL);
-
 
 	// Announce that we have a _http._tcp service
 	r = mdnsd_shared(d, "_services._dns-sd._udp.local.", QTYPE_PTR, 120);
@@ -278,10 +284,10 @@ int main(int argc, char *argv[])
 		int rc;
 
 		FD_ZERO(&fds);
-		FD_SET(s, &fds);
-		select(s + 1, &fds, NULL, NULL, &tv);
+		FD_SET(sd, &fds);
+		select(sd + 1, &fds, NULL, NULL, &tv);
 
-		rc = mdnsd_step(d, s, FD_ISSET(s, &fds), true, &tv);
+		rc = mdnsd_step(d, sd, FD_ISSET(sd, &fds), true, &tv);
 		if (rc == 1) {
 			ERR("Failed reading from socket %d: %s", errno, strerror(errno));
 			break;
