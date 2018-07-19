@@ -1,0 +1,7 @@
+# mDNS-SD advertisement of FTP service
+name Troglobit FTP Server
+type _ftp._tcp
+port 21
+txt server=uftpd
+txt version=2.6
+
