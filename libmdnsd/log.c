@@ -116,8 +116,6 @@ void mdnsd_log(int severity, const char *fmt, ...)
 	if (do_syslog)
 		vsyslog(severity, fmt, args);
 	else if (severity <= loglevel) {
-		if (loglevel == LOG_DEBUG)
-			fprintf(file, "%d> ", getpid());
 		vfprintf(file, fmt, args);
 		fprintf(file, "\n");
 		fflush(file);
