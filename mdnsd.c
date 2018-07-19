@@ -43,7 +43,8 @@
 #include "mdnsd.h"
 
 volatile sig_atomic_t running = 1;
-char *prognm  = PACKAGE_NAME;
+char *prognm      = PACKAGE_NAME;
+int   background  = 1;
 
 
 void mdnsd_conflict(char *name, int type, void *arg)
@@ -143,6 +144,7 @@ static int usage(int code)
 	       "    -f FILE   Read service data from FILE, default: /etc/mdnsd.conf\n"
 	       "    -h        This help text\n"
 	       "    -l LEVEL  Set log level: none, err, info (default), debug\n"
+	       "    -n        Run in foreground, do not detach from controlling terminal\n"
 	       "    -v        Show program version\n"
 	       "\n"
 	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
@@ -175,7 +177,7 @@ int main(int argc, char *argv[])
 	char *fn = "/etc/mdnsd.conf"; // XXX: Temporary, should be /etc/mdns.d/* or sth
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:f:hl:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:f:hl:nv?")) != EOF) {
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ip);
@@ -194,12 +196,25 @@ int main(int argc, char *argv[])
 				return usage(1);
 			break;
 
+		case 'n':
+			background = 0;
+			break;
+
 		case 'v':
 			puts(PACKAGE_VERSION);
 			return 0;
 
 		default:
 			break;
+		}
+	}
+
+	if (background) {
+		mdnsd_log_open(prognm);
+		DBG("Daemonizing ...");
+		if (-1 == daemon(0, 0)) {
+			ERR("Failed daemonizing: %s", strerror(errno));
+			return 1;
 		}
 	}
 
@@ -239,6 +254,7 @@ int main(int argc, char *argv[])
 		r = mdnsd_record_next(r);
 	}
 
+	INFO("%s starting.", PACKAGE_STRING);
 	while (running) {
 		int rc;
 
@@ -257,6 +273,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	INFO("%s exiting.", PACKAGE_STRING);
 	mdnsd_shutdown(d);
 	mdnsd_free(d);
 

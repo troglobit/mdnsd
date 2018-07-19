@@ -16,6 +16,7 @@ Usage
         -f FILE   Read service data from FILE, default: /etc/mdns.d/*
         -h        This help text
         -l LEVEL  Set log level: none, err, info (default), debug
+        -n        Run in foreground, do not detach from controlling terminal
         -v        Show program version
     
     Bug report address: https://github.com/troglobit/mdnsd/issues
