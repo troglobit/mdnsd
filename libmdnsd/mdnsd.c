@@ -92,6 +92,9 @@ struct mdns_daemon {
 	struct mdns_record *published[SPRIME], *probing, *a_now, *a_pause, *a_publish;
 	struct unicast *uanswers;
 	struct query *queries[SPRIME], *qlist;
+
+	struct in_addr addr;
+
 	mdnsd_record_received_callback received_callback;
 	void *received_callback_data;
 };
@@ -576,6 +579,16 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	d->received_callback = NULL;
 
 	return d;
+}
+
+void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
+{
+	d->addr = addr;
+}
+
+struct in_addr mdnsd_get_address(mdns_daemon_t *d)
+{
+	return d->addr;
 }
 
 /* Shutting down, zero out ttl and push out all records */

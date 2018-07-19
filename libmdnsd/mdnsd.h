@@ -95,6 +95,16 @@ void mdnsd_log(int severity, const char *fmt, ...);
 mdns_daemon_t *mdnsd_new(int class, int frame);
 
 /**
+ * Set mDNS daemon host IP address
+ */
+void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr);
+
+/**
+ * Get mDNS daemon host IP address from previous set
+ */
+struct in_addr mdnsd_get_address(mdns_daemon_t *d);
+
+/**
  * Gracefully shutdown the daemon, use mdnsd_out() to get the last
  * packets
  */
