@@ -28,7 +28,20 @@
 #ifndef MDNSD_H_
 #define MDNSD_H_
 
+#include <libmdnsd/mdnsd.h>
+#include <libmdnsd/sdtxt.h>
+
+/* From The Practice of Programming, by Kernighan and Pike */
+#ifndef NELEMS
+#define NELEMS(array) (sizeof(array) / sizeof(array[0]))
+#endif
+
+void mdnsd_conflict(char *name, int type, void *arg);
+
 /* addr.c */
 char *getaddr(char *buf, size_t len);
+
+/* conf.c */
+int conf_init(mdns_daemon_t *d, char *fn);
 
 #endif /* MDNSD_H_ */

@@ -40,15 +40,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <libmdnsd/mdnsd.h>
-#include <libmdnsd/sdtxt.h>
 #include "mdnsd.h"
 
 volatile sig_atomic_t running = 1;
 char *prognm  = PACKAGE_NAME;
 
 
-static void conflict(char *name, int type, void *arg)
+void mdnsd_conflict(char *name, int type, void *arg)
 {
 	ERR("conflicting name detected %s for type %d", name, type);
 	exit(1);
@@ -171,22 +169,20 @@ int main(int argc, char *argv[])
 	mdns_daemon_t *d;
 	mdns_record_t *r;
 	struct in_addr ip = { 0 };
-	unsigned short int port = 80;
+	char address[20];
 	fd_set fds;
 	int c, sd;
-	char hlocal[256], nlocal[256];
-	char hostname[256] = { 0 };
-	char address[20];
-	unsigned char *packet;
-	int len = 0;
-	xht_t *h;
-	char *path = NULL;
+	char *fn = "/etc/mdnsd.conf"; // XXX: Temporary, should be /etc/mdns.d/* or sth
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:hl:n:p:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:f:hl:v?")) != EOF) {
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ip);
+			break;
+
+		case 'f':
+			fn = optarg;
 			break;
 
 		case 'h':
@@ -198,14 +194,6 @@ int main(int argc, char *argv[])
 				return usage(1);
 			break;
 
-		case 'n':
-			strncpy(hostname, optarg, sizeof(hostname));
-			break;
-
-		case 'p':
-			port = atoi(optarg);
-			break;
-
 		case 'v':
 			puts(PACKAGE_VERSION);
 			return 0;
@@ -215,22 +203,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (optind < argc)
-		path = argv[optind];
-
 	if (!ip.s_addr) {
 		if (!getaddr(address, sizeof(address)))
 			errx(1, "Cannot find default interface, use -a ADDRESS");
 		inet_aton(address, &ip);
 	}
-
-	if (!hostname[0])
-		gethostname(hostname, sizeof(hostname));
-
-	INFO("Announcing .local site named '%s' to %s:%d and extra path '%s'",
-	     hostname, inet_ntoa(ip), port, path);
-
-	sig_init();
 
 	d = mdnsd_new(QCLASS_IN, 1000);
 	if (!d) {
@@ -238,35 +215,17 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	mdnsd_set_address(d, ip);
+	mdnsd_register_receive_callback(d, record_received, NULL);
+
 	sd = multicast_socket();
 	if (sd < 0) {
 		ERR("Failed creating socket: %s", strerror(errno));
 		return 1;
 	}
 
-	sprintf(hlocal, "%s._http._tcp.local.", hostname);
-	sprintf(nlocal, "%s.local.", hostname);
-
-	mdnsd_register_receive_callback(d, record_received, NULL);
-
-	// Announce that we have a _http._tcp service
-	r = mdnsd_shared(d, "_services._dns-sd._udp.local.", QTYPE_PTR, 120);
-	mdnsd_set_host(d, r, "_http._tcp.local.");
-
-	r = mdnsd_shared(d, "_http._tcp.local.", QTYPE_PTR, 120);
-	mdnsd_set_host(d, r, hlocal);
-	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, NULL);
-	mdnsd_set_srv(d, r, 0, 0, port, nlocal);
-	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, conflict, NULL);
-	mdnsd_set_raw(d, r, (char *)&ip.s_addr, 4);
-	r = mdnsd_unique(d, hlocal, QTYPE_TXT, 600, conflict, NULL);
-	h = xht_new(11);
-	if (path && strlen(path))
-		xht_set(h, "path", path);
-	packet = sd2txt(h, &len);
-	xht_free(h);
-	mdnsd_set_raw(d, r, (char *)packet, len);
-	free(packet);
+	sig_init();
+	conf_init(d, fn);
 
 	/* example: how to read a previously published record */
 	r = mdnsd_get_published(d, "_http._tcp.local.");

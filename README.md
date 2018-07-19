@@ -10,18 +10,16 @@ example daemon.  The project is open source software under the modified
 Usage
 -----
 
-```
-Usage: mdnsd [-hv] [-l LEVEL] [-n NAME] [-a ADDRESS] [-p PORT] [PATH]
+    Usage: mdnsd [-hv] [-a ADDR ] [-f FILE] [-l LEVEL]
+    
+        -a ADDR   Address of service/host to announce, default: auto
+        -f FILE   Read service data from FILE, default: /etc/mdns.d/*
+        -h        This help text
+        -l LEVEL  Set log level: none, err, info (default), debug
+        -v        Show program version
+    
+    Bug report address: https://github.com/troglobit/mdnsd/issues
 
-    -a ADDR   Address of service/host to announce, default: auto
-    -h        This help text
-    -l LEVEL  Set log level: none, err, info (default), debug
-    -n NAME   Name of service/host to announce, default: hostname
-    -p PORT   Port of service to announce, default: 80
-    -v        Show program version
-
-Bug report address: https://github.com/troglobit/mdnsd/issues
-```
 
 Running
 -------
