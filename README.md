@@ -22,16 +22,6 @@ Usage
     Bug report address: https://github.com/troglobit/mdnsd/issues
 
 
-Running
--------
-
-To test the included example applications you need to first start the
-`mdnsd` daemon before calling `mquery`:
-
-    mdnsd &
-    mquery 12 _http._tcp.local.
-
-
 Library
 -------
 
