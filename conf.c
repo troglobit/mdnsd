@@ -111,7 +111,24 @@ static int parse(char *fn, struct conf_srec *srec)
 	return 0;
 }
 
-int conf_init(mdns_daemon_t *d, char *fn)
+/* Create a new record, or update an existing one */
+mdns_record_t *record(mdns_daemon_t *d, int shared, const char *name, unsigned short type, unsigned long ttl)
+{
+	mdns_record_t *r;
+
+	r = mdnsd_find(d, name, type);
+	if (!r) {
+		if (shared)
+			r = mdnsd_shared(d, name, type, ttl);
+		else
+			r = mdnsd_unique(d, name, type, ttl, mdnsd_conflict, NULL);
+	}
+
+	return r;
+}
+
+
+int conf_init(mdns_daemon_t *d, char *path)
 {
 	struct conf_srec srec;
 	struct in_addr addr;
@@ -123,39 +140,38 @@ int conf_init(mdns_daemon_t *d, char *fn)
 	char hostname[HOST_NAME_MAX];
 	int len = 0;
 
+	gethostname(hostname, sizeof(hostname));
+
 	memset(&srec, 0, sizeof(srec));
-	if (parse(fn, &srec)) {
-		ERR("Failed reading %s: %s", fn, strerror(errno));
+	if (parse(path, &srec)) {
+		ERR("Failed reading %s: %s", path, strerror(errno));
 		return 1;
 	}
 
-	if (!srec.name) {
-		gethostname(hostname, sizeof(hostname));
+	if (!srec.name)
 		srec.name = hostname;
-	}
-
 	if (!srec.type)
 		srec.type = strdup("_http._tcp");
 
 	snprintf(hlocal, sizeof(hlocal), "%s.%s.local.", srec.name, srec.type);
 	snprintf(nlocal, sizeof(nlocal), "%s.local.", srec.name);
 
-	// Announce that we have a $type service
-	r = mdnsd_shared(d, "_services._dns-sd._udp.local.", QTYPE_PTR, 120);
+	/* Announce that we have a $type service */
+	r = record(d, 1, "_services._dns-sd._udp.local.", QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
 
-	r = mdnsd_shared(d, hlocal, QTYPE_PTR, 120);
+	r = record(d, 1, hlocal, QTYPE_PTR, 120);
 	mdnsd_set_host(d, r, hlocal);
 
-	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, mdnsd_conflict, NULL);
+	r = record(d, 0, hlocal, QTYPE_SRV, 600);
 	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
 
-	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, mdnsd_conflict, NULL);
+	r = record(d, 0, nlocal, QTYPE_A, 600);
 	addr = mdnsd_get_address(d);
 	mdnsd_set_raw(d, r, (char *)&addr, 4);
 //	mdnsd_set_ip(d, r, mdnsd_get_address(d));
 
-	r = mdnsd_unique(d, hlocal, QTYPE_TXT, 600, mdnsd_conflict, NULL);
+	r = record(d, 0, hlocal, QTYPE_TXT, 600);
 	h = xht_new(11);
 	for (i = 0; i < srec.txt_num; i++) {
 		char *ptr;
