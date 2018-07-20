@@ -2,9 +2,7 @@ mdnsd - embeddable Multicast DNS Daemon
 =======================================
 [![License Badge][]][License] [![Travis Status][]][Travis]
 
-This is [Jeremie Miller's][jeremie] original mDNS/mDNS-SD library and
-example daemon.  The project is open source software under the modified
-[3-clause BSD license][License].
+[Jeremie Miller's][jeremie] original mDNS/mDNS-SD library daemon.
 
 
 Usage
