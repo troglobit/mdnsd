@@ -1113,7 +1113,8 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short t
 	return r;
 }
 
-mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg)
+mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl,
+			    void (*conflict)(char *host, int type, void *arg), void *arg)
 {
 	mdns_record_t *r;
 
@@ -1128,7 +1129,7 @@ mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short t
 	return r;
 }
 
-mdns_record_t * mdnsd_get_published(mdns_daemon_t *d, const char *host)
+mdns_record_t *mdnsd_get_published(mdns_daemon_t *d, const char *host)
 {
 	return d->published[_namehash(host) % SPRIME];
 }
