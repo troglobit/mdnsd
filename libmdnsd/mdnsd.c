@@ -1139,6 +1139,24 @@ int mdnsd_has_query(mdns_daemon_t *d, const char *host)
 	return d->queries[_namehash(host) % SPRIME] != NULL;
 }
 
+mdns_record_t *mdnsd_find(mdns_daemon_t *d, const char *name, unsigned short type)
+{
+	mdns_record_t *r;
+
+	r = mdnsd_get_published(d, name);
+	while (r) {
+		const mdns_answer_t *data;
+
+		data = mdnsd_record_data(r);
+		if (data && data->type == type)
+			return r;
+
+		r = mdnsd_record_next(r);
+	}
+
+	return NULL;
+}
+
 void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 {
 	mdns_record_t *cur;

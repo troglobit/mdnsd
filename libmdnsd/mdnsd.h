@@ -213,6 +213,11 @@ mdns_record_t *mdnsd_get_published(mdns_daemon_t *d, const char *host);
 int mdnsd_has_query(mdns_daemon_t *d, const char *host);
 
 /**
+ * Find previously based record based on name and type
+ */
+mdns_record_t *mdnsd_find(mdns_daemon_t *d, const char *name, unsigned short type);
+
+/**
  * de-list the given record
  */
 void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r);
