@@ -8,10 +8,12 @@ mdnsd - embeddable Multicast DNS Daemon
 Usage
 -----
 
-    Usage: mdnsd [-hv] [-a ADDR ] [-f FILE] [-l LEVEL]
+mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
+different path may be given, which may be a directory or a single file.
+
+    Usage: mdnsd [-hnv] [-a ADDR ] [-l LEVEL] [PATH]
     
         -a ADDR   Address of service/host to announce, default: auto
-        -f FILE   Read service data from FILE, default: /etc/mdns.d/*
         -h        This help text
         -l LEVEL  Set log level: none, err, info (default), debug
         -n        Run in foreground, do not detach from controlling terminal

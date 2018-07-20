@@ -137,11 +137,9 @@ static int multicast_socket(void)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hv] [-a ADDRESS] [-f FILE] [-l LEVEL]\n"
+	printf("Usage: %s [-hnv] [-a ADDRESS] [-l LEVEL] [PATH]\n"
 	       "\n"
 	       "    -a ADDR   Address of service/host to announce, default: auto\n"
-//	       "    -f FILE   Read service data from FILE, default: /etc/mdns.d/*\n"
-	       "    -f FILE   Read service data from FILE, default: /etc/mdnsd.conf\n"
 	       "    -h        This help text\n"
 	       "    -l LEVEL  Set log level: none, err, info (default), debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
@@ -168,23 +166,18 @@ static char *progname(char *arg0)
 int main(int argc, char *argv[])
 {
 	struct timeval tv = { 0 };
-	mdns_daemon_t *d;
-	mdns_record_t *r;
 	struct in_addr ip = { 0 };
-	char address[20];
+	mdns_daemon_t *d;
 	fd_set fds;
+	char *path;
+	char address[20];
 	int c, sd;
-	char *fn = "/etc/mdnsd.conf"; // XXX: Temporary, should be /etc/mdns.d/* or sth
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:f:hl:nv?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:hl:nv?")) != EOF) {
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ip);
-			break;
-
-		case 'f':
-			fn = optarg;
 			break;
 
 		case 'h':
@@ -208,6 +201,11 @@ int main(int argc, char *argv[])
 			break;
 		}
 	}
+
+	if (optind < argc)
+		path = argv[optind];
+	else
+		path = "/etc/mdns.d";
 
 	if (background) {
 		mdnsd_log_open(prognm);
@@ -240,19 +238,7 @@ int main(int argc, char *argv[])
 	}
 
 	sig_init();
-	conf_init(d, fn);
-
-	/* example: how to read a previously published record */
-	r = mdnsd_get_published(d, "_http._tcp.local.");
-	while (r) {
-		const mdns_answer_t *data;
-
-		data = mdnsd_record_data(r);
-		if (data)
-			DBG("Found record of type %d", data->type);
-
-		r = mdnsd_record_next(r);
-	}
+	conf_init(d, path);
 
 	INFO("%s starting.", PACKAGE_STRING);
 	while (running) {
