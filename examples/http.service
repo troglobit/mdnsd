@@ -1,0 +1,6 @@
+# mDNS-SD advertisement of HTTP service
+type _http._tcp
+port 80
+txt server=merecat
+txt version=2.31
+
