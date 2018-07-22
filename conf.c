@@ -127,8 +127,7 @@ mdns_record_t *record(mdns_daemon_t *d, int shared, const char *name, unsigned s
 	return r;
 }
 
-
-int conf_init(mdns_daemon_t *d, char *path)
+static int load(mdns_daemon_t *d, char *path, char *hostname)
 {
 	struct conf_srec srec;
 	struct in_addr addr;
@@ -137,10 +136,7 @@ int conf_init(mdns_daemon_t *d, char *path)
 	size_t i;
 	xht_t *h;
 	char hlocal[256], nlocal[256];
-	char hostname[HOST_NAME_MAX];
 	int len = 0;
-
-	gethostname(hostname, sizeof(hostname));
 
 	memset(&srec, 0, sizeof(srec));
 	if (parse(path, &srec)) {
@@ -189,5 +185,16 @@ int conf_init(mdns_daemon_t *d, char *path)
 	free(packet);
 
 	return 0;
+}
+
+int conf_init(mdns_daemon_t *d, char *path)
+{
+	char hostname[HOST_NAME_MAX];
+	int rc = 0;
+
+	gethostname(hostname, sizeof(hostname));
+	rc |= load(d, path, hostname);
+
+	return rc;
 }
 
