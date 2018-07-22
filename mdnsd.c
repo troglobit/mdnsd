@@ -106,14 +106,10 @@ static void sig_init(void)
 /* Create multicast 224.0.0.251:5353 socket */
 static int multicast_socket(void)
 {
-	int sd, flag = 1;
-	struct sockaddr_in in;
+	struct sockaddr_in sin;
 	struct ip_mreq mc;
-
-	memset(&in, 0, sizeof(in));
-	in.sin_family = AF_INET;
-	in.sin_port = htons(5353);
-	in.sin_addr.s_addr = 0;
+	in_addr_t group;
+	int sd, flag = 1;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 	if (sd < 0)
@@ -123,12 +119,20 @@ static int multicast_socket(void)
 	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, (char *)&flag, sizeof(flag));
 #endif
 	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
-	if (bind(sd, (struct sockaddr *)&in, sizeof(in))) {
+
+	/* Join and bind to mDNS link-local group to filter socket input */
+	group = inet_addr("224.0.0.251");
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(5353);
+	sin.sin_addr.s_addr = group;
+	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
 		close(sd);
 		return -1;
 	}
 
-	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
+	mc.imr_multiaddr.s_addr = group;
 	mc.imr_interface.s_addr = htonl(INADDR_ANY);
 	setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
 
