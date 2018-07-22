@@ -76,7 +76,7 @@ char *getaddr(char *buf, size_t len)
 	int rc;
 
 	getifname(ifname, sizeof(ifname));
-
+	DBG("Default interface: %s", ifname);
 	rc = getifaddrs(&ifaddr);
 	if (rc)
 		return NULL;
@@ -98,6 +98,7 @@ char *getaddr(char *buf, size_t len)
 	}
 	freeifaddrs(ifaddr);
 
+	DBG("Default address: %s", buf);
 	if (rc)
 		return NULL;
 
