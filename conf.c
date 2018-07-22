@@ -26,11 +26,13 @@
 */
 
 #include <errno.h>
+#include <glob.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include "mdnsd.h"
 
@@ -189,11 +191,38 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 
 int conf_init(mdns_daemon_t *d, char *path)
 {
+	struct stat st;
 	char hostname[HOST_NAME_MAX];
 	int rc = 0;
 
 	gethostname(hostname, sizeof(hostname));
-	rc |= load(d, path, hostname);
+
+	if (stat(path, &st)) {
+		ERR("Cannot determine path type: %s", strerror(errno));
+		return 1;
+	}
+
+	if (S_ISDIR(st.st_mode)) {
+		glob_t gl;
+		size_t i;
+		char pat[strlen(path) + 12];
+
+		strcpy(pat, path);
+		if (pat[strlen(path) - 1] != '/')
+			strcat(pat, "/");
+		strcat(pat, "*.service");
+
+		if (glob(pat, GLOB_TILDE, NULL, &gl)) {
+			ERR("No .service files found in %s: %s", path, strerror(errno));
+			return 1;
+		}
+
+		for (i = 0; i < gl.gl_pathc; i++)
+			rc |= load(d, gl.gl_pathv[i], hostname);
+
+		globfree(&gl);
+	} else
+		rc |= load(d, path, hostname);
 
 	return rc;
 }
