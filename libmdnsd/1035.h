@@ -39,7 +39,7 @@
 
 /* Should be reasonably large, for UDP */
 #define MAX_PACKET_LEN 65535
-#define MAX_NUM_LABELS 20
+#define MAX_NUM_LABELS 512
 
 struct question {
 	char *name;
