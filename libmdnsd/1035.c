@@ -209,7 +209,7 @@ static int _host(struct message *m, unsigned char **bufp, char *name)
 
 	/* Double-loop checking each label against all m->_labels for match */
 	for (x = 0; label[x]; x += label[x] + 1) {
-		for (y = 0; m->_labels[y] && y < MAX_NUM_LABELS; y++) {
+		for (y = 0; y < MAX_NUM_LABELS && m->_labels[y]; y++) {
 			if (_lmatch(m, label + x, m->_labels[y])) {
 				/* Matching label, set up pointer */
 				l = label + x;
