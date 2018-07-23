@@ -104,6 +104,13 @@ static int msock(void)
 	return s;
 }
 
+static int usage(int code)
+{
+	/* mquery 12 _http._tcp.local. */
+	printf("usage: mquery [-t TYPE] [NAME]\n");
+	return code;
+}
+
 int main(int argc, char *argv[])
 {
 	mdns_daemon_t *d;
@@ -116,20 +123,36 @@ int main(int argc, char *argv[])
 	unsigned char buf[MAX_PACKET_LEN];
 	struct sockaddr_in from, to;
 	fd_set fds;
-	int s;
+	char *name = "_services._dns-sd._udp.local.";
+	int type = QTYPE_PTR;	/* 12 */
+	int s, c;
 
-	if (argc != 3) {
-		printf("usage: mquery 12 _http._tcp.local.\n");
-		return 1;
+	while ((c = getopt(argc, argv, "h?t:")) != EOF) {
+		switch (c) {
+		case 'h':
+		case '?':
+			return usage(0);
+
+		case 't':
+			type = atoi(optarg);
+			break;
+
+		default:
+			return usage(1);
+		}
 	}
+
+	if (optind < argc)
+		name = argv[optind];
 
 	d = mdnsd_new(1, 1000);
 	if ((s = msock()) == 0) {
-		printf("can't create socket: %s\n", strerror(errno));
+		printf("Failed creating multicast socket: %s\n", strerror(errno));
 		return 1;
 	}
 
-	mdnsd_query(d, argv[2], atoi(argv[1]), ans, 0);
+	printf("Querying type %d for %s ...\n", type, name);
+	mdnsd_query(d, name, type, ans, NULL);
 
 	while (1) {
 		tv = mdnsd_sleep(d);
@@ -145,7 +168,7 @@ int main(int argc, char *argv[])
 				mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
 			}
 			if (bsize < 0 && errno != EAGAIN) {
-				printf("can't read from socket %d: %s\n", errno, strerror(errno));
+				printf("Failed reading from socket %d: %s\n", errno, strerror(errno));
 				return 1;
 			}
 		}
@@ -157,7 +180,7 @@ int main(int argc, char *argv[])
 			to.sin_addr.s_addr = ip;
 			if (sendto(s, message_packet(&m), message_packet_len(&m), 0, (struct sockaddr *)&to,
 				   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
-				printf("can't write to socket: %s\n", strerror(errno));
+				printf("Failed writing to socket: %s\n", strerror(errno));
 				return 1;
 			}
 		}
