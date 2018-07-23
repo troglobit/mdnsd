@@ -11,7 +11,7 @@ Usage
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
 different path may be given, which may be a directory or a single file.
 
-    Usage: mdnsd [-hnv] [-a ADDR ] [-l LEVEL] [PATH]
+    Usage: mdnsd [-hnv] [-a ADDRESS] [-l LEVEL] [PATH]
     
         -a ADDR   Address of service/host to announce, default: auto
         -h        This help text
@@ -42,7 +42,7 @@ first need to call `./autogen.sh` to generate the configure script.
 Origin & References
 -------------------
 
-This MDNS-SD implementation was developed by [Jeremie Miller][jeremie]
+This mDNS-SD implementation was developed by [Jeremie Miller][jeremie]
 in 2003, originally [announced on the rendezvous-dev][announced] mailing
 list.  It has many forks and has been used by many other applications
 over the years.
