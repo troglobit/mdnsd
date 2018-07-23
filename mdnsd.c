@@ -43,6 +43,7 @@
 #include "mdnsd.h"
 
 volatile sig_atomic_t running = 1;
+volatile sig_atomic_t reload = 0;
 char *prognm      = PACKAGE_NAME;
 int   background  = 1;
 
@@ -95,10 +96,15 @@ static void done(int sig)
 	running = 0;
 }
 
+static void reconf(int sig)
+{
+	reload = 1;
+}
+
 static void sig_init(void)
 {
 	signal(SIGINT, done);
-	signal(SIGHUP, done);
+	signal(SIGHUP, reconf);
 	signal(SIGQUIT, done);
 	signal(SIGTERM, done);
 }
@@ -250,7 +256,15 @@ int main(int argc, char *argv[])
 
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
-		select(sd + 1, &fds, NULL, NULL, &tv);
+		rc = select(sd + 1, &fds, NULL, NULL, &tv);
+		if (rc < 0 && EINTR == errno) {
+			if (!running)
+				break;
+			if (reload) {
+				conf_init(d, path);
+				reload = 0;
+			}
+		}
 
 		rc = mdnsd_step(d, sd, FD_ISSET(sd, &fds), true, &tv);
 		if (rc == 1) {
