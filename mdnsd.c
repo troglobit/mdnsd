@@ -115,6 +115,7 @@ static int multicast_socket(void)
 	struct sockaddr_in sin;
 	struct ip_mreq mc;
 	in_addr_t group;
+	char loop = 0;
 	int sd, flag = 1;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -122,9 +123,10 @@ static int multicast_socket(void)
 		return -1;
 
 #ifdef SO_REUSEPORT
-	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, (char *)&flag, sizeof(flag));
+	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag));
 #endif
-	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
+	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 
 	/* Join and bind to mDNS link-local group to filter socket input */
 	group = inet_addr("224.0.0.251");
