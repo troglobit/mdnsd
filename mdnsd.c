@@ -110,7 +110,7 @@ static void sig_init(void)
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
-static int multicast_socket(void)
+static int multicast_socket(struct in_addr ina)
 {
 	struct sockaddr_in sin;
 	struct ip_mreq mc;
@@ -127,6 +127,7 @@ static int multicast_socket(void)
 #endif
 	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina));
 
 	/* Join and bind to mDNS link-local group to filter socket input */
 	group = inet_addr("224.0.0.251");
@@ -153,6 +154,7 @@ static int usage(int code)
 	       "\n"
 	       "    -a ADDR   Address of service/host to announce, default: auto\n"
 	       "    -h        This help text\n"
+	       "    -i IFACE  Interface to announce services on, and get address from\n"
 	       "    -l LEVEL  Set log level: none, err, info (default), debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
 	       "    -v        Show program version\n"
@@ -178,23 +180,28 @@ static char *progname(char *arg0)
 int main(int argc, char *argv[])
 {
 	struct timeval tv = { 0 };
-	struct in_addr ip = { 0 };
+	struct in_addr ina = { 0 };
 	mdns_daemon_t *d;
 	fd_set fds;
+	char *iface = NULL;
 	char *path;
 	char address[20];
 	int c, sd;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:hl:nv?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:hi:l:nv?")) != EOF) {
 		switch (c) {
 		case 'a':
-			inet_aton(optarg, &ip);
+			inet_aton(optarg, &ina);
 			break;
 
 		case 'h':
 		case '?':
 			return usage(0);
+
+		case 'i':
+			iface = optarg;
+			break;
 
 		case 'l':
 			if (-1 == mdnsd_log_level(optarg))
@@ -228,10 +235,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!ip.s_addr) {
-		if (!getaddr(address, sizeof(address)))
+	if (!ina.s_addr) {
+		if (!getaddr(iface, address, sizeof(address)))
 			errx(1, "Cannot find default interface, use -a ADDRESS");
-		inet_aton(address, &ip);
+		inet_aton(address, &ina);
 	}
 
 	d = mdnsd_new(QCLASS_IN, 1000);
@@ -240,10 +247,10 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	mdnsd_set_address(d, ip);
+	mdnsd_set_address(d, ina);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
-	sd = multicast_socket();
+	sd = multicast_socket(ina);
 	if (sd < 0) {
 		ERR("Failed creating socket: %s", strerror(errno));
 		return 1;

@@ -69,13 +69,17 @@ static int getifname(char *ifname, size_t len)
 }
 
 /* Find IPv4 address of default outbound LAN interface */
-char *getaddr(char *buf, size_t len)
+char *getaddr(char *iface, char *buf, size_t len)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	char ifname[17] = { 0 };
 	int rc;
 
-	getifname(ifname, sizeof(ifname));
+	if (iface)
+		strncpy(ifname, iface, sizeof(ifname));
+	else
+		getifname(ifname, sizeof(ifname));
+
 	DBG("Default interface: %s", ifname);
 	rc = getifaddrs(&ifaddr);
 	if (rc)
