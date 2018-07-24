@@ -147,12 +147,12 @@ static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *hos
 
 static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *host, int type)
 {
-	if (r == 0)
+	if (r == NULL)
 		r = d->published[_namehash(host) % SPRIME];
 	else
 		r = r->next;
 
-	for (; r != 0; r = r->next) {
+	for (; r != NULL; r = r->next) {
 		if (type == r->rr.type && strcmp(r->rr.name, host) == 0)
 			return r;
 	}
@@ -280,9 +280,8 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 
 	/* Known unique ones can be sent asap */
 	if (r->unique) {
-
 		/* check if r already in other lists. If yes, remove it from there */
-		_r_remove_lists(d,r, &d->a_now);
+		_r_remove_lists(d, r, &d->a_now);
 		_r_push(&d->a_now, r);
 		return;
 	}
@@ -684,7 +683,7 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned short int port)
 {
 	int i, j;
-	mdns_record_t *r = 0;
+	mdns_record_t *r = NULL;
 
 	if (d->shutdown)
 		return 1;
@@ -697,14 +696,18 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 			mdns_record_t *r_start, *r_next;
 			bool has_conflict = false;
 
-			if (m->qd[i].class != d->class || (r = _r_next(d, 0, m->qd[i].name, m->qd[i].type)) == 0)
+			if (m->qd[i].class != d->class)
+				continue;
+
+			DBG("Query for %s of type %d ...", m->qd[i].name, m->qd[i].type);
+			if ((r = _r_next(d, NULL, m->qd[i].name, m->qd[i].type)) == NULL)
 				continue;
 
 			/* Check all of our potential answers */
-			for (r_start = r; r != 0; r = r_next) {
-				DBG("Got Query: Name: %s, Type: %d", r->rr.name, r->rr.type);
+			for (r_start = r; r != NULL; r = r_next) {
+				DBG("Matching record: name %s, type: %d, rdname: %s", r->rr.name, r->rr.type, r->rr.rdname);
 
-				/* do this here, because _conflict deletes r and thus next is not valid anymore */
+				/* Fetch next here, because _conflict() might delete r, invalidating next */
 				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
 
 				/* probing state, check for conflicts */
