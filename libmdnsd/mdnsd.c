@@ -1227,7 +1227,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 
 		memset(&m, 0, sizeof(m));
 		message_parse(&m, buf);
-		rc = mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
+		rc = mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, ntohs(from.sin_port));
 		if (rc)
 			return 1;
 	}
