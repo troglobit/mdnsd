@@ -84,7 +84,7 @@ struct mdns_record {
 };
 
 struct mdns_daemon {
-	char shutdown;
+	char shutdown, disco;
 	unsigned long int expireall, checkqlist;
 	struct timeval now, sleep, pause, probe, publish;
 	int class, frame;
@@ -540,6 +540,13 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 			*list = r->list;
 		else
 			*list = NULL;
+
+		/* Service enumeration/discovery, drop non-PTR replies */
+		if (d->disco && r->rr.type != QTYPE_PTR) {
+			DBG("Discovery response, dropping: %s, type %d (QTYPE_PTR: %d) from message ...",
+			    r->rr.name, r->rr.type, QTYPE_PTR);
+			continue;
+		}
 		ret++;
 
 		if (r->unique)
@@ -702,6 +709,17 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 			DBG("Query for %s of type %d ...", m->qd[i].name, m->qd[i].type);
 			if ((r = _r_next(d, NULL, m->qd[i].name, m->qd[i].type)) == NULL)
 				continue;
+
+			/* Service enumeratio/discovery prepeare to send all matching records */
+			if (!strcmp(m->qd[i].name, "_services._dns-sd._udp.local.")) {
+				d->disco = 1;
+				while (r != NULL) {
+					_r_send(d, r);
+					r = _r_next(d, r, m->qd[i].name, m->qd[i].type);
+				}
+
+				continue;
+			}
 
 			/* Check all of our potential answers */
 			for (r_start = r; r != NULL; r = r_next) {
@@ -1274,6 +1292,10 @@ int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
 		rc = process_in(d, sd);
 	if (!rc && out)
 		rc = process_out(d, sd);
+
+	/* Service Enumeration/Discovery completed */
+	if (d->disco)
+		d->disco = 0;
 
 	if (tv) {
 		struct timeval *delay;
