@@ -76,6 +76,7 @@ void mdnsd_log_open(const char *ident)
 void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len)
 {
 	char ascii[17];
+	int i;
 
 	if (do_syslog)
 		return;
@@ -83,19 +84,27 @@ void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len)
 	if (loglevel < LOG_DEBUG)
 		return;
 
-	printf("%s\n", msg);
+	printf("%s", msg);
 
 	memset(ascii, 0, sizeof(ascii));
-	for (int i = 0; i < len; i++) {
+	for (i = 0; i < len; i++) {
 		if (i % 16 == 0)
 			printf("%s\n%06x ", ascii, i);
+		printf("%02X ", buffer[i]);
+
 		if (isprint((int)(buffer[i])))
 			ascii[i%16] = buffer[i];
 		else
 			ascii[i%16] = '.';
-		printf("%02X ", buffer[i]);
 	}
-	printf("%s\n%06x ", ascii, (int)len);
+
+	ascii[i % 16] = 0;
+	while (i % 16) {
+		printf("   ");
+		i++;
+	}
+
+	printf("%s\n", ascii);
 	printf("\n");
 }
 
