@@ -79,6 +79,11 @@ void mdnsd_log_open(const char *ident);
 int mdnsd_log_level(char *level);
 
 /**
+ * Log current time to DBG() or buf
+ */
+void mdnsd_log_time(struct timeval *tv, char *buf, size_t len);
+
+/**
  * HEX dump a buffer to log
  */
 void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len);

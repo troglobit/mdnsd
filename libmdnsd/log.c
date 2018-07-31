@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifndef MAX
@@ -130,4 +131,25 @@ void mdnsd_log(int severity, const char *fmt, ...)
 		fflush(file);
 	}
         va_end(args);
+}
+
+void mdnsd_log_time(struct timeval *tv, char *buf, size_t len)
+{
+	char tmp[15];
+	time_t t;
+	struct tm *tm;
+
+	if (loglevel < LOG_DEBUG)
+		return;
+
+	t = tv->tv_sec;
+	tm = localtime(&t);
+	tm->tm_sec += tv->tv_usec / 1000000;
+	if (buf && len > 8) {
+		strftime(buf, len, "%H:%M:%S", tm);
+		return;
+	}
+
+	strftime(tmp, sizeof(tmp), "%H:%M:%S", tm);
+	mdnsd_log(LOG_DEBUG, "@%s", tmp);
 }
