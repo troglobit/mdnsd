@@ -37,7 +37,7 @@
 
 #define QCLASS_IN (1)
 
-#define DBG(fmt, args...)  mdnsd_log(LOG_DEBUG, fmt, ##args)
+#define DBG(fmt, args...)  mdnsd_log(LOG_DEBUG, "%s(): " fmt, __func__, ##args)
 #define INFO(fmt, args...) mdnsd_log(LOG_INFO, fmt, ##args)
 #define WARN(fmt, args...) mdnsd_log(LOG_WARNING, fmt, ##args)
 #define ERR(fmt, args...)  mdnsd_log(LOG_ERR, fmt, ##args)
