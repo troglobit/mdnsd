@@ -40,7 +40,7 @@
 #endif
 
 static int do_syslog = 0;
-static int loglevel  = LOG_INFO;
+static int loglevel  = LOG_NOTICE;
 
 int mdnsd_log_level(char *level)
 {

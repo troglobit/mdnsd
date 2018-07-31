@@ -161,7 +161,7 @@ static int usage(int code)
 	       "    -a ADDR   Address of service/host to announce, default: auto\n"
 	       "    -h        This help text\n"
 	       "    -i IFACE  Interface to announce services on, and get address from\n"
-	       "    -l LEVEL  Set log level: none, err, info (default), debug\n"
+	       "    -l LEVEL  Set log level: none, err, notice (default), info, debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
 	       "    -v        Show program version\n"
@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
 	sig_init();
 	conf_init(d, path);
 
-	INFO("%s starting.", PACKAGE_STRING);
+	NOTE("%s starting.", PACKAGE_STRING);
 	while (running) {
 		int rc;
 
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	INFO("%s exiting.", PACKAGE_STRING);
+	NOTE("%s exiting.", PACKAGE_STRING);
 	mdnsd_shutdown(d);
 	mdnsd_free(d);
 

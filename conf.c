@@ -101,6 +101,7 @@ static int parse(char *fn, struct conf_srec *srec)
 	FILE *fp;
 	char line[256];
 
+	DBG("Attempting to read %s ...", fn);
 	fp = fopen(fn, "r");
 	if (!fp)
 		return 1;

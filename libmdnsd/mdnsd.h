@@ -39,7 +39,8 @@
 #define DISCO_NAME "_services._dns-sd._udp.local."
 
 #define DBG(fmt, args...)  mdnsd_log(LOG_DEBUG, "%s(): " fmt, __func__, ##args)
-#define INFO(fmt, args...) mdnsd_log(LOG_INFO, fmt, ##args)
+#define INFO(fmt, args...) mdnsd_log(LOG_INFO, "%s(): " fmt, __func__, ##args)
+#define NOTE(fmt, args...) mdnsd_log(LOG_NOTICE, fmt, ##args)
 #define WARN(fmt, args...) mdnsd_log(LOG_WARNING, fmt, ##args)
 #define ERR(fmt, args...)  mdnsd_log(LOG_ERR, fmt, ##args)
 
