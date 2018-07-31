@@ -28,6 +28,7 @@
 #include "mdnsd.h"
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <errno.h>
 
 #define SPRIME 108		/* Size of query/publish hashes */
@@ -994,16 +995,17 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 }
 
 
-#define RET					\
+#define RET do {				\
 	while (d->sleep.tv_usec > 1000000) {	\
 		d->sleep.tv_sec++;		\
 		d->sleep.tv_usec -= 1000000;	\
 	}					\
-	return &d->sleep;
+	return &d->sleep;			\
+} while (0)
 
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
-	long expire;
+	time_t expire;
 	int sec, usec;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
@@ -1045,23 +1047,28 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 	/* Resend published records before TTL expires */
 	expire = (long)d->expireall - d->now.tv_sec;
 	if (expire < 0)
-		return &d->sleep;
+		RET;
 
 	for (size_t i = 0; i < SPRIME; i++) {
-		long next;
+		mdns_record_t *r;
+		time_t next;
 
-		if (!d->published[i])
+		r = d->published[i];
+		if (!r)
 			continue;
 
-		next = d->published[i]->last_sent.tv_sec + (long)d->published[i]->rr.ttl - d->now.tv_sec;
-		if (next < expire) {
-			d->a_pause = NULL;
-			expire = next;
+		/* Publish 2 seconds before expiration */
+		next = r->last_sent.tv_sec + (long)r->rr.ttl - d->now.tv_sec;
+		if (next <= 2) {
+			DBG("Republish %s before TTL expires ...", r->rr.name);
+			_r_push(&d->a_pause, r);
+
+			if (next < expire)
+				expire = next;
 		}
-		_r_push(&d->a_pause, d->published[i]);
+
 	}
 
-	/* Publish 2 seconds before expiration */
 	d->sleep.tv_sec = expire > 2 ? expire - 2 : 0;
 	d->pause.tv_sec = d->now.tv_sec + d->sleep.tv_sec;
 
