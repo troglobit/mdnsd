@@ -215,12 +215,14 @@ static void _r_remove_list(mdns_record_t **list, mdns_record_t *r)
 
 	if (*list == r) {
 		*list = r->list;
+		r->list = NULL;
 		return;
 	}
 
 	for (tmp = *list; tmp; tmp = tmp->list) {
 		if (tmp->list == r) {
 			tmp->list = r->list;
+			r->list = NULL;
 			break;
 		}
 		if (tmp == tmp->list)
@@ -266,6 +268,9 @@ static void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 	r->tries = 0;
 	d->publish.tv_sec = d->now.tv_sec;
 	d->publish.tv_usec = d->now.tv_usec;
+
+	/* check if r already in other lists. If yes, remove it from there */
+	_r_remove_lists(d, r, &d->a_publish);
 	_r_push(&d->a_publish, r);
 }
 
@@ -290,6 +295,9 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 	/* Set d->pause.tv_usec to random 20-120 msec */
 	d->pause.tv_sec = d->now.tv_sec;
 	d->pause.tv_usec = d->now.tv_usec + (d->now.tv_usec % 100) + 20;
+
+	/* check if r already in other lists. If yes, remove it from there */
+	_r_remove_lists(d, r, &d->a_pause);
 	_r_push(&d->a_pause, r);
 }
 
@@ -866,6 +874,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 				continue;
 			}
 
+			cur->list = NULL;
 			if (d->a_publish == cur)
 				d->a_publish = next;
 			if (last)
@@ -1150,7 +1159,11 @@ mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short t
 	r->conflict = conflict;
 	r->arg = arg;
 	r->unique = 1;
+
+	/* check if r already in other lists. If yes, remove it from there */
+	_r_remove_lists(d, r, &d->probing);
 	_r_push(&d->probing, r);
+
 	d->probe.tv_sec = d->now.tv_sec;
 	d->probe.tv_usec = d->now.tv_usec;
 
