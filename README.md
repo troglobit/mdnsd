@@ -4,6 +4,10 @@ mdnsd - embeddable Multicast DNS Daemon
 
 [Jeremie Miller's][jeremie] original mDNS/mDNS-SD library daemon.
 
+Download a [relased tarball][releases] (not a GitHub zip) to unlock a
+fully supported version.  Hardcore devs. can proceed to clone the GIT
+repository, see below for help.
+
 
 Usage
 -----
@@ -53,6 +57,7 @@ and maintain it for the long haul.
 
 
 [jeremie]:       https://github.com/quartzjer
+[releases]:      https://github.com/troglobit/mdnsd/releases
 [announced]:     http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
 [API.md]:        https://github.com/troglobit/mdnsd/blob/master/API.md
 [License]:       https://en.wikipedia.org/wiki/BSD_licenses
