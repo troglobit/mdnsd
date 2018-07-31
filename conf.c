@@ -180,7 +180,7 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	snprintf(tlocal, sizeof(tlocal), "%s.local.", srec.type);
 
 	/* Announce that we have a $type service */
-	r = record(d, 1, tlocal, "_services._dns-sd._udp.local.", QTYPE_PTR, 120);
+	r = record(d, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
 	r = record(d, 1, hlocal, tlocal, QTYPE_PTR, 120);
 
 	r = record(d, 0, NULL, hlocal, QTYPE_SRV, 600);

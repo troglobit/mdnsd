@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 	unsigned char buf[MAX_PACKET_LEN];
 	struct sockaddr_in from, to;
 	fd_set fds;
-	char *name = "_services._dns-sd._udp.local.";
+	char *name = DISCO_NAME;
 	int type = QTYPE_PTR;	/* 12 */
 	int s, c;
 

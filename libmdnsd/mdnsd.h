@@ -36,6 +36,7 @@
 #include <syslog.h>
 
 #define QCLASS_IN (1)
+#define DISCO_NAME "_services._dns-sd._udp.local."
 
 #define DBG(fmt, args...)  mdnsd_log(LOG_DEBUG, "%s(): " fmt, __func__, ##args)
 #define INFO(fmt, args...) mdnsd_log(LOG_INFO, fmt, ##args)

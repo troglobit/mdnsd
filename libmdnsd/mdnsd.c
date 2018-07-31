@@ -551,11 +551,15 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 			*list = NULL;
 
 		/* Service enumeration/discovery, drop non-PTR replies */
-		if (d->disco && r->rr.type != QTYPE_PTR) {
-			DBG("Discovery response, dropping: %s, type %d (QTYPE_PTR: %d) from message ...",
-			    r->rr.name, r->rr.type, QTYPE_PTR);
-			continue;
+		if (d->disco) {
+			if (r->rr.type != QTYPE_PTR)
+				continue;
+
+			if (strcmp(r->rr.name, DISCO_NAME))
+				continue;
 		}
+
+		DBG("Appending name: %s, type %d to outbound message ...", r->rr.name, r->rr.type);
 		ret++;
 
 		if (r->unique)
@@ -721,10 +725,11 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 				continue;
 
 			/* Service enumeratio/discovery prepeare to send all matching records */
-			if (!strcmp(m->qd[i].name, "_services._dns-sd._udp.local.")) {
+			if (!strcmp(m->qd[i].name, DISCO_NAME)) {
 				d->disco = 1;
 				while (r != NULL) {
-					_r_send(d, r);
+					if (!strcmp(r->rr.name, DISCO_NAME))
+						_r_send(d, r);
 					r = _r_next(d, r, m->qd[i].name, m->qd[i].type);
 				}
 
@@ -1316,16 +1321,16 @@ int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
 	if (!rc && out)
 		rc = process_out(d, sd);
 
-	/* Service Enumeration/Discovery completed */
-	if (d->disco)
-		d->disco = 0;
-
 	if (tv) {
 		struct timeval *delay;
 
 		delay = mdnsd_sleep(d);
 		memcpy(tv, delay, sizeof(*tv));
 	}
+
+	/* Service Enumeration/Discovery completed */
+	if (d->disco)
+		d->disco = 0;
 
 	return rc;
 }
