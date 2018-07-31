@@ -114,9 +114,10 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 {
 	struct sockaddr_in sin;
 	struct ip_mreq mc;
+	socklen_t len;
 	in_addr_t group;
 	char loop = 0;
-	int sd, flag = 1;
+	int sd, bufsiz, flag = 1;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 	if (sd < 0)
@@ -126,6 +127,12 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag));
 #endif
 	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+
+	/* Double the size of the receive buffer (getsockopt() returns the double) */
+	len = sizeof(bufsiz);
+	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len))
+		setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz));
+
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
