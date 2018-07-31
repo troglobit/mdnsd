@@ -116,7 +116,6 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	struct ip_mreq mc;
 	socklen_t len;
 	in_addr_t group;
-	char loop = 0;
 	int sd, bufsiz, flag = 1;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -133,7 +132,6 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len))
 		setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz));
 
-	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 
