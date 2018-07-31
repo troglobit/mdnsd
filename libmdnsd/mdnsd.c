@@ -334,7 +334,7 @@ static void _q_reset(mdns_daemon_t *d, struct query *q)
 		d->checkqlist = q->nexttry;
 }
 
-/* No more query, update all it's cached entries, remove from lists */
+/* No more queries, update all its cached entries, remove from lists */
 static void _q_done(mdns_daemon_t *d, struct query *q)
 {
 	struct cached *c = 0;
@@ -544,7 +544,7 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 	mdns_record_t *r;
 	int ret = 0;
 
-	while ((r = *list) != 0 && message_packet_len(m) + _rr_len(&r->rr) < d->frame) {
+	while ((r = *list) != NULL && message_packet_len(m) + _rr_len(&r->rr) < d->frame) {
 		if (r != r->list)
 			*list = r->list;
 		else
@@ -565,6 +565,7 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 		r->last_sent = d->now;
 
 		_a_copy(m, &r->rr);
+
 		if (r->rr.ttl == 0) {
 			/*
 			 * also remove from other lists, because record
@@ -732,7 +733,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 
 			/* Check all of our potential answers */
 			for (r_start = r; r != NULL; r = r_next) {
-				DBG("Matching record: name %s, type: %d, rdname: %s", r->rr.name, r->rr.type, r->rr.rdname);
+				DBG("Local record: %s, type: %d, rdname: %s", r->rr.name, r->rr.type, r->rr.rdname);
 
 				/* Fetch next here, because _conflict() might delete r, invalidating next */
 				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
@@ -767,8 +768,11 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 						break;
 				}
 
-				if (j == m->ancount)
+				DBG("Should we send answer? j: %d, m->ancount: %d", j, m->ancount);
+				if (j == m->ancount) {
+					DBG("Yes we should, enquing %s for outbound", r->rr.name);
 					_r_send(d, r);
+				}
 			}
 
 			/* Send the matching unicast reply */
@@ -837,19 +841,17 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		return 1;
 	}
 
-//	printf("OUT: probing %X now %X pause %X publish %X\n",d->probing,d->a_now,d->a_pause,d->a_publish);
-
 	/* Accumulate any immediate responses */
 	if (d->a_now)
 		ret += _r_out(d, m, &d->a_now);
 
 	/* Check if it's time to send the publish retries (unlink if done) */
 	if (d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
-
-		mdns_record_t *next, *cur = d->a_publish, *last = NULL;
+		mdns_record_t *cur = d->a_publish;
+		mdns_record_t *last = NULL;
+		mdns_record_t *next;
 
 		while (cur && message_packet_len(m) + _rr_len(&cur->rr) < d->frame) {
-
 			if (cur->rr.type == QTYPE_PTR) {
 				DBG("Send Publish PTR: Name: %s, rdlen: %d, rdata: %s, rdname: %s", cur->rr.name,cur->rr.rdlen, cur->rr.rdata, cur->rr.rdname);
 			} else if (cur->rr.type == QTYPE_SRV) {
@@ -857,6 +859,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 			} else {
 				DBG("Send Publish: Name: %s, Type: %d, rdname: %s", cur->rr.name, cur->rr.type, cur->rr.rdname);
 			}
+
 			next = cur->list;
 			ret++;
 			cur->tries++;
@@ -909,7 +912,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 		mdns_record_t *last = 0;
 
 		/* Scan probe list to ask questions and process published */
-		for (r = d->probing; r != 0;) {
+		for (r = d->probing; r != NULL;) {
 			/* Done probing, publish */
 			if (r->unique == 4) {
 				mdns_record_t *next = r->list;
