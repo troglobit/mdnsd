@@ -13,14 +13,16 @@ Usage
 -----
 
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
-different path may be given, which may be a directory or a single file.
+different path can be given, which may be a directory or a single file.
 
     Usage: mdnsd [-hnv] [-a ADDRESS] [-l LEVEL] [PATH]
     
         -a ADDR   Address of service/host to announce, default: auto
         -h        This help text
+        -i IFACE  Interface to announce services on, and get address from
         -l LEVEL  Set log level: none, err, info (default), debug
         -n        Run in foreground, do not detach from controlling terminal
+        -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
         -v        Show program version
     
     Bug report address: https://github.com/troglobit/mdnsd/issues

@@ -110,7 +110,7 @@ static void sig_init(void)
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
-static int multicast_socket(struct in_addr ina)
+static int multicast_socket(struct in_addr ina, unsigned char ttl)
 {
 	struct sockaddr_in sin;
 	struct ip_mreq mc;
@@ -128,6 +128,7 @@ static int multicast_socket(struct in_addr ina)
 	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina));
+	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 
 	/* Join and bind to mDNS link-local group to filter socket input */
 	group = inet_addr("224.0.0.251");
@@ -157,6 +158,7 @@ static int usage(int code)
 	       "    -i IFACE  Interface to announce services on, and get address from\n"
 	       "    -l LEVEL  Set log level: none, err, info (default), debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
+	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
 	       "    -v        Show program version\n"
 	       "\n"
 	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
@@ -186,10 +188,11 @@ int main(int argc, char *argv[])
 	char *iface = NULL;
 	char *path;
 	char address[20];
+	int ttl = 255;
 	int c, sd;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:hi:l:nv?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:hi:l:nt:v?")) != EOF) {
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ina);
@@ -210,6 +213,13 @@ int main(int argc, char *argv[])
 
 		case 'n':
 			background = 0;
+			break;
+
+		case 't':
+			/* XXX: Use strtonum() instead */
+			ttl = atoi(optarg);
+			if (ttl < 1 || ttl > 255)
+				return usage(1);
 			break;
 
 		case 'v':
@@ -250,7 +260,7 @@ int main(int argc, char *argv[])
 	mdnsd_set_address(d, ina);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
-	sd = multicast_socket(ina);
+	sd = multicast_socket(ina, (unsigned char)ttl);
 	if (sd < 0) {
 		ERR("Failed creating socket: %s", strerror(errno));
 		return 1;
