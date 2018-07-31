@@ -27,16 +27,17 @@ See the file [API.md][] for pointers on how to use the library.
 Build & Install
 ---------------
 
-The software is built for and developed on GNU/Linux systems, but should
-work on any UNIX like system.
-
-The GNU configure and build system is used, simply call the configure
-script to generate a Makefile.  If you are using the GitHub sources you
-first need to call `./autogen.sh` to generate the configure script.
+This project is built for and developed on GNU/Linux systems, but should
+work on any UNIX like system.  Use the standard GNU configure script to
+create a Makefile for your system and then call make.
 
     ./configure
     make all
     make install
+
+Users who checked out the source from GitHub must run `./autogen.sh`
+first to create the configure script.  This requires GNU autotools to be
+installed on the build system.
 
 
 Origin & References
