@@ -1,8 +1,4 @@
-*~
-*.o
-/.deps
-/.libs
-/autom4te.cache/
+autom4te.cache/
 GPATH
 GRTAGS
 GSYMS
@@ -19,8 +15,5 @@ depcomp
 install-sh
 libtool
 ltmain.sh
-mdnsd
-mhttp
 missing
-mquery
 stamp-h1
