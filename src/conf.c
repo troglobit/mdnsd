@@ -241,7 +241,7 @@ int conf_init(mdns_daemon_t *d, char *path)
 	if (S_ISDIR(st.st_mode)) {
 		glob_t gl;
 		size_t i;
-		char pat[strlen(path) + 12];
+		char pat[strlen(path) + 64];
 		int flags = GLOB_ERR;
 
 		strcpy(pat, path);
@@ -252,9 +252,21 @@ int conf_init(mdns_daemon_t *d, char *path)
 #ifdef GLOB_TILDE
 		/* E.g. musl libc < 1.1.21 does not have this GNU LIBC extension  */
 		flags |= GLOB_TILDE;
+#else
+		/* Simple homegrown replacement that at least handles leading ~/ */
+		if (!strncmp(pat, "~/", 2)) {
+			const char *home;
+
+			home = getenv("HOME");
+			if (home) {
+				memmove(pat + strlen(home), pat, strlen(path));
+				memcpy(pat, home, strlen(home));
+			}
+		}
 #endif
+
 		if (glob(pat, flags, NULL, &gl)) {
-			ERR("No .service files found in %s: %s", path, strerror(errno));
+			ERR("No .service files found in %s", pat);
 			return 1;
 		}
 
