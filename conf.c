@@ -43,6 +43,7 @@ struct conf_srec {
 	int     port;
 
 	char   *target;
+	char   *cname;
 
 	char   *txt[42];
 	size_t  txt_num;
@@ -94,6 +95,8 @@ static void read_line(char *line, struct conf_srec *srec)
 		srec->port = atoi(arg);
 	if (match(token, "target"))
 		srec->target = strdup(arg);
+	if (match(token, "cname"))
+		srec->cname = strdup(arg);
 	if (match(token, "txt") && srec->txt_num < NELEMS(srec->txt))
 		srec->txt[srec->txt_num++] = strdup(arg);
 }
@@ -195,6 +198,9 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	addr = mdnsd_get_address(d);
 	mdnsd_set_raw(d, r, (char *)&addr, 4);
 //	mdnsd_set_ip(d, r, mdnsd_get_address(d));
+
+	if (srec.cname)
+		r = record(d, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
 
 	r = record(d, 0, NULL, hlocal, QTYPE_TXT, 600);
 	h = xht_new(11);
