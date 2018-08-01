@@ -30,6 +30,35 @@ different path can be given, which may be a directory or a single file.
 See the file [API.md][] for pointers on how to use the library.
 
 
+### Service Records
+
+This section provides a couple of service record examples.  The syntax
+of the files is fairly free form.  Optional directives: `name`, `txt`,
+`target`, and `cname`.
+
+_FTP service example:_
+
+    # /etc/mdns.d/ftp.service -- mDNS-SD advertisement of FTP service
+    name Troglobit FTP Server
+    type _ftp._tcp
+    port 21
+    txt server=uftpd
+    txt version=2.6
+    target ftp.luthien.local
+    cname ftp.local
+
+_HTTP service example:_
+
+    # /etc/mdns.d/http.service -- mDNS-SD advertisement of HTTP service
+    name Troglobit HTTP Server
+    type _http._tcp
+    port 80
+    txt server=merecat
+    txt version=2.31
+    target www.luthien.local
+    cname home.local
+
+
 Build & Install
 ---------------
 
