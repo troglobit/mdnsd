@@ -4,4 +4,4 @@ type _ftp._tcp
 port 21
 txt server=uftpd
 txt version=2.6
-
+target ftp.luthien.local

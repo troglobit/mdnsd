@@ -42,6 +42,8 @@ struct conf_srec {
 	char   *name;
 	int     port;
 
+	char   *target;
+
 	char   *txt[42];
 	size_t  txt_num;
 };
@@ -90,8 +92,8 @@ static void read_line(char *line, struct conf_srec *srec)
 		srec->name = strdup(arg);
 	if (match(token, "port"))
 		srec->port = atoi(arg);
-//	if (match(token, "target"))
-//		srec->target = strdup(arg);
+	if (match(token, "target"))
+		srec->target = strdup(arg);
 	if (match(token, "txt") && srec->txt_num < NELEMS(srec->txt))
 		srec->txt[srec->txt_num++] = strdup(arg);
 }
@@ -179,10 +181,12 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	snprintf(hlocal, sizeof(hlocal), "%s.%s.local.", srec.name, srec.type);
 	snprintf(nlocal, sizeof(nlocal), "%s.local.", srec.name);
 	snprintf(tlocal, sizeof(tlocal), "%s.local.", srec.type);
+	if (!srec.target)
+		srec.target = strdup(hlocal);
 
 	/* Announce that we have a $type service */
 	r = record(d, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
-	r = record(d, 1, hlocal, tlocal, QTYPE_PTR, 120);
+	r = record(d, 1, srec.target, tlocal, QTYPE_PTR, 120);
 
 	r = record(d, 0, NULL, hlocal, QTYPE_SRV, 600);
 	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
