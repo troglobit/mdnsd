@@ -225,7 +225,10 @@ int conf_init(mdns_daemon_t *d, char *path)
 	gethostname(hostname, sizeof(hostname));
 
 	if (stat(path, &st)) {
-		ERR("Cannot determine path type: %s", strerror(errno));
+		if (ENOENT == errno)
+			ERR("No such file or directory: %s", path);
+		else
+			ERR("Cannot determine path type: %s", strerror(errno));
 		return 1;
 	}
 
