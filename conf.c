@@ -191,10 +191,10 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	r = record(d, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
 	r = record(d, 1, srec.target, tlocal, QTYPE_PTR, 120);
 
-	r = record(d, 0, NULL, hlocal, QTYPE_SRV, 600);
+	r = record(d, 0, NULL, hlocal, QTYPE_SRV, 120);
 	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
 
-	r = record(d, 0, NULL, nlocal, QTYPE_A, 600);
+	r = record(d, 0, NULL, nlocal, QTYPE_A, 120);
 	addr = mdnsd_get_address(d);
 	mdnsd_set_raw(d, r, (char *)&addr, 4);
 //	mdnsd_set_ip(d, r, mdnsd_get_address(d));
@@ -202,7 +202,7 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	if (srec.cname)
 		r = record(d, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
 
-	r = record(d, 0, NULL, hlocal, QTYPE_TXT, 600);
+	r = record(d, 0, NULL, hlocal, QTYPE_TXT, 4500);
 	h = xht_new(11);
 	for (i = 0; i < srec.txt_num; i++) {
 		char *ptr;
