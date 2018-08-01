@@ -34,6 +34,7 @@
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))

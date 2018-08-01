@@ -242,13 +242,18 @@ int conf_init(mdns_daemon_t *d, char *path)
 		glob_t gl;
 		size_t i;
 		char pat[strlen(path) + 12];
+		int flags = GLOB_ERR;
 
 		strcpy(pat, path);
 		if (pat[strlen(path) - 1] != '/')
 			strcat(pat, "/");
 		strcat(pat, "*.service");
 
-		if (glob(pat, GLOB_TILDE, NULL, &gl)) {
+#ifdef GLOB_TILDE
+		/* E.g. musl libc < 1.1.21 does not have this GNU LIBC extension  */
+		flags |= GLOB_TILDE;
+#endif
+		if (glob(pat, flags, NULL, &gl)) {
 			ERR("No .service files found in %s: %s", path, strerror(errno));
 			return 1;
 		}
