@@ -50,8 +50,7 @@ int   background  = 1;
 
 void mdnsd_conflict(char *name, int type, void *arg)
 {
-	ERR("conflicting name detected %s for type %d", name, type);
-	exit(1);
+	ERR("conflicting name detected %s for type %d, dropping record ...", name, type);
 }
 
 static void record_received(const struct resource *r, void *data)
