@@ -1321,7 +1321,7 @@ int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
 	if (!rc && out)
 		rc = process_out(d, sd);
 
-	if (tv) {
+	if (!rc && tv) {
 		struct timeval *delay;
 
 		delay = mdnsd_sleep(d);

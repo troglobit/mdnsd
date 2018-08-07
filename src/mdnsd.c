@@ -163,6 +163,7 @@ static int usage(int code)
 	       "    -i IFACE  Interface to announce services on, and get address from\n"
 	       "    -l LEVEL  Set log level: none, err, notice (default), info, debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
+	       "    -p        Persistent mode, retry if the socket or interface is lost\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
 	       "    -v        Show program version\n"
 	       "\n"
@@ -193,11 +194,12 @@ int main(int argc, char *argv[])
 	char *iface = NULL;
 	char *path;
 	char address[20];
+	int persistent = 0;
 	int ttl = 255;
-	int c, sd;
+	int c, sd, rc;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:hi:l:nt:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:hi:l:npt:v?")) != EOF) {
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ina);
@@ -218,6 +220,10 @@ int main(int argc, char *argv[])
 
 		case 'n':
 			background = 0;
+			break;
+
+		case 'p':
+			persistent = 1;
 			break;
 
 		case 't':
@@ -262,22 +268,21 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	sig_init();
+	conf_init(d, path);
+
 	mdnsd_set_address(d, ina);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
+retry:
 	sd = multicast_socket(ina, (unsigned char)ttl);
 	if (sd < 0) {
 		ERR("Failed creating socket: %s", strerror(errno));
 		return 1;
 	}
 
-	sig_init();
-	conf_init(d, path);
-
 	NOTE("%s starting.", PACKAGE_STRING);
 	while (running) {
-		int rc;
-
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
 		rc = select(sd + 1, &fds, NULL, NULL, &tv);
@@ -299,6 +304,13 @@ int main(int argc, char *argv[])
 			ERR("Failed writing to socket: %s", strerror(errno));
 			break;
 		}
+	}
+
+	close(sd);
+	if (running && persistent) {
+		DBG("Restarting ...");
+		sleep(1);
+		goto retry;
 	}
 
 	NOTE("%s exiting.", PACKAGE_STRING);
