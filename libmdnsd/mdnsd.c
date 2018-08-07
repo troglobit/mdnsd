@@ -77,6 +77,7 @@ struct cached {
 struct mdns_record {
 	struct mdns_answer rr;
 	char unique;		/* # of checks performed to ensure */
+	int modified;		/* Ignore conflicts after update at runtime */
 	int tries;
 	void (*conflict)(char *, int, void *);
 	void *arg;
@@ -262,6 +263,8 @@ static void _r_push(mdns_record_t **list, mdns_record_t *r)
 /* Force any r out right away, if valid */
 static void _r_publish(mdns_daemon_t *d, mdns_record_t *r)
 {
+	r->modified = 1;
+
 	if (r->unique && r->unique < 5)
 		return;		/* Probing already */
 
@@ -373,7 +376,8 @@ static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 	if (d->published[i] == r)
 		d->published[i] = r->next;
 	else {
-		for (cur = d->published[i]; cur && cur->next != r; cur = cur->next) ;
+		for (cur = d->published[i]; cur && cur->next != r; cur = cur->next)
+			;
 		if (cur)
 			cur->next = r->next;
 	}
@@ -570,6 +574,7 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 
 		_a_copy(m, &r->rr);
 
+		r->modified = 0; /* If updated we've now sent the update. */
 		if (r->rr.ttl == 0) {
 			/*
 			 * also remove from other lists, because record
@@ -603,6 +608,30 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 {
+	int i;
+
+	if (!memcmp(&d->addr, &addr, sizeof(d->addr)))
+		return;		/* No change */
+
+	for (i = 0; i < SPRIME; i++) {
+		mdns_record_t *r, *next;
+
+		r = d->published[i];
+		while (r != 0) {
+			next = r->next;
+
+			if (r->rr.type == QTYPE_A) {
+				mdnsd_set_raw(d, r, (char *)&addr, 4);
+//				mdnsd_set_ip(d, r, mdnsd_get_address(d));
+
+				/* Republish, IP changed */
+				_r_push(&d->a_pause, r);
+			}
+
+			r = next;
+		}
+	}
+
 	d->addr = addr;
 }
 
@@ -744,7 +773,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 				r_next = _r_next(d, r, m->qd[i].name, m->qd[i].type);
 
 				/* probing state, check for conflicts */
-				if (r->unique && r->unique < 5) {
+				if (r->unique && r->unique < 5 && !r->modified) {
 					/* Check all to-be answers against our own */
 					for (j = 0; j < m->nscount; j++) {
 						if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
@@ -797,8 +826,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 		}
 
 		INFO("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
-		if ((r = _r_next(d, 0, m->an[i].name, m->an[i].type)) != 0 &&
-		    r->unique && _a_match(&m->an[i], &r->rr) == 0)
+		r = _r_next(d, 0, m->an[i].name, m->an[i].type);
+		if (r != 0 && r->unique && !r->modified && _a_match(&m->an[i], &r->rr) == 0)
 			_conflict(d, r);
 
 		if (d->received_callback)

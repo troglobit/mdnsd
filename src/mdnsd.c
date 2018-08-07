@@ -194,6 +194,7 @@ int main(int argc, char *argv[])
 	char *path;
 	char address[20];
 	int persistent = 0;
+	int autoip = 1;
 	int ttl = 255;
 	int c, sd, rc;
 
@@ -202,6 +203,7 @@ int main(int argc, char *argv[])
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ina);
+			autoip = 0;
 			break;
 
 		case 'h':
@@ -255,12 +257,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!ina.s_addr) {
-		if (!getaddr(iface, address, sizeof(address)))
-			errx(1, "Cannot find default interface, use -a ADDRESS");
-		inet_aton(address, &ina);
-	}
-
 	d = mdnsd_new(QCLASS_IN, 1000);
 	if (!d) {
 		ERR("Failed creating daemon context: %s", strerror(errno));
@@ -292,6 +288,14 @@ retry:
 				conf_init(d, path);
 				reload = 0;
 			}
+		}
+
+		/* Check if IP address changed, needed to update A records */
+		if (autoip && iface) {
+			if (!getaddr(iface, address, sizeof(address)))
+				errx(1, "Cannot find default interface, use -a ADDRESS");
+			inet_aton(address, &ina);
+			mdnsd_set_address(d, ina);
 		}
 
 		rc = mdnsd_step(d, sd, FD_ISSET(sd, &fds), true, &tv);
