@@ -367,24 +367,54 @@ static void _q_done(mdns_daemon_t *d, struct query *q)
 	free(q);
 }
 
+static void _free_cached(struct cached *c)
+{
+	if (!c)
+		return;
+
+	if (c->rr.name)
+		free(c->rr.name);
+	if (c->rr.rdata)
+		free(c->rr.rdata);
+	if (c->rr.rdname)
+		free(c->rr.rdname);
+	free(c);
+}
+
+static void _free_record(mdns_record_t *r)
+{
+	if (!r)
+		return;
+
+	if (r->rr.name)
+	    free(r->rr.name);
+	if (r->rr.rdata)
+		free(r->rr.rdata);
+	if (r->rr.rdname)
+		free(r->rr.rdname);
+	free(r);
+}
+
 /* buh-bye, remove from hash and free */
 static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 {
 	mdns_record_t *cur = 0;
-	int i = _namehash(r->rr.name) % SPRIME;
+	int i;
 
-	if (d->published[i] == r)
+	if (!r || !r->rr.name)
+		return;
+
+	i = _namehash(r->rr.name) % SPRIME;
+	if (d->published[i] == r) {
 		d->published[i] = r->next;
-	else {
+	} else {
 		for (cur = d->published[i]; cur && cur->next != r; cur = cur->next)
 			;
 		if (cur)
 			cur->next = r->next;
 	}
-	free(r->rr.name);
-	free(r->rr.rdata);
-	free(r->rr.rdname);
-	free(r);
+
+	_free_record(r);
 }
 
 /* Call the answer function with this cached entry */
@@ -405,10 +435,13 @@ static void _conflict(mdns_daemon_t *d, mdns_record_t *r)
 /* Expire any old entries in this list */
 static void _c_expire(mdns_daemon_t *d, struct cached **list)
 {
-	struct cached *next, *cur = *list, *last = 0;
+	struct cached *cur  = *list;
+	struct cached *last = NULL;
+	struct cached *next;
 
-	while (cur != 0) {
+	while (cur != NULL) {
 		next = cur->next;
+
 		if ((unsigned long)d->now.tv_sec >= cur->rr.ttl) {
 			if (last)
 				last->next = next;
@@ -420,10 +453,7 @@ static void _c_expire(mdns_daemon_t *d, struct cached **list)
 			if (cur->q)
 				_q_answer(d, cur);
 
-			free(cur->rr.name);
-			free(cur->rr.rdata);
-			free(cur->rr.rdname);
-			free(cur);
+			_free_cached(cur);
 		} else {
 			last = cur;
 		}
@@ -680,10 +710,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		while (cur) {
 			struct cached *next = cur->next;
 
-			free(cur->rr.name);
-			free(cur->rr.rdata);
-			free(cur->rr.rdname);
-			free(cur);
+			_free_cached(cur);
 			cur = next;
 		}
 	}
@@ -695,10 +722,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		while (cur) {
 			struct mdns_record *next = cur->next;
 
-			free(cur->rr.name);
-			free(cur->rr.rdata);
-			free(cur->rr.rdname);
-			free(cur);
+			_free_record(cur);
 			cur = next;
 		}
 
@@ -1259,16 +1283,21 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r)
 
 void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len)
 {
-	free(r->rr.rdata);
+	if (r->rr.rdata)
+		free(r->rr.rdata);
+
 	r->rr.rdata = malloc(len);
-	memcpy(r->rr.rdata, data, len);
-	r->rr.rdlen = len;
+	if (r->rr.rdata) {
+		memcpy(r->rr.rdata, data, len);
+		r->rr.rdlen = len;
+	}
 	_r_publish(d, r);
 }
 
 void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name)
 {
-	free(r->rr.rdname);
+	if (r->rr.rdname)
+		free(r->rr.rdname);
 	r->rr.rdname = strdup(name);
 	_r_publish(d, r);
 }
