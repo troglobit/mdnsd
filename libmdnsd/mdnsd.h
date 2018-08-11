@@ -59,7 +59,7 @@ typedef struct mdns_answer {
 	unsigned long int ttl;
 	unsigned short int rdlen;
 	unsigned char *rdata;
-	struct in_addr ip;	/* A */
+	struct in_addr ip;	/* A, network byte order */
 	char *rdname;		/* NS/CNAME/PTR/SRV */
 	struct {
 		unsigned short int priority, weight, port;

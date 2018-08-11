@@ -162,7 +162,7 @@ mdns_record_t *record(mdns_daemon_t *d, int shared, char *host,
 static int load(mdns_daemon_t *d, char *path, char *hostname)
 {
 	struct conf_srec srec;
-	struct in_addr addr;
+//	struct in_addr addr;
 	unsigned char *packet;
 	mdns_record_t *r;
 	size_t i;
@@ -195,9 +195,9 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
 
 	r = record(d, 0, NULL, nlocal, QTYPE_A, 120);
-	addr = mdnsd_get_address(d);
-	mdnsd_set_raw(d, r, (char *)&addr, 4);
-//	mdnsd_set_ip(d, r, mdnsd_get_address(d));
+//	addr = mdnsd_get_address(d);
+//	mdnsd_set_raw(d, r, (char *)&addr, 4);
+	mdnsd_set_ip(d, r, mdnsd_get_address(d));
 
 	if (srec.cname)
 		r = record(d, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
