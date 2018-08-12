@@ -140,7 +140,7 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(5353);
-	sin.sin_addr.s_addr = group;
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
 	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
 		close(sd);
 		return -1;
