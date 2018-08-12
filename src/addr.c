@@ -30,22 +30,24 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <net/if.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
 #include "mdnsd.h"
 
 /* Find default outbound *LAN* interface, i.e. skipping tunnels */
-static int getifname(char *ifname, size_t len)
+static char *getifname(char *ifname, size_t len)
 {
 	uint32_t dest, gw, mask;
 	char buf[256], name[17];
 	FILE *fp;
 	int rc, flags, cnt, use, metric, mtu, win, irtt;
+	int found = 0;
 
 	fp = fopen("/proc/net/route", "r");
 	if (!fp)
-		return 1;
+		return NULL;
 
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		rc = sscanf(buf, "%16s %X %X %X %d %d %d %X %d %d %d\n",
@@ -60,12 +62,16 @@ static int getifname(char *ifname, size_t len)
 
 		if (!ifname[0] || !strncmp(ifname, "tun", 3)) {
 			strncpy(ifname, name, len);
-			continue;
+			found = 1;
+			break;
 		}
 	}
 	fclose(fp);
 
-	return 0;
+	if (found)
+		return ifname;
+
+	return NULL;
 }
 
 /* Find IPv4 address of default outbound LAN interface */
@@ -75,12 +81,10 @@ char *getaddr(char *iface, char *buf, size_t len)
 	char ifname[17] = { 0 };
 	int rc;
 
-	if (iface)
-		strncpy(ifname, iface, sizeof(ifname));
-	else
-		getifname(ifname, sizeof(ifname));
+	if (!iface)
+		iface = getifname(ifname, sizeof(ifname));
+	DBG("Default interface: %s", iface ? iface : "N/A");
 
-	DBG("Default interface: %s", ifname);
 	rc = getifaddrs(&ifaddr);
 	if (rc)
 		return NULL;
@@ -89,22 +93,32 @@ char *getaddr(char *iface, char *buf, size_t len)
 		if (!ifa->ifa_addr)
 			continue;
 
+		if (ifa->ifa_flags & IFF_LOOPBACK)
+			continue;
+
+		if (!(ifa->ifa_flags & IFF_MULTICAST))
+			continue;
+
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 
-		if (ifname[0] && strcmp(ifname, ifa->ifa_name))
+		if (iface && strcmp(iface, ifa->ifa_name))
 			continue;
 
 		rc = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
 				 buf, len, NULL, 0, NI_NUMERICHOST);
-		if (rc)
+		if (!rc) {
+			if (!iface)
+				DBG("Found interface %s, using address %s", ifa->ifa_name, buf);
 			break;
+		}
 	}
 	freeifaddrs(ifaddr);
 
-	DBG("Default address: %s", buf);
 	if (rc)
 		return NULL;
+	if (iface)
+		DBG("Default address: %s", buf);
 
 	return buf;
 }

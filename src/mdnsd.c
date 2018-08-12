@@ -108,13 +108,23 @@ static void sig_init(void)
 	signal(SIGTERM, done);
 }
 
+static int iface_init(char *iface, struct in_addr *ina)
+{
+	char buf[20];
+
+	if (!getaddr(iface, buf, sizeof(buf)))
+		errx(1, "Cannot find a usable interface, try -a ADDRESS or -i IFACE");
+
+	return !inet_aton(buf, ina);
+}
+
 /* Create multicast 224.0.0.251:5353 socket */
 static int multicast_socket(struct in_addr ina, unsigned char ttl)
 {
 	struct sockaddr_in sin;
 	struct ip_mreq mc;
 	socklen_t len;
-	in_addr_t group;
+	int unicast_ttl = 255;
 	int sd, bufsiz, flag = 1;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -131,23 +141,37 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len))
 		setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz));
 
-	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina));
+	/* Set interface for outbound multicast */
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina)))
+		WARN("Failed setting IP_MULTICAST_IF to %s: %s",
+		     inet_ntoa(ina), strerror(errno));
+
+	/*
+	 * All traffic on 224.0.0.* is link-local only, so the default
+	 * TTL is set to 1.  Some users may however want to route mDNS.
+	 */
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 
-	/* Join and bind to mDNS link-local group to filter socket input */
-	group = inet_addr("224.0.0.251");
+	/* mDNS also supports unicast, so we need a relevant TTL there too */
+	setsockopt(sd, IPPROTO_IP, IP_TTL, &unicast_ttl, sizeof(unicast_ttl));
 
+	/* Filter inbound traffic from anyone (ANY) to port 5353 */
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(5353);
-	sin.sin_addr.s_addr = group;
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
 	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
 		close(sd);
 		return -1;
 	}
 
-	mc.imr_multiaddr.s_addr = group;
-	mc.imr_interface.s_addr = htonl(INADDR_ANY);
+	/*
+	 * Join mDNS link-local group on the given interface, that way
+	 * we can receive multicast without a proper net route (default
+	 * route or a 224.0.0.0/24 net route).
+	 */
+	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
+	mc.imr_interface = ina;
 	setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
 
 	return sd;
@@ -192,7 +216,6 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	char *iface = NULL;
 	char *path;
-	char address[20];
 	int persistent = 0;
 	int autoip = 1;
 	int ttl = 255;
@@ -266,6 +289,7 @@ int main(int argc, char *argv[])
 	sig_init();
 	conf_init(d, path);
 
+	iface_init(iface, &ina);
 	mdnsd_set_address(d, ina);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
@@ -292,9 +316,7 @@ retry:
 
 		/* Check if IP address changed, needed to update A records */
 		if (autoip && iface) {
-			if (!getaddr(iface, address, sizeof(address)))
-				errx(1, "Cannot find default interface, use -a ADDRESS");
-			inet_aton(address, &ina);
+			iface_init(iface, &ina);
 			mdnsd_set_address(d, ina);
 		}
 
@@ -307,6 +329,8 @@ retry:
 			ERR("Failed writing to socket: %s", strerror(errno));
 			break;
 		}
+
+		DBG("Going back to sleep, for %d sec ...", tv.tv_sec);
 	}
 
 	close(sd);

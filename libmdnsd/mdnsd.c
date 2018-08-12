@@ -1135,11 +1135,10 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 		if (next <= 2) {
 			INFO("Republish %s before TTL expires ...", r->rr.name);
 			_r_push(&d->a_pause, r);
-
-			if (next < expire)
-				expire = next;
 		}
 
+		if (next < expire)
+			expire = next;
 	}
 
 	d->sleep.tv_sec = expire > 2 ? expire - 2 : 0;
