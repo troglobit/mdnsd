@@ -124,7 +124,6 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	struct sockaddr_in sin;
 	struct ip_mreq mc;
 	socklen_t len;
-	in_addr_t group;
 	int sd, bufsiz, flag = 1;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -144,8 +143,6 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina));
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 
-	/* Join and bind to mDNS link-local group to filter socket input */
-	group = inet_addr("224.0.0.251");
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -156,8 +153,13 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 		return -1;
 	}
 
-	mc.imr_multiaddr.s_addr = group;
-	mc.imr_interface.s_addr = htonl(INADDR_ANY);
+	/*
+	 * Join mDNS link-local group on the given interface, that way
+	 * we can receive multicast without a proper net route (default
+	 * route or a 224.0.0.0/24 net route).
+	 */
+	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
+	mc.imr_interface = ina;
 	setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
 
 	return sd;
