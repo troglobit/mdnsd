@@ -124,6 +124,7 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	struct sockaddr_in sin;
 	struct ip_mreq mc;
 	socklen_t len;
+	int unicast_ttl = 255;
 	int sd, bufsiz, flag = 1;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -140,10 +141,21 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len))
 		setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz));
 
-	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina));
+	/* Set interface for outbound multicast */
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina)))
+		WARN("Failed setting IP_MULTICAST_IF to %s: %s",
+		     inet_ntoa(ina), strerror(errno));
+
+	/*
+	 * All traffic on 224.0.0.* is link-local only, so the default
+	 * TTL is set to 1.  Some users may however want to route mDNS.
+	 */
 	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 
+	/* mDNS also supports unicast, so we need a relevant TTL there too */
+	setsockopt(sd, IPPROTO_IP, IP_TTL, &unicast_ttl, sizeof(unicast_ttl));
 
+	/* Filter inbound traffic from anyone (ANY) to port 5353 */
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(5353);
