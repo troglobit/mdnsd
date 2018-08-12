@@ -108,6 +108,16 @@ static void sig_init(void)
 	signal(SIGTERM, done);
 }
 
+static int iface_init(char *iface, struct in_addr *ina)
+{
+	char buf[20];
+
+	if (!getaddr(iface, buf, sizeof(buf)))
+		errx(1, "Cannot find a usable interface, try -a ADDRESS or -i IFACE");
+
+	return !inet_aton(buf, ina);
+}
+
 /* Create multicast 224.0.0.251:5353 socket */
 static int multicast_socket(struct in_addr ina, unsigned char ttl)
 {
@@ -192,7 +202,6 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	char *iface = NULL;
 	char *path;
-	char address[20];
 	int persistent = 0;
 	int autoip = 1;
 	int ttl = 255;
@@ -266,6 +275,7 @@ int main(int argc, char *argv[])
 	sig_init();
 	conf_init(d, path);
 
+	iface_init(iface, &ina);
 	mdnsd_set_address(d, ina);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
@@ -292,9 +302,7 @@ retry:
 
 		/* Check if IP address changed, needed to update A records */
 		if (autoip && iface) {
-			if (!getaddr(iface, address, sizeof(address)))
-				errx(1, "Cannot find default interface, use -a ADDRESS");
-			inet_aton(address, &ina);
+			iface_init(iface, &ina);
 			mdnsd_set_address(d, ina);
 		}
 
