@@ -307,6 +307,8 @@ retry:
 			ERR("Failed writing to socket: %s", strerror(errno));
 			break;
 		}
+
+		DBG("Going back to sleep, for %d sec ...", tv.tv_sec);
 	}
 
 	close(sd);
