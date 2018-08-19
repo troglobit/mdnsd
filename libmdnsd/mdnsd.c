@@ -650,15 +650,11 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 		mdns_record_t *r, *next;
 
 		r = d->published[i];
-		while (r != 0) {
+		while (r != NULL) {
 			next = r->next;
 
-			if (r->rr.type == QTYPE_A) {
+			if (r->rr.type == QTYPE_A)
 				mdnsd_set_ip(d, r, addr);
-
-				/* Republish, IP changed */
-				_r_push(&d->a_pause, r);
-			}
 
 			r = next;
 		}
