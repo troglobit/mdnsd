@@ -193,6 +193,9 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 	if ((r->type == QTYPE_PTR || r->type == QTYPE_NS || r->type == QTYPE_CNAME) && !strcmp(a->rdname, r->known.ns.name))
 		return 1;
 
+	if (r->type == QTYPE_A || !memcmp(&r->known.a.ip, &a->ip, 4))
+		return 1;
+
 	if (r->rdlength == a->rdlen && !memcmp(r->rdata, a->rdata, r->rdlength))
 		return 1;
 
@@ -565,7 +568,7 @@ static void _a_copy(struct message *m, mdns_answer_t *a)
 	}
 
 	if (a->ip.s_addr)
-		message_rdata_long(m, a->ip);
+		message_rdata_raw(m, (unsigned char *)&a->ip, 4);
 	if (a->type == QTYPE_SRV)
 		message_rdata_srv(m, a->srv.priority, a->srv.weight, a->srv.port, a->rdname);
 	else if (a->rdname)
@@ -651,8 +654,7 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 			next = r->next;
 
 			if (r->rr.type == QTYPE_A) {
-				mdnsd_set_raw(d, r, (char *)&addr, 4);
-//				mdnsd_set_ip(d, r, mdnsd_get_address(d));
+				mdnsd_set_ip(d, r, addr);
 
 				/* Republish, IP changed */
 				_r_push(&d->a_pause, r);
