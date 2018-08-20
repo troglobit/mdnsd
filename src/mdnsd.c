@@ -32,7 +32,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <fcntl.h>
-#include <err.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -110,12 +109,8 @@ static void sig_init(void)
 
 static int iface_init(char *iface, struct in_addr *ina)
 {
-	char buf[20];
-
-	if (!getaddr(iface, buf, sizeof(buf)))
-		errx(1, "Cannot find a usable interface, try -a ADDRESS or -i IFACE");
-
-	return !inet_aton(buf, ina);
+	memset(ina, 0, sizeof(*ina));
+	return getaddr(iface, ina);
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
@@ -289,11 +284,21 @@ int main(int argc, char *argv[])
 	sig_init();
 	conf_init(d, path);
 
-	iface_init(iface, &ina);
+retry:
+	while (iface_init(iface, &ina)) {
+		if (persistent) {
+			if (iface)
+				INFO("No address for interface %s yet ...", iface);
+			sleep(1);
+			continue;
+		}
+
+		WARN("Cannot find a usable interface, try -a ADDRESS or -i IFACE");
+		return 1;
+	}
 	mdnsd_set_address(d, ina);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
-retry:
 	sd = multicast_socket(ina, (unsigned char)ttl);
 	if (sd < 0) {
 		ERR("Failed creating socket: %s", strerror(errno));
@@ -316,7 +321,10 @@ retry:
 
 		/* Check if IP address changed, needed to update A records */
 		if (autoip && iface) {
-			iface_init(iface, &ina);
+			if (iface_init(iface, &ina)) {
+				INFO("Interface %s lost its IP address, waiting ...", iface);
+				break;
+			}
 			mdnsd_set_address(d, ina);
 		}
 

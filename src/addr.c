@@ -31,10 +31,24 @@
 #include <stdint.h>
 #include <string.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
 #include "mdnsd.h"
+
+#ifndef IN_ZERONET
+#define IN_ZERONET(addr) ((addr & IN_CLASSA_NET) == 0)
+#endif
+
+#ifndef IN_LOOPBACK
+#define IN_LOOPBACK(addr) ((addr & IN_CLASSA_NET) == 0x7f000000)
+#endif
+
+#ifndef IN_LINKLOCAL
+#define IN_LINKLOCALNETNUM 0xa9fe0000
+#define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == IN_LINKLOCALNETNUM)
+#endif
 
 /* Find default outbound *LAN* interface, i.e. skipping tunnels */
 static char *getifname(char *ifname, size_t len)
@@ -74,12 +88,25 @@ static char *getifname(char *ifname, size_t len)
 	return NULL;
 }
 
+/* Check if valid address */
+static int valid_addr(struct in_addr *ina)
+{
+	in_addr_t addr;
+
+	addr = ntohl(ina->s_addr);
+	if (IN_ZERONET(addr) || IN_LOOPBACK(addr) || IN_LINKLOCAL(addr))
+		return 0;
+
+	return 1;
+}
+
 /* Find IPv4 address of default outbound LAN interface */
-char *getaddr(char *iface, char *buf, size_t len)
+int getaddr(char *iface, struct in_addr *ina)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	char ifname[17] = { 0 };
-	int rc;
+	char buf[20] = { 0 };
+	int rc = -1;
 
 	if (!iface)
 		iface = getifname(ifname, sizeof(ifname));
@@ -87,7 +114,7 @@ char *getaddr(char *iface, char *buf, size_t len)
 
 	rc = getifaddrs(&ifaddr);
 	if (rc)
-		return NULL;
+		return -1;
 
 	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
 		if (!ifa->ifa_addr)
@@ -106,19 +133,23 @@ char *getaddr(char *iface, char *buf, size_t len)
 			continue;
 
 		rc = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
-				 buf, len, NULL, 0, NI_NUMERICHOST);
+				 buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
 		if (!rc) {
-			if (!iface)
-				DBG("Found interface %s, using address %s", ifa->ifa_name, buf);
+			if (!inet_aton(buf, ina))
+				continue;
+			if (!valid_addr(ina))
+				continue;
+
+			DBG("Found interface %s, address %s", ifa->ifa_name, buf);
 			break;
 		}
 	}
 	freeifaddrs(ifaddr);
 
-	if (rc)
-		return NULL;
-	if (iface)
-		DBG("Default address: %s", buf);
+	if (rc || IN_ZERONET(ntohl(ina->s_addr)))
+		return -1;
 
-	return buf;
+	DBG("Using address: %s", inet_ntoa(*ina));
+
+	return 0;
 }

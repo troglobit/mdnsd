@@ -39,7 +39,7 @@
 void mdnsd_conflict(char *name, int type, void *arg);
 
 /* addr.c */
-char *getaddr(char *iface, char *buf, size_t len);
+int getaddr(char *iface, struct in_addr *ina);
 
 /* conf.c */
 int conf_init(mdns_daemon_t *d, char *path);
