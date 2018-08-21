@@ -1,8 +1,14 @@
-ACLOCAL_AMFLAGS         = -I m4
+ACLOCAL_AMFLAGS           = -I m4
+DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
+
 nobase_include_HEADERS  = libmdnsd/mdnsd.h libmdnsd/1035.h libmdnsd/sdtxt.h libmdnsd/xht.h
 SUBDIRS                 = libmdnsd src
 doc_DATA                = README.md LICENSE
 EXTRA_DIST              = README.md LICENSE
+
+if HAVE_SYSTEMD
+systemd_DATA            = mdnsd.service
+endif
 
 ## Generate MD5 checksum file
 MD5 = md5sum
