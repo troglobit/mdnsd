@@ -2,6 +2,18 @@ mdnsd - embeddable Multicast DNS Daemon
 =======================================
 [![License Badge][]][License] [![Travis Status][]][Travis]
 
+Table of Contents
+-----------------
+- [About](#about)
+- [Usage](#usage)
+  - [Service Records](#service-records)
+- [Build & Install](#build--install)
+- [Origin & References](#origin--references)
+
+
+About
+-----
+
 [Jeremie Miller's][jeremie] original mDNS/mDNS-SD library daemon.
 
 Download a [relased tarball][releases] (not a GitHub zip) to unlock a
@@ -28,7 +40,21 @@ different path can be given, which may be a directory or a single file.
     
     Bug report address: https://github.com/troglobit/mdnsd/issues
 
-See the file [API.md][] for pointers on how to use the library.
+By default mdnsd daemonizes, detaches from the controlling terminal and
+continues running in the background, logging errors (or debug messages
+if enabled) to the systmem log.  There is no output to be expected.  On
+GNU/Linux, use `mdns-scan` or Wireshark to verify your setup.  Other
+operating systems have their own set of tools for mDNS-SD and mdnsd may
+not even have a place there.
+
+mdnsd uses the system routing table, specifically the default (unicast)
+route, to determine the default interface to use.  To run on systems
+without a default route, e.g. a link-local only system, use `-i IFACE`.
+Starting mdnsd early in the boot process means the system may not yet
+have acquired an IP address, or the interface itself may not even exist
+yet, in which case `-p` may likely also help.
+
+See the file [API.md][] for pointers on how to use the mDNS library.
 
 
 ### Service Records
