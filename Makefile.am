@@ -3,8 +3,8 @@ DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
 
 nobase_include_HEADERS  = libmdnsd/mdnsd.h libmdnsd/1035.h libmdnsd/sdtxt.h libmdnsd/xht.h
 SUBDIRS                 = libmdnsd src
-doc_DATA                = README.md LICENSE
-EXTRA_DIST              = README.md LICENSE
+doc_DATA                = README.md ChangeLog.md LICENSE
+EXTRA_DIST              = README.md ChangeLog.md LICENSE
 
 if HAVE_SYSTEMD
 systemd_DATA            = mdnsd.service
