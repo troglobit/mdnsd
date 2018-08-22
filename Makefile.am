@@ -18,7 +18,7 @@ package:
 MD5 = md5sum
 md5-dist:
 	@for file in $(DIST_ARCHIVES); do	\
-		$(MD5) $$file > $$file.md5;	\
+		$(MD5) $$file > ../$$file.md5;	\
 	done
 
 ## Check if tagged in git
@@ -40,9 +40,17 @@ release-hook:
 	fi
 
 ## Target to run when building a release
-release: dist release-hook md5-dist
-	@for file in $(DIST_ARCHIVES); do						\
-		printf "$$file    \tDistribution tarball\n";				\
-		printf "$$file.md5\t"; cat $$file.md5 | cut -f1 -d' ';			\
-		mv $$file* ../;								\
+release: release-hook distcheck package md5-dist
+	@mv $(DIST_ARCHIVES) ../
+	@echo
+	@echo "Resulting release files:"
+	@echo "================================================================="
+	@for file in $(DIST_ARCHIVES); do					\
+		printf "%-32s Distribution tarball\n" $$file;			\
+		printf "%-32s " $$file.md5; cat ../$$file.md5 | cut -f1 -d' ';	\
+		gpg --verify ../$$file.asc 2>&1 | grep 'key ID' | 		\
+			sed 's/.*using \(.*\)/\1/'; echo;			\
+	done
+	@for file in `cd ..; ls $(PACKAGE)_$(VERSION)*`; do			\
+		printf "%-32s Debian/Ubuntu package\n" $$file;			\
 	done
