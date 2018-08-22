@@ -10,6 +10,10 @@ if HAVE_SYSTEMD
 systemd_DATA            = mdnsd.service
 endif
 
+# lintian --profile debian -i -I --show-overrides ../$PKG.changes
+package:
+	dpkg-buildpackage -uc -us -B
+
 ## Generate MD5 checksum file
 MD5 = md5sum
 md5-dist:

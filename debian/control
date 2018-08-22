@@ -1,0 +1,19 @@
+Source: mdnsd
+Section: net
+Priority: optional
+Build-Depends: debhelper (>= 9), dh-systemd
+Standards-Version: 3.9.3
+Maintainer: Joachim Nilsson <troglobit@gmail.com>
+Homepage: https://github.com/troglobit/mdnsd
+Vcs-Git: https://github.com/troglobit/mdnsd.git
+Vcs-Browser: https://github.com/troglobit/mdnsd/commits/
+
+Package: mdnsd
+Suggests: mdns-scan
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: embeddable Multicast DNS Daemon
+ mDNSd is a standalone mDNS-SD daemon for small systems.  Although still
+ limited in functionality it can announce services like FTP, HTTP, and
+ SSH and respond to scanning (enumeration) requests from tools like
+ mdns-scan.
