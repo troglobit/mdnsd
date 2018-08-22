@@ -3,21 +3,27 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
-[v0.8][UNRELEASED]
-------------------
 
-Thanks to Jermemie Miller for the original mDNS implementation, Stefan
-Profanter for fixing the code from the early days, and Thom Nichols for
-careful testing and nudging me to finalize the work and get a proper
-release out there.
+[v0.8][] - 2018-08-23
+---------------------
+
+Huge thanks to Jeremie Miller for the original mDNS implementation, to
+Stefan Profanter for fixing the code from the early days, and also to
+Thom Nichols for careful testing and nudging me to finalize the work and
+get a proper release out there.
 
 Apologies for the terse change log, there are a lot of changes to Jer's
-original, so in many respects this is a brand new project.  This is a
-pre-release of the upcoming v1.0 and it has many limitations: no IPv6,
-only handles one interface (no multi-homing) and only one A record can
-be announced per service.
+original, in a sense this is a brand new project.  This is a pre-release
+of the upcoming v1.0 with some important to remember limitations:
+
+- no IPv6,
+- only handles one interface (no multi-homing), and
+- only one A record can be announced per service
 
 ### Changes
+- Added support for systemd unit file
+- Added example SSH service record in `/etc/mdns.d/ssh.service`
+- Added support for building Debian/Ubuntu `.deb` packages
 - Renamed example mhttp appliation to mdnsd
 - Added support for running as a proper UNIX daemon
 - Added support for logging to syslog
@@ -37,5 +43,5 @@ be announced per service.
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.7G...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.8...HEAD
 [v0.8]: https://github.com/troglobit/mdnsd/compare/v0.7G...v0.8
