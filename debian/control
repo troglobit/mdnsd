@@ -11,6 +11,7 @@ Vcs-Browser: https://github.com/troglobit/mdnsd/commits/
 Package: mdnsd
 Suggests: mdns-scan
 Architecture: any
+Conflicts: avahi-daemon
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: embeddable Multicast DNS Daemon
  mDNSd is a standalone mDNS-SD daemon for small systems.  Although still
