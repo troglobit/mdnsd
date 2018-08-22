@@ -72,8 +72,8 @@ create a Makefile for your system and then call make.
     make install
 
 Users who checked out the source from GitHub must run `./autogen.sh`
-first to create the configure script.  This requires GNU autotools to be
-installed on the build system.
+first to create the configure script.  This requires GNU autotools and
+`pkg-config` to be installed on the build system.
 
 
 Origin & References

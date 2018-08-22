@@ -1,0 +1,13 @@
+[Unit]
+Description=embeddable multicast DNS daemon
+Documentation=https://github.com/troglobit/mdnsd
+ConditionPathExists=@SYSCONFDIR@/mdns.d/
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+ExecStart=@SBINDIR@/mdnsd -n -s
+
+[Install]
+WantedBy=multi-user.target

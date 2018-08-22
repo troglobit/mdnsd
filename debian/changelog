@@ -1,0 +1,6 @@
+mdnsd (0.8) unstable; urgency=low
+
+  * Initial Debian Release (Closes: #12)
+
+ -- Joachim Nilsson <troglobit@gmail.com>  Wed, 22 Aug 2018 07:07:42 +0200
+
