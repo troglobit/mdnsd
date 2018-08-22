@@ -1,3 +1,8 @@
+.debhelper
 files
 mdnsd.debhelper.log
 mdnsd.substvars
+mdnsd.postinst.debhelper
+mdnsd.postrm.debhelper
+mdnsd.prerm.debhelper
+mdnsd/*
