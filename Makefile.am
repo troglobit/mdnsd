@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS           = -I m4
 DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
 
 nobase_include_HEADERS  = libmdnsd/mdnsd.h libmdnsd/1035.h libmdnsd/sdtxt.h libmdnsd/xht.h
-SUBDIRS                 = libmdnsd src
+SUBDIRS                 = examples libmdnsd src
 doc_DATA                = README.md ChangeLog.md LICENSE
 EXTRA_DIST              = README.md ChangeLog.md LICENSE
 
