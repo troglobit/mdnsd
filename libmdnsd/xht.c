@@ -108,6 +108,7 @@ static xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 	/* if none, make a new one, link into this index */
 	if (n == NULL) {
 		n = malloc(sizeof(struct xhn));
+		memset(n, 0, sizeof(struct xhn));
 		n->next = h->zen[i].next;
 		h->zen[i].next = n;
 	}
