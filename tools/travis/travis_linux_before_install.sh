@@ -1,6 +1,11 @@
 #!/bin/bash
 set -ev
 
+if [ -z ${LOCAL_PKG+x} ] || [ -z "$LOCAL_PKG" ]; then
+    echo "LOCAL_PKG is not set. Aborting..."
+    exit 1
+fi
+
 echo "=== Updating the build environment in $LOCAL_PKG ==="
 
 #echo "=== Installing from external package sources ==="
@@ -36,7 +41,11 @@ fi
 echo "=== The build environment is outdated ==="
 
 # Clean up
-rm -rf $LOCAL_PKG/*
+# additional safety measure to avoid rm -rf on root
+# only execute it on travis
+if ! [ -z ${TRAVIS+x} ]; then
+    rm -rf $LOCAL_PKG/*
+fi
 
 # Install newer valgrind
 echo "=== Installing valgrind ==="
