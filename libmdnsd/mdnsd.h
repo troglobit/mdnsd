@@ -123,13 +123,13 @@ void MDNSD_EXPORT mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record
 /**
  * Oncoming message from host (to be cached/processed)
  */
-int MDNSD_EXPORT mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned short int port);
+int MDNSD_EXPORT mdnsd_in(mdns_daemon_t *d, struct message *m, in_addr_t ip, unsigned short int port);
 
 /**
  * Outgoing messge to be delivered to host, returns >0 if one was
  * returned and m/ip/port set
  */
-int MDNSD_EXPORT mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsigned short int *port);
+int MDNSD_EXPORT mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short int *port);
 
 /**
  * returns the max wait-time until mdnsd_out() needs to be called again 
