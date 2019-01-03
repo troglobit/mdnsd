@@ -14,6 +14,8 @@ matrix:
           packages:
             - binutils-mingw-w64-i686
             - build-essential
+            - check
+            - cppcheck
             - gcc-multilib
             - gcc-4.9
             - gcc-mingw-w64-i686
@@ -23,6 +25,7 @@ matrix:
             - libc6-dev-i386
             - linux-libc-dev:i386
             - mingw-w64
+            - valgrind
       env:
          - ANALYZE=false
          - MINGW=true
@@ -34,11 +37,14 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - check
+            - cppcheck
             - gcc-7
             - gcc-7-multilib
             - g++-7
             - g++-7-multilib
             - linux-libc-dev:i386
+            - valgrind
       env:
          - ANALYZE=false
          - CC=gcc-7
@@ -50,7 +56,10 @@ matrix:
             - llvm-toolchain-trusty-6.0
             - ubuntu-toolchain-r-test
           packages:
+            - check
+            - cppcheck
             - clang-3.9
+            - valgrind
       env:
          - ANALYZE=false
          - CC=clang-3.9
@@ -62,8 +71,11 @@ matrix:
             - llvm-toolchain-trusty-6.0
             - ubuntu-toolchain-r-test
           packages:
+            - check
+            - cppcheck
             - clang-6.0
             - clang-tidy-6.0
+            - valgrind
       env:
          - ANALYZE=false
          - CC=clang-6.0
@@ -74,11 +86,14 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - check
+            - cppcheck
             - gcc-7
             - gcc-7-multilib
             - g++-7
             - g++-7-multilib
             - linux-libc-dev:i386
+            - valgrind
       env:
          - ANALYZE=true
          - CC=gcc-7
@@ -90,8 +105,11 @@ matrix:
             - llvm-toolchain-trusty-6.0
             - ubuntu-toolchain-r-test
           packages:
+            - check
+            - cppcheck
             - clang-6.0
             - clang-tidy-6.0
+            - valgrind
       env:
          - ANALYZE=true
          - CC=clang-6.0
@@ -138,9 +156,6 @@ before_install:
 - export PATH=$PATH:$HOME/.local/bin # linux
 - export PATH=$PATH:$HOME/Library/Python #OS X
 - export PATH=$PATH:$HOME/Library/Python/2.7/bin #OS X
-# set search path for check library
-- export CHECK_INCLUDE_DIRS=$LOCAL_PKG/include/
-- export CHECK_LIBRARIES=$LOCAL_PKG/lib/
 
 - if [ ${TRAVIS_OS_NAME} == "linux" ]; then sh ./tools/travis/travis_linux_before_install.sh; fi
 - if [ ${TRAVIS_OS_NAME} == "osx" ]; then sh ./tools/travis/travis_osx_before_install.sh; fi
