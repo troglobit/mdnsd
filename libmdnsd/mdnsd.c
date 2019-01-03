@@ -77,7 +77,7 @@ struct query {
 
 struct unicast {
 	int id;
-	unsigned long int to;
+    in_addr_t to;
 	unsigned short int port;
 	mdns_record_t *r;
 	struct unicast *next;
@@ -306,7 +306,7 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* Create generic unicast response struct */
-static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long int to, unsigned short int port)
+static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, in_addr_t to, unsigned short int port)
 {
 	struct unicast *u;
 
@@ -666,7 +666,7 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 	d->received_callback_data = data;
 }
 
-int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned short int port)
+int mdnsd_in(mdns_daemon_t *d, struct message *m, in_addr_t ip, unsigned short int port)
 {
 	int i;
 	mdns_record_t *r = 0;
@@ -761,7 +761,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 	return 0;
 }
 
-int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsigned short int *port)
+int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short int *port)
 {
 	mdns_record_t *r;
 	int ret = 0;
@@ -771,7 +771,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 	/* Defaults, multicast */
 	*port = htons(5353);
-	*ip = inet_addr("224.0.0.251");
+	ip->s_addr = inet_addr("224.0.0.251");
 	m->header.qr = 1;
 	m->header.aa = 1;
 
@@ -783,7 +783,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 		d->uanswers = u->next;
 		*port = u->port;
-		*ip = u->to;
+		ip->s_addr = u->to;
 		m->id = (unsigned short int)u->id;
 		message_qd(m, u->r->rr.name, u->r->rr.type, (unsigned short int)d->clazz);
 		message_an(m, u->r->rr.name, u->r->rr.type, (unsigned short int)d->clazz, u->r->rr.ttl);
@@ -1211,7 +1211,7 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			dump_hex_pkg((char*)buf, bsize);
 #endif
 			message_parse(&m, buf);
-			if (mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port)!=0)
+			if (mdnsd_in(d, &m, from.sin_addr.s_addr, from.sin_port)!=0)
 				return 2;
 		}
 #ifdef _WIN32
@@ -1232,7 +1232,7 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-align"
 #endif
-		while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
+		while (mdnsd_out(d, &m, &ip, &port)) {
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif	

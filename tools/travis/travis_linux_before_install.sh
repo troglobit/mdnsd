@@ -47,38 +47,6 @@ if ! [ -z ${TRAVIS+x} ]; then
     rm -rf $LOCAL_PKG/*
 fi
 
-# Install newer valgrind
-echo "=== Installing valgrind ==="
-wget ftp://sourceware.org/pub/valgrind/valgrind-3.13.0.tar.bz2
-tar xf valgrind-3.13.0.tar.bz2
-cd valgrind-3.13.0
-CC=clang CXX=clang++ ./configure --prefix=$LOCAL_PKG
-make -s -j8 install
-cd ..
-
-# Install specific check version which is not yet in the apt package
-echo "=== Installing check ==="
-mkdir tmp_check
-wget http://ftp.de.debian.org/debian/pool/main/c/check/check_0.10.0-3+b3_amd64.deb
-dpkg -x check_0.10.0-3+b3_amd64.deb ./tmp_check
-# change pkg-config file path
-sed -i "s|prefix=/usr|prefix=${LOCAL_PKG}|g" ./tmp_check/usr/lib/x86_64-linux-gnu/pkgconfig/check.pc
-sed -i 's|libdir=.*|libdir=${prefix}/lib|g' ./tmp_check/usr/lib/x86_64-linux-gnu/pkgconfig/check.pc
-# move files to globally included dirs
-cp -R ./tmp_check/usr/lib/x86_64-linux-gnu/* $LOCAL_PKG/lib/
-cp -R ./tmp_check/usr/include/* $LOCAL_PKG/include/
-cp -R ./tmp_check/usr/bin/* $LOCAL_PKG/
-
-
-# Install newer cppcheck
-echo "=== Installing cppcheck ==="
-wget https://github.com/danmar/cppcheck/archive/1.73.tar.gz -O cppcheck-1.73.tar.gz
-tar xf cppcheck-1.73.tar.gz
-cd cppcheck-1.73
-CC=clang CXX=clang++ make PREFIX="$LOCAL_PKG" SRCDIR=build CFGDIR="$LOCAL_PKG/cppcheck-cfg" HAVE_RULES=yes CXXFLAGS="-O2 -DNDEBUG -Wno-sign-compare -Wno-unused-function -std=gnu++0x" -j
-CC=clang CXX=clang++ make PREFIX="$LOCAL_PKG" SRCDIR=build CFGDIR="$LOCAL_PKG/cppcheck-cfg" HAVE_RULES=yes install
-cd ..
-
 # create cached flag
 echo "=== Store cache flag ==="
 echo $ENV_VERSION > $LOCAL_PKG/.build_env
