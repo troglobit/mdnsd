@@ -195,7 +195,7 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 {
 	if (!a->name)
 		return 0;
-	if (strcmp(r->name, a->name) || r->type != a->type)
+	if (strcmp(r->name, a->name) != 0 || r->type != a->type)
 		return 0;
 
 	if (r->type == QTYPE_SRV && !strcmp(r->known.srv.name, a->rdname) && a->srv.port == r->known.srv.port &&
@@ -205,7 +205,10 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 	if ((r->type == QTYPE_PTR || r->type == QTYPE_NS || r->type == QTYPE_CNAME) && !strcmp(a->rdname, r->known.ns.name))
 		return 1;
 
-	if (r->rdlength == a->rdlen && !memcmp(r->rdata, a->rdata, r->rdlength))
+	if (r->rdlength == a->rdlen && r->rdlength == 0)
+	    return 1;
+
+	if ((r->rdlength == a->rdlen) && !memcmp(r->rdata, a->rdata, r->rdlength))
 		return 1;
 
 	return 0;
