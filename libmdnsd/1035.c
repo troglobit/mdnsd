@@ -247,6 +247,7 @@ static int _host(struct message *m, unsigned char **bufp, char *name)
 static int _rrparse(struct message *m, struct resource *rr, int count, unsigned char **bufp)
 {
 	int i;
+	unsigned char *addr_bytes = NULL;
 
 	for (i = 0; i < count; i++) {
 		_label(m, bufp, &(rr[i].name));
@@ -280,7 +281,12 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
 			msnds_snprintf(rr[i].known.a.name,16, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
-			rr[i].known.a.ip.s_addr = (in_addr_t)(*(*bufp) | (*(*bufp + 1) << 8) | (*(*bufp + 2) << 16) | (*(*bufp + 3) << 24));
+			addr_bytes = (unsigned char *) *bufp;
+			rr[i].known.a.ip.s_addr = (in_addr_t) (
+					((in_addr_t) addr_bytes[0]) |
+					(((in_addr_t) addr_bytes[1]) << 8) |
+					(((in_addr_t) addr_bytes[2]) << 16) |
+					(((in_addr_t) addr_bytes[3]) << 24));
 			break;
 
 		case QTYPE_NS:
