@@ -62,7 +62,12 @@ if(MDNSD_COMPILE_AS_CXX)
   set_source_files_properties(${LIBRARY_FILES} PROPERTIES LANGUAGE CXX)
 endif()
 
-add_library(libmdnsd ${LIBRARY_FILES})
+if(MDNSD_BUILD_OSS_FUZZ)
+    add_library(libmdnsd ${LIBRARY_FILES})
+else()
+    add_library(libmdnsd SHARED ${LIBRARY_FILES})
+endif()
+
 if(WIN32 OR MINGW)
   target_link_libraries(libmdnsd wsock32 ws2_32)
 endif()
