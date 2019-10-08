@@ -44,7 +44,12 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+
+#ifdef _MSC_VER
+#include "ms_stdint.h" /* Includes stdint.h or workaround for older Visual Studios */
+#else
 #include <stdint.h>
+#endif
 
 /* Should be reasonably large, for UDP */
 #define MAX_PACKET_LEN 10000
