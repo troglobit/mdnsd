@@ -44,6 +44,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stdint.h>
 
 /* Should be reasonably large, for UDP */
 #define MAX_PACKET_LEN 10000
