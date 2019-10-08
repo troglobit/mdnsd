@@ -16,4 +16,4 @@ for F in $fuzzerFiles; do
 	fi
 done
 
-cp $SRC/mdnsd/tests/fuzz/*.dict $SRC/mdnsd/tests/fuzz/*.options $OUT/
+# cp $SRC/mdnsd/tests/fuzz/*.dict $SRC/mdnsd/tests/fuzz/*.options $OUT/
