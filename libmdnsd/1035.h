@@ -43,13 +43,28 @@ extern "C" {
 # include <arpa/inet.h>
 #endif
 
+#if !defined(__bool_true_false_are_defined) && defined(_MSC_VER) && _MSC_VER < 1600
+// VS 2008 has no stdbool.h
+#define bool	short
+#define true	1
+#define false	0
+#else
+#include <stdbool.h>
+#endif
+
+#ifdef _MSC_VER
+#include "ms_stdint.h" /* Includes stdint.h or workaround for older Visual Studios */
+#else
+#include <stdint.h>
+#endif
+
 /* Should be reasonably large, for UDP */
 #define MAX_PACKET_LEN 10000
 #define MAX_NUM_LABELS 20
 
 struct question {
 	char *name;
-	unsigned short int type, clazz;
+	unsigned short type, clazz;
 };
 
 #define QTYPE_A      1
@@ -61,7 +76,7 @@ struct question {
 
 struct resource {
 	char *name;
-	unsigned short int type, clazz;
+	unsigned short type, clazz;
 	unsigned long int ttl;
 	unsigned short int rdlength;
 	unsigned char *rdata;
@@ -106,8 +121,10 @@ struct message {
 
 	/* Internal variables */
 	unsigned char *_buf;
+	unsigned char *_bufEnd;
 	char *_labels[MAX_NUM_LABELS];
-	int _len, _label;
+	size_t _len;
+	int _label;
 
 	/* Packet acts as padding, easier mem management */
 	unsigned char _packet[MAX_PACKET_LEN];
@@ -116,20 +133,20 @@ struct message {
 /**
  * Returns the next short/long off the buffer (and advances it)
  */
-unsigned short int net2short(unsigned char **bufp);
-unsigned long int  net2long (unsigned char **bufp);
+uint16_t net2short(const unsigned char **bufp);
+uint32_t  net2long (const unsigned char **bufp);
 
 /**
  * copies the short/long into the buffer (and advances it)
  */
-void MDNSD_EXPORT short2net(unsigned short int i, unsigned char **bufp);
-void MDNSD_EXPORT long2net (unsigned long int  l, unsigned char **bufp);
+void MDNSD_EXPORT short2net(uint16_t i, unsigned char **bufp);
+void MDNSD_EXPORT long2net (uint32_t  l, unsigned char **bufp);
 
 /**
  * parse packet into message, packet must be at least MAX_PACKET_LEN and
  * message must be zero'd for safety
  */
-void MDNSD_EXPORT message_parse(struct message *m, unsigned char *packet);
+bool MDNSD_EXPORT message_parse(struct message *m, unsigned char *packet, size_t packetLen);
 
 /**
  * create a message for sending out on the wire
@@ -144,9 +161,9 @@ void MDNSD_EXPORT message_qd(struct message *m, char *name, unsigned short int t
 /**
  * append a resource record to the message, all called in order!
  */
-void MDNSD_EXPORT message_an(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl);
-void MDNSD_EXPORT message_ns(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl);
-void MDNSD_EXPORT message_ar(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long int ttl);
+void MDNSD_EXPORT message_an(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long ttl);
+void MDNSD_EXPORT message_ns(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long ttl);
+void MDNSD_EXPORT message_ar(struct message *m, char *name, unsigned short int type, unsigned short int clazz, unsigned long ttl);
 
 /**
  * Append various special types of resource data blocks

@@ -61,6 +61,7 @@ extern "C" {
 #define MDNSD_LOG_FATAL(...) do {} while(0)
 #endif
 
+
 /* Main daemon data */
 typedef struct mdns_daemon mdns_daemon_t;
 /* Record entry */
@@ -72,9 +73,9 @@ typedef void (*mdnsd_record_received_callback)(const struct resource* r, void* d
 /* Answer data */
 typedef struct mdns_answer {
 	char *name;
-	unsigned short int type;
-	unsigned long int ttl;
-	unsigned short int rdlen;
+	unsigned short type;
+	unsigned long ttl;
+	unsigned short rdlen;
 	unsigned char *rdata;
 	struct in_addr ip;	/* A */
 	char *rdname;		/* NS/CNAME/PTR/SRV */
@@ -220,6 +221,11 @@ void MDNSD_EXPORT mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned sho
  * Returns 0 on success, 1 on read error, 2 on write error
  */
 unsigned short int MDNSD_EXPORT mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *nextSleep);
+
+
+#ifdef MDNSD_DEBUG_DUMP_PKGS_FILE
+void mdnsd_debug_dumpCompleteChunk(mdns_daemon_t *d, const char* data, size_t len);
+#endif
 
 #ifdef __cplusplus
 } // extern "C"

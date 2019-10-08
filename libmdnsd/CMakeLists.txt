@@ -24,10 +24,6 @@ if(NOT MDNSD_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER
   if(NOT MINGW AND NOT MSYS AND NOT MSVC)
     add_definitions(-Wpedantic)
   endif()
-  if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-    # new feature since 7.0
-    add_definitions(-Wformat-truncation=1)
-  endif()
   if(NOT WIN32 AND NOT CYGWIN)
     add_definitions(-Wshadow -Wconversion -fvisibility=hidden -fPIC)
   endif()
@@ -52,11 +48,26 @@ include_directories(${PROJECT_BINARY_DIR})
 
 set(LIBRARY_FILES mdnsd.c mdnsd.h 1035.c 1035.h sdtxt.c sdtxt.h xht.c xht.h)
 
+
+if (MDNSD_BUILD_FUZZING_CORPUS)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+    add_definitions(-DMDNSD_CORPUS_OUTPUT_DIR="${PROJECT_BINARY_DIR}/corpus/custom")
+    file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/corpus/custom)
+
+    list(APPEND LIBRARY_FILES mdnsd_debug_dump_pkgs_file.c)
+endif()
+
 if(MDNSD_COMPILE_AS_CXX)
   set_source_files_properties(${LIBRARY_FILES} PROPERTIES LANGUAGE CXX)
 endif()
 
-add_library(libmdnsd SHARED ${LIBRARY_FILES})
+if(MDNSD_BUILD_OSS_FUZZ)
+    add_library(libmdnsd ${LIBRARY_FILES})
+else()
+    add_library(libmdnsd SHARED ${LIBRARY_FILES})
+endif()
+
 if(WIN32 OR MINGW)
   target_link_libraries(libmdnsd wsock32 ws2_32)
 endif()

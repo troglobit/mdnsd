@@ -476,7 +476,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	c = (struct cached *)MDNSD_calloc(1, sizeof(struct cached));
 	c->rr.name = STRDUP(r->name);
 	c->rr.type = r->type;
-	c->rr.ttl = (unsigned long int)d->now.tv_sec + (r->ttl / 2) + 8;
+	c->rr.ttl = (unsigned int)((unsigned long)d->now.tv_sec + (r->ttl / 2) + 8);
 	c->rr.rdlen = r->rdlength;
 	if (r->rdlength && !r->rdata) {
 		//MDNSD_LOG_ERROR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
@@ -1213,7 +1213,11 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			MDNSD_LOG_TRACE("Got Data:");
 			dump_hex_pkg((char*)buf, bsize);
 #endif
-			message_parse(&m, buf);
+#ifdef MDNSD_DEBUG_DUMP_PKGS_FILE
+            mdnsd_debug_dumpCompleteChunk(d, (char*)buf, (size_t) bsize);
+#endif
+			if (!message_parse(&m, buf, MAX_PACKET_LEN))
+			    continue;
 			if (mdnsd_in(d, &m, from.sin_addr.s_addr, from.sin_port)!=0)
 				return 2;
 		}
@@ -1250,6 +1254,9 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			dump_hex_pkg(buf, (int)len);
 #endif
 
+            #ifdef MDNSD_DEBUG_DUMP_PKGS_FILE
+            mdnsd_debug_dumpCompleteChunk(d, buf, (size_t) len);
+            #endif
 			if (sendto(mdns_socket, buf, (unsigned int)len, 0, (struct sockaddr *)&to,
 							sizeof(struct sockaddr_in)) != len) {
 				return 2;
