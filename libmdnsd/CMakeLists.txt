@@ -24,8 +24,8 @@ if(NOT MDNSD_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER
   if(NOT MINGW AND NOT MSYS AND NOT MSVC)
     add_definitions(-Wpedantic)
   endif()
-  if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-    # new feature since 7.0
+  if(UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+    # new feature since 8.0
     add_definitions(-Wformat-truncation=1)
   endif()
   if(NOT WIN32 AND NOT CYGWIN)

@@ -116,8 +116,8 @@ struct message {
 /**
  * Returns the next short/long off the buffer (and advances it)
  */
-unsigned short int net2short(unsigned char **bufp);
-unsigned long int  net2long (unsigned char **bufp);
+unsigned short int net2short(const unsigned char **bufp);
+unsigned long int  net2long (const unsigned char **bufp);
 
 /**
  * copies the short/long into the buffer (and advances it)
@@ -129,7 +129,7 @@ void MDNSD_EXPORT long2net (unsigned long int  l, unsigned char **bufp);
  * parse packet into message, packet must be at least MAX_PACKET_LEN and
  * message must be zero'd for safety
  */
-void MDNSD_EXPORT message_parse(struct message *m, unsigned char *packet);
+void MDNSD_EXPORT message_parse(struct message *m, unsigned char *packet, int maxLen);
 
 /**
  * create a message for sending out on the wire

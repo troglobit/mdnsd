@@ -1213,7 +1213,7 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			MDNSD_LOG_TRACE("Got Data:");
 			dump_hex_pkg((char*)buf, bsize);
 #endif
-			message_parse(&m, buf);
+			message_parse(&m, buf, MAX_PACKET_LEN);
 			if (mdnsd_in(d, &m, from.sin_addr.s_addr, from.sin_port)!=0)
 				return 2;
 		}
