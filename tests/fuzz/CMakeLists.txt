@@ -30,7 +30,6 @@ macro(add_fuzzer FUZZER_NAME FUZZER_SOURCE)
     list(APPEND FUZZER_TARGETS ${FUZZER_NAME})
 endmacro()
 
-
 # Add new fuzzers here
 add_fuzzer(fuzz_binary_message fuzz_binary_message.cc)
 

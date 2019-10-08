@@ -13,6 +13,10 @@ if(MDNSD_BUILD_FUZZING)
     add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 endif()
 
+if(MDNSD_BUILD_FUZZING_CORPUS)
+    add_definitions(-DMDNSD_DEBUG_DUMP_PKGS_FILE)
+endif()
+
 add_subdirectory(libmdnsd)
 
 #option(MDNSD_BUILD_UNIT_TESTS "Build the unit tests" OFF)

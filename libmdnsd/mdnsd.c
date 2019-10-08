@@ -1213,6 +1213,9 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			MDNSD_LOG_TRACE("Got Data:");
 			dump_hex_pkg((char*)buf, bsize);
 #endif
+#ifdef MDNSD_DEBUG_DUMP_PKGS_FILE
+            mdnsd_debug_dumpCompleteChunk(d, (char*)buf, (size_t) bsize);
+#endif
 			if (!message_parse(&m, buf, MAX_PACKET_LEN))
 			    continue;
 			if (mdnsd_in(d, &m, from.sin_addr.s_addr, from.sin_port)!=0)
@@ -1251,6 +1254,9 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 			dump_hex_pkg(buf, (int)len);
 #endif
 
+            #ifdef MDNSD_DEBUG_DUMP_PKGS_FILE
+            mdnsd_debug_dumpCompleteChunk(d, buf, (size_t) len);
+            #endif
 			if (sendto(mdns_socket, buf, (unsigned int)len, 0, (struct sockaddr *)&to,
 							sizeof(struct sockaddr_in)) != len) {
 				return 2;
