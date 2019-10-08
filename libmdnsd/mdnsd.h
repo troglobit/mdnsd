@@ -72,9 +72,9 @@ typedef void (*mdnsd_record_received_callback)(const struct resource* r, void* d
 /* Answer data */
 typedef struct mdns_answer {
 	char *name;
-	unsigned short int type;
-	unsigned long int ttl;
-	unsigned short int rdlen;
+	unsigned short type;
+	unsigned long ttl;
+	unsigned short rdlen;
 	unsigned char *rdata;
 	struct in_addr ip;	/* A */
 	char *rdname;		/* NS/CNAME/PTR/SRV */

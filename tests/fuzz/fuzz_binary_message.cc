@@ -41,11 +41,18 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     memset(&m, 0, sizeof(struct message));
 
     unsigned char *dataCopy = (unsigned char *)malloc(size);
+    if (!dataCopy) {
+        return 0;
+    }
+
     memcpy(dataCopy, data, size);
 
-    message_parse(&m, dataCopy, size);
+    bool success = message_parse(&m, dataCopy, size);
 
     free(dataCopy);
+
+    if (!success)
+        return 0;
 
     mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
 

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdbool.h>
 
 #include <libmdnsd/mdnsd.h>
 
@@ -136,7 +137,8 @@ int main(int argc, char *argv[])
 			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(s, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
-				message_parse(&m, buf);
+				if (!message_parse(&m, buf))
+                    continue;
 				mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
 			}
 			if (bsize < 0 && errno != EAGAIN) {
