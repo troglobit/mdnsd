@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 {
 	mdns_daemon_t *d;
 	struct message m;
-	unsigned long int ip;
+	struct in_addr ip;
 	unsigned short int port;
 	ssize_t bsize;
 	socklen_t ssize;
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
 			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(s, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
-				if (!message_parse(&m, buf))
+				if (!message_parse(&m, buf, bsize))
                     continue;
 				mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, from.sin_port);
 			}
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 			memset(&to, 0, sizeof(to));
 			to.sin_family = AF_INET;
 			to.sin_port = port;
-			to.sin_addr.s_addr = ip;
+			to.sin_addr.s_addr = ip.s_addr;
 			if (sendto(s, message_packet(&m), message_packet_len(&m), 0, (struct sockaddr *)&to,
 				   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
 				printf("can't write to socket: %s\n", strerror(errno));
