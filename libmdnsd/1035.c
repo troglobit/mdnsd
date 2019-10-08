@@ -91,8 +91,9 @@ static bool _label(struct message *m, const unsigned char **bufp, const unsigned
 
 	/* Loop storing label in the block */
 	for (label = *bufp; *label != 0; name += *label + 1, label += *label + 1) {
-	    if (label >= bufEnd)
-	        return false;
+	    if (label >= bufEnd) {
+            return false;
+        }
 
 		/* Skip past any compression pointers, kick out if end encountered (bad data prolly) */
 		while (*label & 0xc0) {
