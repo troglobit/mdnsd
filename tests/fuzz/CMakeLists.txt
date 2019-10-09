@@ -31,12 +31,12 @@ macro(add_fuzzer FUZZER_NAME FUZZER_SOURCE)
 endmacro()
 
 # Add new fuzzers here
-add_fuzzer(fuzz_binary_message fuzz_binary_message.cc)
+add_fuzzer(fuzz_mdns_message fuzz_mdns_message.cc)
 
 
 SET(CORPUS_CMDS "")
 FOREACH(f ${CORPUS_FILES})
-    LIST(APPEND CORPUS_CMDS COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fuzz_binary_message "${f}")
+    LIST(APPEND CORPUS_CMDS COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fuzz_mdns_message "${f}")
 ENDFOREACH(f)
 
 add_custom_target(run_fuzzer ${CORPUS_CMDS}
