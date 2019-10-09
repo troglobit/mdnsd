@@ -89,22 +89,56 @@ static bool _label(struct message *m, const unsigned char **bufp, const unsigned
 	if (*bufp >= bufEnd)
 	    return false;
 
+    // forward buffer pointer until we find the first compressed label
+    bool moveBufp = true;
 	/* Loop storing label in the block */
-	for (label = *bufp; *label != 0; name += *label + 1, label += *label + 1) {
-	    if (label >= bufEnd) {
-            return false;
+	do {
+	    if (moveBufp) {
+            label = *bufp;
+	    }
+
+        if (label >= bufEnd) {
+            break;
         }
 
+        /* Since every domain name ends with the null label of
+            the root, a domain name is terminated by a length byte of zero. */
+        if (*label == 0) {
+            if (moveBufp) {
+                *bufp += 1;
+            }
+            break;
+        }
+
+
 		/* Skip past any compression pointers, kick out if end encountered (bad data prolly) */
-		while (*label & 0xc0) {
-			unsigned short int offset = _ldecomp(label);
-			if (offset > m->_len)
-				return false;
-			if (m->_buf + offset > bufEnd)
-			    return false;
-			if (*(label = m->_buf + offset) == 0)
-				break;
+
+		/* If a label is compressed, it has following structure of 2 bytes:
+		 *    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    	 *    | 1  1|                OFFSET                   |
+		 *    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+		 *
+		 * The OFFSET field specifies an offset from
+		 * the start of the message (i.e., the first octet of the ID field in the
+		 * domain header).  A zero offset specifies the first byte of the ID field,
+		 * etc.
+		 **/
+		if (*label & 0xc0) {
+		    if (label + 2 > bufEnd)
+		        return false;
+            unsigned short int offset = _ldecomp(label);
+            if (offset > m->_len)
+                return false;
+            if (m->_buf + offset >= bufEnd)
+                return false;
+            label = m->_buf + offset;
+            // chek if label is again pointer, then abort.
+            if (*label & 0xc0)
+                return false;
+            moveBufp = false;
+            *bufp += 2;
 		}
+
 
 		/* Make sure we're not over the limits
 		 * See https://tools.ietf.org/html/rfc1035
@@ -119,17 +153,26 @@ static bool _label(struct message *m, const unsigned char **bufp, const unsigned
             // maximum names length is 255 octets
 		    return false;
 
-		if (label + 1 + labelLen > bufEnd)
-		    return false;
+		if (label + 1 + labelLen > bufEnd) {
+            return false;
+        }
+        if ((unsigned char*)name + labelLen > m->_packet + MAX_PACKET_LEN) {
+            return false;
+        }
 		/* Copy chars for this label */
 		memcpy(name, label + 1, labelLen);
 		name[labelLen] = '.';
-	}
 
-	/* Advance buffer */
-	for (label = *bufp; *label != 0 && !(*label & 0xc0 && label++); label += *label + 1)
-		;
-	*bufp = (const unsigned char *)(label + 1);
+        name += labelLen + 1;
+
+        if (moveBufp) {
+            *bufp += labelLen + 1;
+        }
+        else {
+            label += labelLen +1;
+        }
+
+	} while (*bufp <= bufEnd);
 
 	/* Terminate name and check for cache or cache it */
 	*name = '\0';
@@ -255,18 +298,30 @@ static bool _rrparse(struct message *m, struct resource *rr, int count, const un
 	int i;
     const unsigned char *addr_bytes = NULL;
 
+    if (count == 0) {
+        return true;
+    }
+
+    if (*bufp >= m->_bufEnd) {
+        return false;
+    }
+
 	for (i = 0; i < count; i++) {
-		if (!_label(m, bufp, bufferEnd, &(rr[i].name)))
-		    return false;
+	    if (*bufp >= bufferEnd) {
+            return false;
+        }
+
+		if (!_label(m, bufp, bufferEnd, &(rr[i].name))) {
+            return false;
+        }
+		if (*bufp + 10 > bufferEnd) {
+            return false;
+        }
 		rr[i].type     = net2short(bufp);
 		rr[i].clazz    = net2short(bufp);
 		rr[i].ttl      = net2long(bufp);
 		rr[i].rdlength = net2short(bufp);
 //		fprintf(stderr, "Record type %d class 0x%2x ttl %lu len %d\n", rr[i].type, rr[i].clazz, rr[i].ttl, rr[i].rdlength);
-
-		/* If not going to overflow, make copy of source rdata */
-		if (*bufp + rr[i].rdlength >= bufferEnd)
-			return false;
 
 		/* For the following records the rdata will be parsed later. So don't set it here:
 		 * NS, CNAME, PTR, DNAME, SOA, MX, AFSDB, RT, KX, RP, PX, SRV, NSEC
@@ -274,7 +329,15 @@ static bool _rrparse(struct message *m, struct resource *rr, int count, const un
 		if (rr[i].type == QTYPE_NS || rr[i].type == QTYPE_CNAME || rr[i].type == QTYPE_PTR || rr[i].type == QTYPE_SRV) {
 			rr[i].rdlength = 0;
 		} else {
+            /* If not going to overflow, make copy of source rdata */
+            if (*bufp + rr[i].rdlength > bufferEnd) {
+                return false;
+            }
+
 			rr[i].rdata = m->_packet + m->_len;
+            if (m->_len + rr[i].rdlength > MAX_PACKET_LEN) {
+                return false;
+            }
 			m->_len += rr[i].rdlength;
 			memcpy(rr[i].rdata, *bufp, rr[i].rdlength);
 		}
@@ -283,10 +346,14 @@ static bool _rrparse(struct message *m, struct resource *rr, int count, const un
 		/* Parse commonly known ones */
 		switch (rr[i].type) {
 		case QTYPE_A:
-			if (m->_len + 16 > MAX_PACKET_LEN)
-				return 1;
+			if (m->_len + 16 > MAX_PACKET_LEN) {
+                return false;
+            }
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
 			m->_len += 16;
+            if (*bufp + 4 > bufferEnd) {
+                return false;
+            }
 			msnds_snprintf(rr[i].known.a.name,16, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
 			addr_bytes = (const unsigned char *) *bufp;
 			rr[i].known.a.ip.s_addr = (in_addr_t) (
@@ -294,29 +361,37 @@ static bool _rrparse(struct message *m, struct resource *rr, int count, const un
 					(((in_addr_t) addr_bytes[1]) << 8) |
 					(((in_addr_t) addr_bytes[2]) << 16) |
 					(((in_addr_t) addr_bytes[3]) << 24));
+            *bufp += 4;
 			break;
 
 		case QTYPE_NS:
-			if (!_label(m, bufp, bufferEnd, &(rr[i].known.ns.name)))
-			    return false;
+			if (!_label(m, bufp, bufferEnd, &(rr[i].known.ns.name))) {
+                return false;
+            }
 			break;
 
 		case QTYPE_CNAME:
-			if (!_label(m, bufp, bufferEnd, &(rr[i].known.cname.name)))
-			    return false;
+			if (!_label(m, bufp, bufferEnd, &(rr[i].known.cname.name))) {
+                return false;
+            }
 			break;
 
 		case QTYPE_PTR:
-			if (!_label(m, bufp, bufferEnd, &(rr[i].known.ptr.name)))
-			    return false;
+			if (!_label(m, bufp, bufferEnd, &(rr[i].known.ptr.name))) {
+                return false;
+            }
 			break;
 
 		case QTYPE_SRV:
+            if (*bufp + 6 > bufferEnd) {
+                return false;
+            }
 			rr[i].known.srv.priority = net2short(bufp);
 			rr[i].known.srv.weight = net2short(bufp);
 			rr[i].known.srv.port = net2short(bufp);
-			if (!_label(m, bufp, bufferEnd, &(rr[i].known.srv.name)))
-			    return false;
+			if (!_label(m, bufp, bufferEnd, &(rr[i].known.srv.name))) {
+                return false;
+            }
 			break;
 
 		case QTYPE_TXT:
@@ -333,6 +408,7 @@ static bool _rrparse(struct message *m, struct resource *rr, int count, const un
 	while (m->_len & 7)			\
 		m->_len++;			\
 		                        \
+    if (m->_len + y > MAX_PACKET_LEN) { return false; } \
 	x = (cast)(void *)(m->_packet + m->_len);	\
 	m->_len += y;
 
@@ -405,42 +481,23 @@ bool message_parse(struct message *m, unsigned char *packet, size_t packetLen)
     m->nscount = net2short(&buf);
     m->arcount = net2short(&buf);
 
-    /* Header size is 12 bytes */
-    packetLen -= 12;
-
     // check if the message has the correct size, i.e. the count matches the number of bytes
-    size_t recordLen = sizeof(struct question) * m->qdcount;
-    if (m->_len + recordLen > packetLen) {
-        return false;
-    }
-    size_t remainingLen = (size_t) packetLen - recordLen;
-
-    recordLen = sizeof(struct resource) * m->ancount;
-	if (m->_len + recordLen > remainingLen) {
-		return false;
-	}
-    remainingLen -= recordLen;
-
-    recordLen = sizeof(struct resource) * m->nscount;
-	if (m->_len + recordLen > remainingLen) {
-		return false;
-	}
-    remainingLen -= recordLen;
-
-    recordLen = sizeof(struct resource) * m->arcount;
-	if (m->_len + recordLen > remainingLen) {
-		return false;
-	}
-    //remainingLen -= recordLen;
 
 	/* Process questions */
 	my(m->qd, (sizeof(struct question) * m->qdcount), struct question *);
 	for (i = 0; i < m->qdcount; i++) {
-		if (!_label(m, &buf, m->_bufEnd, &(m->qd[i].name)))
-		    return false;
+		if (!_label(m, &buf, m->_bufEnd, &(m->qd[i].name))) {
+            return false;
+        }
+		if (buf + 4 > m->_bufEnd) {
+            return false;
+        }
 		m->qd[i].type  = net2short(&buf);
 		m->qd[i].clazz = net2short(&buf);
 	}
+    if (buf > m->_bufEnd) {
+        return false;
+    }
 
 	/* Process rrs */
 	my(m->an, (sizeof(struct resource) * m->ancount), struct resource *);

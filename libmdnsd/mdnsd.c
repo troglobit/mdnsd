@@ -1216,7 +1216,7 @@ unsigned short int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn,
 #ifdef MDNSD_DEBUG_DUMP_PKGS_FILE
             mdnsd_debug_dumpCompleteChunk(d, (char*)buf, (size_t) bsize);
 #endif
-			if (!message_parse(&m, buf, MAX_PACKET_LEN))
+			if (!message_parse(&m, buf, (size_t)bsize))
 			    continue;
 			if (mdnsd_in(d, &m, from.sin_addr.s_addr, from.sin_port)!=0)
 				return 2;
