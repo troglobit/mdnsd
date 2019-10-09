@@ -86,7 +86,7 @@ static bool _label(struct message *m, const unsigned char **bufp, const unsigned
 	/* Set namep to the end of the block */
 	*namep = name = (char *)m->_packet + m->_len;
 
-	if (*bufp > bufEnd)
+	if (*bufp >= bufEnd)
 	    return false;
 
 	/* Loop storing label in the block */
