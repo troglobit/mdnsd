@@ -334,10 +334,10 @@ static bool _rrparse(struct message *m, struct resource *rr, int count, const un
                 return false;
             }
 
-			rr[i].rdata = m->_packet + m->_len;
             if (m->_len + rr[i].rdlength > MAX_PACKET_LEN) {
                 return false;
             }
+			rr[i].rdata = m->_packet + m->_len;
 			m->_len += rr[i].rdlength;
 			memcpy(rr[i].rdata, *bufp, rr[i].rdlength);
 		}
