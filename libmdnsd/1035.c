@@ -174,6 +174,10 @@ static bool _label(struct message *m, const unsigned char **bufp, const unsigned
 
 	} while (*bufp <= bufEnd);
 
+    if ((unsigned char*)name >= m->_packet + MAX_PACKET_LEN) {
+        return false;
+    }
+
 	/* Terminate name and check for cache or cache it */
 	*name = '\0';
 	for (x = 0; x < MAX_NUM_LABELS && m->_labels[x]; x++) {
