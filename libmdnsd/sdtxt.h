@@ -10,7 +10,7 @@ extern "C" {
 /**
  * returns hashtable of strings from the SD TXT record rdata
  */
-xht_t MDNSD_EXPORT *txt2sd(unsigned char *txt, int len);
+xht_t MDNSD_EXPORT *txt2sd(const unsigned char *txt, int len);
 
 /**
  * returns a raw block that can be sent with a SD TXT record, sets length

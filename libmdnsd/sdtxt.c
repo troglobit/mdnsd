@@ -61,7 +61,7 @@ unsigned char *sd2txt(xht_t *h, int *len)
 	return raw;
 }
 
-xht_t *txt2sd(unsigned char *txt, int len)
+xht_t *txt2sd(const unsigned char *txt, int len)
 {
 	char key[256];
 	xht_t *h = 0;
@@ -85,6 +85,8 @@ xht_t *txt2sd(unsigned char *txt, int len)
 		}
 		if (val != NULL)
 			xht_store(h, key, (int)strlen(key), val, (int)strlen(val));
+		if (*txt +1 > len)
+		    break;
 	}
 
 	return h;

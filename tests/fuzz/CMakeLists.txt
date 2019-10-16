@@ -32,6 +32,7 @@ endmacro()
 
 # Add new fuzzers here
 add_fuzzer(fuzz_mdns_message fuzz_mdns_message.cc)
+add_fuzzer(fuzz_mdns_xht fuzz_mdns_xht.cc)
 
 
 SET(CORPUS_CMDS "")
