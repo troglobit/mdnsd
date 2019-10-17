@@ -114,6 +114,21 @@ matrix:
          - ANALYZE=true
          - CC=clang-6.0
          - CXX=clang++-6.0
+ #
+ # clang-6 FUZZER build
+    - os: linux
+      compiler: clang-6.0
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - clang-tidy-6.0
+            - libfuzzer-6.0-dev
+     env:
+       - FUZZER=true
     - os: osx
       compiler: clang
       env:
