@@ -1246,9 +1246,13 @@ mdns_record_t *mdnsd_find(mdns_daemon_t *d, const char *name, unsigned short typ
 	while (r) {
 		const mdns_answer_t *data;
 
+		/*
+		 * Search for a record with the same type and name.
+		 * Records with different names might be in the same
+		 * linked list when the hash functions % SPRIME assigns
+		 * them the same index (hash collision)
+		 */
 		data = mdnsd_record_data(r);
-		// Search for a record with the same type and name. Records with different names might be in the same linked list
-		// when the hash functions % SPRIME assigns them the same index (hash collision)
 		if (data->type == type && strcmp(data->name, name) == 0)
 			return r;
 
