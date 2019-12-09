@@ -811,11 +811,14 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		while (cur && message_packet_len(m) + _rr_len(&cur->rr) < d->frame) {
 
 			if (cur->rr.type == QTYPE_PTR) {
-				MDNSD_LOG_TRACE("Send Publish PTR: Name: %s, rdlen: %d, rdata: %s, rdname: %s", cur->rr.name,cur->rr.rdlen, cur->rr.rdata, cur->rr.rdname);
+				MDNSD_LOG_TRACE("Send Publish PTR: Name: %s, rdlen: %d, rdata: %.*s, rdname: %s",
+				        cur->rr.name,cur->rr.rdlen, cur->rr.rdlen, cur->rr.rdata, cur->rr.rdname == NULL ? "" : cur->rr.rdname);
 			} else if (cur->rr.type == QTYPE_SRV) {
-				MDNSD_LOG_TRACE("Send Publish SRV: Name: %s, rdlen: %d, rdata: %s, rdname: %s, port: %d, prio: %d, weight: %d", cur->rr.name,cur->rr.rdlen, cur->rr.rdname, cur->rr.rdata, cur->rr.srv.port, cur->rr.srv.priority, cur->rr.srv.weight);
+				MDNSD_LOG_TRACE("Send Publish SRV: Name: %s, rdlen: %d, rdata: %.*s, rdname: %s, port: %d, prio: %d, weight: %d",
+				        cur->rr.name,cur->rr.rdlen, cur->rr.rdlen, cur->rr.rdata, cur->rr.rdname == NULL ? "" : cur->rr.rdname,
+				        cur->rr.srv.port, cur->rr.srv.priority, cur->rr.srv.weight);
 			} else {
-				MDNSD_LOG_TRACE("Send Publish: Name: %s, Type: %d, rdname: %s", cur->rr.name, cur->rr.type, cur->rr.rdname);
+				MDNSD_LOG_TRACE("Send Publish: Name: %s, Type: %d", cur->rr.name, cur->rr.type);
 			}
 			next = cur->list;
 			ret++;
