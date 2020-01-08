@@ -186,8 +186,8 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 	if (strcmp(r->name, a->name) || r->type != a->type)
 		return 0;
 
-	if (r->type == QTYPE_SRV && !strcmp(r->known.srv.name, a->rdname) && a->srv.port == r->known.srv.port &&
-	    a->srv.weight == r->known.srv.weight && a->srv.priority == r->known.srv.priority)
+	if (r->type == QTYPE_SRV && r->known.srv.name && a->rdname && !strcmp(r->known.srv.name, a->rdname) &&
+		a->srv.port == r->known.srv.port && a->srv.weight == r->known.srv.weight && a->srv.priority == r->known.srv.priority)
 		return 1;
 
 	if ((r->type == QTYPE_PTR || r->type == QTYPE_NS || r->type == QTYPE_CNAME) && !strcmp(a->rdname, r->known.ns.name))
