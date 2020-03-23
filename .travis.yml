@@ -9,11 +9,27 @@ sudo: false
 compiler:
   - gcc
   - clang
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "ZloCkvEk8xqiputpALV3CaWM2cXVvII9gppTVV/FhswoWrB+hJbu0LsIHz7H7JGy69pKDdK8Ac1pPiHXBwUHuHCf60Uh+vS3YlYG/O8GxWunf9DPUrQN5FGsWaiDDOt/su2MzHBOMQv2bIfMg9WtxqzLEqA3nEf5qvtrvKDZIU4Ky1BhHIJqs8yz3F5aOTPTjxPSSNg+kngj8K0wc/JfwHSYtpjFI1AwWx/n8KVumOe08Yl0hmeTb4O9QzggNbCqm22fnFX503MG9o/0QqhIXQ+xkBZWZsiJCTTd68LJg/lXjFruRYe8xYt9kPdtW/00fCwgr+w40STx2oijFkZ+/9ABZKUTGqh95tFgHpg6j66YyyXgE5AKNTiwtGW2lTReXaD0FQLFiJNbrteBVpr39gJ6/uj0KVHvDyOQoLQYCmh2dTugUnN8iIvd5e1lvrdBW51vYE8ghkQuMDv24LQuU9bEbgliLO32FHt/Vs/raVebuC3D6kGwrVzYxvOvm1qutMIG8j3IV/3iBeUfM5BOxRDW8BlORbMe/IH9Q8bkHVgxxar98f+rgH//L6tDm17N3aW38rpgtf4zOl15GXE+Pv3IiWPCvUNf26ii/DxSFerWMF+OJNX4V9k91mqd62L5KORJ1xWGy4F6DZTYmwTdszMqhXjewbd0ms8hyS5O6kA="
+
+before_install:
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 addons:
   apt:
     packages:
       - tree
+  coverity_scan:
+    project:
+      name: "troglobit/mdnsd"
+      description: "Jeremie Miller's original mdnsd"
+    notification_email: troglobit@gmail.com
+    build_command_prepend: "./autogen.sh && ./configure --prefix="
+    build_command: "make clean all"
+    branch_pattern: dev
 
 # We don't have the configure script checked in, and no test rule yet
 script:
