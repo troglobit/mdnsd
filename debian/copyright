@@ -3,11 +3,12 @@ Upstream-Name: mdnsd
 Source: https://github.com/troglobit/mdnsd
 
 Files: *
-Copyright: Copyright (c) 2003  Jeremie Miller <jer@jabber.org>
+Copyright: 2003  Jeremie Miller <jer@jabber.org>
+           2016-2020  Joachim Nilsson <troglobit@gmail.com>
 License: BSD
 
 Files: debian/*
-Copyright: Copyright 2018  Joachim Nilsson <troglobit@gmail.com>
+Copyright: Copyright 2018-2020  Joachim Nilsson <troglobit@gmail.com>
 License: BSD
 
 License: BSD

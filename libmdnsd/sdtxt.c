@@ -1,6 +1,7 @@
 /* Service discovery TXT record parsing/generation
  *
  * Copyright (c) 2003  Jeremie Miller <jer@jabber.org>
+ * Copyright (c) 2016-2020  Joachim Nilsson <troglobit@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
