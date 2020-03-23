@@ -1,3 +1,13 @@
+mdnsd (0.9) stable; urgency=medium
+
+  * Clarify placeholders in BSD-3 license
+  * Fix possible segfault when a new node is allocated
+  * Fix possible segfault when comparing strings
+  * Fix node comparison to check name *and* type
+  * Update Debian packaging to Standards-Version 4.3.0
+
+ -- Joachim Nilsson <troglobit@gmail.com>  Mon, 23 Mar 2020 21:04:24 +0100
+
 mdnsd (0.8) unstable; urgency=low
 
   * Initial Debian Release (Closes: #12)

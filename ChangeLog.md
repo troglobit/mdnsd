@@ -4,6 +4,25 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v0.9][] - 2020-03-23
+---------------------
+
+Bug fix and license clarification release.
+
+### Changes
+- Update Debian packaging
+- Minor updates to README
+- Clarify placeholders in BSD-3 license, spotted by Thomas Bong
+
+### Fixes
+- Fix #20: segfault that may occur when a new node is allocated, by
+  Colin MacKenzie IV
+- Fix #22: check for both name *and* type in `mdnsd_find()`, otherwise
+  any previous name matching may be considered an existing node, found
+  and fixed by Thomas Bong
+- Fix #23: possible NULL pointer dereference when comparing strings
+
+
 [v0.8][] - 2018-08-23
 ---------------------
 
@@ -43,5 +62,6 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.8...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.9...HEAD
+[v0.9]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
 [v0.8]: https://github.com/troglobit/mdnsd/compare/v0.7G...v0.8
