@@ -1,4 +1,7 @@
 .debhelper
+autoreconf.after
+autoreconf.before
+debhelper-build-stamp
 files
 mdnsd.debhelper.log
 mdnsd.substvars
