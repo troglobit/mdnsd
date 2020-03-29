@@ -35,6 +35,7 @@ different path can be given, which may be a directory or a single file.
         -l LEVEL  Set log level: none, err, notice (default), info, debug
         -n        Run in foreground, do not detach from controlling terminal
         -p        Persistent mode, retry if the socket or interface is lost
+        -s        Use syslog even if running in foreground
         -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
         -v        Show program version
     
@@ -63,6 +64,9 @@ This section provides a couple of service record examples.  The syntax
 of the files is fairly free form.  Optional directives: `name`, `txt`,
 `target`, and `cname`.
 
+> **Note:** you need at least one service record for `mdnsd` to respond
+> to queries from, e.g., `mdns-scan`.
+
 _FTP service example:_
 
     # /etc/mdns.d/ftp.service -- mDNS-SD advertisement of FTP service
@@ -84,6 +88,13 @@ _HTTP service example:_
     txt version=2.31
     target www.luthien.local
     cname home.local
+
+_SSH service example:_
+
+    # /etc/mdns.d/http.service -- mDNS-SD advertisement of SSH service
+    name Dropbear SSH Server
+    type _ssh._tcp
+    port 22
 
 
 Build & Install

@@ -64,8 +64,8 @@ struct query {
 
 struct unicast {
 	int id;
-	unsigned long int to;
-	unsigned short int port;
+	struct in_addr to;
+	unsigned short port;
 	mdns_record_t *r;
 	struct unicast *next;
 };
@@ -310,7 +310,7 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* Create generic unicast response struct */
-static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned long int to, unsigned short int port)
+static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr to, unsigned short port)
 {
 	struct unicast *u;
 
@@ -754,10 +754,10 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 	d->received_callback_data = data;
 }
 
-int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned short int port)
+int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned short port)
 {
-	int i, j;
 	mdns_record_t *r = NULL;
+	int i, j;
 
 	if (d->shutdown)
 		return 1;
@@ -866,7 +866,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, unsigned long int ip, unsigned
 	return 0;
 }
 
-int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsigned short int *port)
+int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port)
 {
 	mdns_record_t *r;
 	int ret = 0;
@@ -876,7 +876,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, unsigned long int *ip, unsign
 
 	/* Defaults, multicast */
 	*port = htons(5353);
-	*ip = inet_addr("224.0.0.251");
+	ip->s_addr = inet_addr("224.0.0.251");
 	m->header.qr = 1;
 	m->header.aa = 1;
 
@@ -1336,7 +1336,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 
 		memset(&m, 0, sizeof(m));
 		message_parse(&m, buf);
-		rc = mdnsd_in(d, &m, (unsigned long int)from.sin_addr.s_addr, ntohs(from.sin_port));
+		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
 		if (rc)
 			return 1;
 	}
@@ -1354,7 +1354,7 @@ static int process_out(mdns_daemon_t *d, int sd)
 	struct in_addr ip;
 	struct message m;
 
-	while (mdnsd_out(d, &m, (long unsigned int *)&ip, &port)) {
+	while (mdnsd_out(d, &m, &ip, &port)) {
 		unsigned char *buf;
 		ssize_t len;
 
