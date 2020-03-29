@@ -800,7 +800,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 				if (r->unique && r->unique < 5 && !r->modified) {
 					/* Check all to-be answers against our own */
 					for (j = 0; j < m->nscount; j++) {
-						if (m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
+						if (!m->an || m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
 							continue;
 
 						/* This answer isn't ours, conflict! */
