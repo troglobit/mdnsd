@@ -5,6 +5,12 @@ mdnsd (0.9) stable; urgency=medium
   * Fix possible segfault when comparing strings
   * Fix node comparison to check name *and* type
   * Update Debian packaging to Standards-Version 4.3.0
+  * Added basic man pages
+  * Split mdnsd package into several packages:
+    - mdnsd
+    - mquery
+    - libmdnsd1
+    - libmdnsd-dev
 
  -- Joachim Nilsson <troglobit@gmail.com>  Mon, 23 Mar 2020 21:04:24 +0100
 
