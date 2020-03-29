@@ -109,7 +109,7 @@ static int msock(void)
 static int usage(int code)
 {
 	/* mquery 12 _http._tcp.local. */
-	printf("usage: mquery [-t TYPE] [NAME]\n");
+	printf("usage: mquery [-h] [-t TYPE] [NAME]\n");
 	return code;
 }
 
