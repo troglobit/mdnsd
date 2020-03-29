@@ -1,6 +1,6 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
-[![License Badge][]][License] [![Travis Status][]][Travis]
+[![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
 Table of Contents
 -----------------
@@ -125,11 +125,13 @@ This GitHub project is an attempt to clean it up, develop it further,
 and maintain it for the long haul.
 
 
-[jeremie]:       https://github.com/quartzjer
-[releases]:      https://github.com/troglobit/mdnsd/releases
-[announced]:     https://web.archive.org/web/20140115142008/http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
-[API.md]:        https://github.com/troglobit/mdnsd/blob/master/API.md
-[License]:       https://en.wikipedia.org/wiki/BSD_licenses
-[License Badge]: https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
-[Travis]:        https://travis-ci.org/troglobit/mdnsd
-[Travis Status]: https://travis-ci.org/troglobit/mdnsd.png?branch=master
+[jeremie]:         https://github.com/quartzjer
+[releases]:        https://github.com/troglobit/mdnsd/releases
+[announced]:       https://web.archive.org/web/20140115142008/http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
+[API.md]:          https://github.com/troglobit/mdnsd/blob/master/API.md
+[License]:         https://en.wikipedia.org/wiki/BSD_licenses
+[License Badge]:   https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
+[Travis]:          https://travis-ci.org/troglobit/mdnsd
+[Travis Status]:   https://travis-ci.org/troglobit/mdnsd.png?branch=master
+[Coverity Scan]:   https://scan.coverity.com/projects/20680
+[Coverity Status]: https://scan.coverity.com/projects/20680/badge.svg
