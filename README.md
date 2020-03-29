@@ -2,8 +2,6 @@ mdnsd - embeddable Multicast DNS Daemon
 =======================================
 [![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
-Table of Contents
------------------
 - [About](#about)
 - [Usage](#usage)
   - [Service Records](#service-records)
