@@ -130,9 +130,11 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 		return -1;
 
 #ifdef SO_REUSEPORT
-	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag));
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
+		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
 #endif
-	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
+		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
 
 	/* Double the size of the receive buffer (getsockopt() returns the double) */
 	len = sizeof(bufsiz);
@@ -148,10 +150,12 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	 * All traffic on 224.0.0.* is link-local only, so the default
 	 * TTL is set to 1.  Some users may however want to route mDNS.
 	 */
-	setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)))
+		WARN("Failed setting IP_MULTICAST_TTL to %d: %s", ttl, strerror(errno));
 
 	/* mDNS also supports unicast, so we need a relevant TTL there too */
-	setsockopt(sd, IPPROTO_IP, IP_TTL, &unicast_ttl, sizeof(unicast_ttl));
+	if (setsockopt(sd, IPPROTO_IP, IP_TTL, &unicast_ttl, sizeof(unicast_ttl)))
+		WARN("Failed setting IP_TTL to %d: %s", unicast_ttl, strerror(errno));
 
 	/* Filter inbound traffic from anyone (ANY) to port 5353 */
 	memset(&sin, 0, sizeof(sin));
@@ -170,7 +174,8 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	 */
 	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
 	mc.imr_interface = ina;
-	setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
+	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc)))
+		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
 
 	return sd;
 }
