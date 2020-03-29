@@ -111,6 +111,8 @@ xht_t *txt2sd(unsigned char *txt, int len)
 			val++;
 		}
 		xht_store(h, key, strlen(key), val, strlen(val));
+		if (val)
+			xht_store(h, key, strlen(key), val, strlen(val));
 	}
 
 	return h;
