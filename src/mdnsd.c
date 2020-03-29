@@ -138,8 +138,10 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 
 	/* Double the size of the receive buffer (getsockopt() returns the double) */
 	len = sizeof(bufsiz);
-	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len))
-		setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz));
+	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len)) {
+		if (setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz)))
+			INFO("Failed doubling the size of the receive buffer: %s", strerror(errno));
+	}
 
 	/* Set interface for outbound multicast */
 	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina)))
