@@ -74,36 +74,34 @@ static int ans(mdns_answer_t *a, void *arg)
 /* Create multicast 224.0.0.251:5353 socket */
 static int msock(void)
 {
-	int s, flag = 1;
-	struct sockaddr_in in;
-	struct ip_mreq mc;
+	struct sockaddr_in sin;
+	struct ip_mreq imr;
+	int sd, flag = 1;
 
-	memset(&in, 0, sizeof(in));
-	in.sin_family = AF_INET;
-	in.sin_port = htons(5353);
-	in.sin_addr.s_addr = 0;
-
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	if (sd < 0)
 		return 0;
 
 #ifdef SO_REUSEPORT
-	setsockopt(s, SOL_SOCKET, SO_REUSEPORT, (char *)&flag, sizeof(flag));
+	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag));
 #endif
-	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
-	if (bind(s, (struct sockaddr *)&in, sizeof(in))) {
-		close(s);
+	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(5353);
+	sin.sin_addr.s_addr = 0;
+
+	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
+		close(sd);
 		return 0;
 	}
 
-	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-	mc.imr_interface.s_addr = htonl(INADDR_ANY);
-	setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc));
+	imr.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
+	imr.imr_interface.s_addr = htonl(INADDR_ANY);
+	setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr));
 
-	flag = fcntl(s, F_GETFL, 0);
-	flag |= O_NONBLOCK;
-	fcntl(s, F_SETFL, flag);
-
-	return s;
+	return sd;
 }
 
 static int usage(int code)
@@ -126,7 +124,7 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	char *name = DISCO_NAME;
 	int type = QTYPE_PTR;	/* 12 */
-	int s, c;
+	int sd, c;
 
 	while ((c = getopt(argc, argv, "h?t:")) != EOF) {
 		switch (c) {
@@ -147,7 +145,8 @@ int main(int argc, char *argv[])
 		name = argv[optind];
 
 	d = mdnsd_new(1, 1000);
-	if ((s = msock()) == 0) {
+	sd = msock();
+	if (sd == -1) {
 		printf("Failed creating multicast socket: %s\n", strerror(errno));
 		return 1;
 	}
@@ -161,12 +160,12 @@ int main(int argc, char *argv[])
 		tv = mdnsd_sleep(d);
 
 		FD_ZERO(&fds);
-		FD_SET(s, &fds);
-		select(s + 1, &fds, 0, 0, tv);
+		FD_SET(sd, &fds);
+		select(sd + 1, &fds, 0, 0, tv);
 
-		if (FD_ISSET(s, &fds)) {
+		if (FD_ISSET(sd, &fds)) {
 			ssize = sizeof(struct sockaddr_in);
-			while ((bsize = recvfrom(s, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
 				message_parse(&m, buf);
 				mdnsd_in(d, &m, from.sin_addr, from.sin_port);
@@ -182,7 +181,7 @@ int main(int argc, char *argv[])
 			to.sin_family = AF_INET;
 			to.sin_port = port;
 			to.sin_addr = ip;
-			if (sendto(s, message_packet(&m), message_packet_len(&m), 0, (struct sockaddr *)&to,
+			if (sendto(sd, message_packet(&m), message_packet_len(&m), 0, (struct sockaddr *)&to,
 				   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
 				printf("Failed writing to socket: %s\n", strerror(errno));
 				return 1;
