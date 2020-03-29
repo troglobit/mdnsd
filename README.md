@@ -35,6 +35,7 @@ different path can be given, which may be a directory or a single file.
         -l LEVEL  Set log level: none, err, notice (default), info, debug
         -n        Run in foreground, do not detach from controlling terminal
         -p        Persistent mode, retry if the socket or interface is lost
+        -s        Use syslog even if running in foreground
         -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
         -v        Show program version
     

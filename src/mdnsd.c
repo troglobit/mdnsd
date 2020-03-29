@@ -47,6 +47,7 @@ volatile sig_atomic_t running = 1;
 volatile sig_atomic_t reload = 0;
 char *prognm      = PACKAGE_NAME;
 int   background  = 1;
+int   logging     = 1;
 
 
 void mdnsd_conflict(char *name, int type, void *arg)
@@ -184,6 +185,7 @@ static int usage(int code)
 	       "    -l LEVEL  Set log level: none, err, notice (default), info, debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
 	       "    -p        Persistent mode, retry if the socket or interface is lost\n"
+	       "    -s        Use syslog even if running in foreground\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
 	       "    -v        Show program version\n"
 	       "\n"
@@ -219,7 +221,7 @@ int main(int argc, char *argv[])
 	int c, sd, rc;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "a:hi:l:npt:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "a:hi:l:npst:v?")) != EOF) {
 		switch (c) {
 		case 'a':
 			inet_aton(optarg, &ina);
@@ -241,10 +243,15 @@ int main(int argc, char *argv[])
 
 		case 'n':
 			background = 0;
+			logging--;
 			break;
 
 		case 'p':
 			persistent = 1;
+			break;
+
+		case 's':
+			logging++;
 			break;
 
 		case 't':
@@ -268,8 +275,10 @@ int main(int argc, char *argv[])
 	else
 		path = "/etc/mdns.d";
 
-	if (background) {
+	if (logging > 0)
 		mdnsd_log_open(prognm);
+
+	if (background) {
 		DBG("Daemonizing ...");
 		if (-1 == daemon(0, 0)) {
 			ERR("Failed daemonizing: %s", strerror(errno));
