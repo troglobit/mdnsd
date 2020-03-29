@@ -843,7 +843,10 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 
 	/* Process each answer, check for a conflict, and cache */
 	for (i = 0; i < m->ancount; i++) {
-		if (!m->an || !m->an[i].name) {
+		if (!m->an)
+			continue;
+
+		if (!m->an[i].name) {
 			ERR("Got answer with NULL name at %p. Type: %d, TTL: %ld, skipping",
 			    (void*)&m->an[i], m->an[i].type, m->an[i].ttl);
 			continue;
