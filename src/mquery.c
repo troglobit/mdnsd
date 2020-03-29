@@ -83,9 +83,11 @@ static int msock(void)
 		return 0;
 
 #ifdef SO_REUSEPORT
-	setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag));
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
+		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
 #endif
-	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
+		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -99,7 +101,8 @@ static int msock(void)
 
 	imr.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
 	imr.imr_interface.s_addr = htonl(INADDR_ANY);
-	setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr));
+	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr)))
+		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
 
 	return sd;
 }
