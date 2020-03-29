@@ -64,6 +64,9 @@ This section provides a couple of service record examples.  The syntax
 of the files is fairly free form.  Optional directives: `name`, `txt`,
 `target`, and `cname`.
 
+> **Note:** you need at least one service record for `mdnsd` to respond
+> to queries from, e.g., `mdns-scan`.
+
 _FTP service example:_
 
     # /etc/mdns.d/ftp.service -- mDNS-SD advertisement of FTP service
@@ -85,6 +88,13 @@ _HTTP service example:_
     txt version=2.31
     target www.luthien.local
     cname home.local
+
+_SSH service example:_
+
+    # /etc/mdns.d/http.service -- mDNS-SD advertisement of SSH service
+    name Dropbear SSH Server
+    type _ssh._tcp
+    port 22
 
 
 Build & Install
