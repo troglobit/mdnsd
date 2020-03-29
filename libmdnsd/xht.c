@@ -170,20 +170,21 @@ void *xht_get(xht_t *h, const char *key)
 void xht_free(xht_t *h)
 {
 	int i;
-	xhn_t *n, *f;
 
 	if (h == NULL)
 		return;
 
 	for (i = 0; i < h->prime; i++) {
-		if ((n = (&h->zen[i])) == NULL)
-			continue;
+		xhn_t *n = &h->zen[i];
+
 		if (n->flag) {
 			free(n->u.key);
 			free(n->val);
 		}
+
 		for (n = (&h->zen[i])->next; n != 0;) {
-			f = n->next;
+			xhn_t *f = n->next;
+
 			if (n->flag) {
 				free(n->u.key);
 				free(n->val);
