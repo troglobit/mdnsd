@@ -7,7 +7,7 @@ Requires=network-online.target
 
 [Service]
 Type=simple
-ExecStart=@SBINDIR@/mdnsd -n
+ExecStart=@SBINDIR@/mdnsd -sn
 
 [Install]
 WantedBy=multi-user.target
