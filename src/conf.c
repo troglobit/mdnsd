@@ -230,7 +230,7 @@ int conf_init(mdns_daemon_t *d, char *path)
 
 	if (stat(path, &st)) {
 		if (ENOENT == errno)
-			ERR("No such file or directory: %s", path);
+			ERR("Services directory %s, missing or unconfigured.", path);
 		else
 			ERR("Cannot determine path type: %s", strerror(errno));
 		return 1;
