@@ -1,0 +1,96 @@
+.\" Copyright (c) 2020  Joachim Nilsson <troglobit@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in the
+.\"       documentation and/or other materials provided with the distribution.
+.\"     * Neither the name of the copyright holders nor the names of its
+.\"       contributors may be used to endorse or promote products derived from
+.\"       this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+.\" ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 29 2020
+.Dt MDNSD 8 SMM
+.Os
+.Sh NAME
+.Nm mdnsd
+.Nd small multicast DNS daemon
+.Sh SYNOPSIS
+.Nm mdnsd
+.Op Fl hnpsv
+.Op Fl a Ar ADDRESS
+.Op Fl l Ar LEVEL
+.Op Ar PATH
+.Sh DESCRIPTION
+.Nm
+by default reads service definitions from
+.Pa /etc/mdns.d/*.service ,
+but a different path may be given, which can be a directory
+or a single service file.
+.Pp
+.Nm
+uses the system routing table, specifically the default (unicast) route,
+to determine the default interface to use.  To run on systems without a
+default route, e.g. a link-local only system, use
+.Fl i Ar IFACE .
+Starting
+.Nm
+early in the boot process means the system may not yet have acquired an
+IP address, or the interface itself may not even exist yet, in which
+case
+.Fl p
+may likely also help.
+.Sh OPTIONS
+This program follows the usual UNIX command line syntax. The options are
+as follows:
+.Bl -tag
+.It Fl a Ar ADDRESS
+Address of service/host to announce, default: auto.
+.It Fl h
+Print a help message and exit.
+.It Fl i Ar IFACE
+Interface to announce services on, and get address from.
+.It Fl l Ar LEVEL
+Set log level: none, err, notice (default), info, debug.
+.It Fl n
+Run in foreground, do not detach from controlling terminal.
+.It Fl p
+Persistent mode, retry if the socket or interface is lost.
+.It Fl s
+Use syslog even if running in foreground.
+.It Fl t Ar TTL
+Set TTL of mDNS packets, default: 1 (link-local only).
+.It Fl v
+Show program version.
+.El
+.Sh FILES
+.Bl -tag -width /etc/mdns.d/*.service -compact
+.It Pa /etc/mdns.d/*.service
+mDNS-SD services to announce.
+.El
+.Sh SEE ALSO
+.Xr mquery 1 ,
+.Xr mdns-scan 1
+.Sh AUTHORS
+This mDNS-SD implementation was initially developed by
+.An Jeremie Miller Aq jer@jabber.org
+in 2003.  Much later
+.An Joachim Nilsson Aq troglobit@gmail.com
+adopted it for further development and maintenance
+.Nm
+at
+.Lk https://github.com/troglobit/mdnsd GitHub .
