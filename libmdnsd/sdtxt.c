@@ -91,7 +91,6 @@ unsigned char *sd2txt(xht_t *h, int *len)
 
 xht_t *txt2sd(unsigned char *txt, int len)
 {
-	char key[256], *val;
 	xht_t *h = 0;
 
 	if (txt == 0 || len == 0 || *txt == 0)
@@ -101,18 +100,19 @@ xht_t *txt2sd(unsigned char *txt, int len)
 
 	/* Loop through data breaking out each block, storing into hashtable */
 	for (; *txt <= len && len > 0; len -= *txt, txt += *txt + 1) {
+		char key[256], *val;
+
 		if (*txt == 0)
 			break;
 
 		memcpy(key, txt + 1, *txt);
 		key[*txt] = 0;
-		if ((val = strchr(key, '=')) != 0) {
-			*val = 0;
-			val++;
-		}
-		xht_store(h, key, strlen(key), val, strlen(val));
-		if (val)
+
+		val = strchr(key, '=');
+		if (val) {
+			*val++ = 0;
 			xht_store(h, key, strlen(key), val, strlen(val));
+		}
 	}
 
 	return h;
