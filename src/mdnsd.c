@@ -177,7 +177,7 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hnv] [-a ADDRESS] [-l LEVEL] [PATH]\n"
+	printf("Usage: %s [-hnpsv] [-a ADDRESS] [-l LEVEL] [PATH]\n"
 	       "\n"
 	       "    -a ADDR   Address of service/host to announce, default: auto\n"
 	       "    -h        This help text\n"

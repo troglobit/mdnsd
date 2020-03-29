@@ -27,7 +27,7 @@ Usage
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
 different path can be given, which may be a directory or a single file.
 
-    Usage: mdnsd [-hnv] [-a ADDRESS] [-l LEVEL] [PATH]
+    Usage: mdnsd [-hnpsv] [-a ADDRESS] [-l LEVEL] [PATH]
     
         -a ADDR   Address of service/host to announce, default: auto
         -h        This help text
