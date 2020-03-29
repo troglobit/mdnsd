@@ -119,7 +119,6 @@ int main(int argc, char *argv[])
 	struct message m;
 	unsigned long int ip;
 	unsigned short int port;
-	struct timeval *tv;
 	ssize_t bsize;
 	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
@@ -157,7 +156,10 @@ int main(int argc, char *argv[])
 	mdnsd_query(d, name, type, ans, NULL);
 
 	while (1) {
+		struct timeval *tv;
+
 		tv = mdnsd_sleep(d);
+
 		FD_ZERO(&fds);
 		FD_SET(s, &fds);
 		select(s + 1, &fds, 0, 0, tv);
