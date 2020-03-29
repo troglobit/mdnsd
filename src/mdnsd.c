@@ -120,7 +120,7 @@ static int iface_init(char *iface, struct in_addr *ina)
 static int multicast_socket(struct in_addr ina, unsigned char ttl)
 {
 	struct sockaddr_in sin;
-	struct ip_mreq mc;
+	struct ip_mreq imr;
 	socklen_t len;
 	int unicast_ttl = 255;
 	int sd, bufsiz, flag = 1;
@@ -172,9 +172,9 @@ static int multicast_socket(struct in_addr ina, unsigned char ttl)
 	 * we can receive multicast without a proper net route (default
 	 * route or a 224.0.0.0/24 net route).
 	 */
-	mc.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-	mc.imr_interface = ina;
-	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mc, sizeof(mc)))
+	imr.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
+	imr.imr_interface = ina;
+	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr)))
 		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
 
 	return sd;
