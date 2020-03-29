@@ -770,7 +770,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			mdns_record_t *r_start, *r_next;
 			bool has_conflict = false;
 
-			if (m->qd[i].class != d->class)
+			if (!m->qd || m->qd[i].class != d->class)
 				continue;
 
 			INFO("Query for %s of type %d ...", m->qd[i].name, m->qd[i].type);
