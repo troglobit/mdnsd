@@ -42,5 +42,5 @@ script:
   - tree ~/tmp
   - LD_LIBRARY_PATH=~/tmp/lib ldd ~/tmp/sbin/mdnsd
   - size ~/tmp/sbin/mdnsd
-  - size ~/tmp/lib/libmdnsd.so.0.0.0
+  - size ~/tmp/lib/libmdnsd.so*
   - LD_LIBRARY_PATH=~/tmp/lib ~/tmp/sbin/mdnsd -h
