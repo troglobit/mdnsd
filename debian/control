@@ -10,11 +10,43 @@ Vcs-Browser: https://github.com/troglobit/mdnsd/commits/
 
 Package: mdnsd
 Suggests: mdns-scan
-Architecture: any
 Conflicts: avahi-daemon
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libmdnsd1 (= ${binary:Version})
+Architecture: any
 Description: small multicast DNS Daemon
  mDNSd is a standalone mDNS-SD daemon for small systems.  Although still
  limited in functionality it can announce services like FTP, HTTP, and
  SSH and respond to scanning (enumeration) requests from tools like
  mdns-scan.
+
+Package: mquery
+Suggests: mdnsd
+Depends: ${shlibs:Depends}, ${misc:Depends}, libmdnsd1 (= ${binary:Version})
+Architecture: any
+Description: small query tool for multicast DNS
+ mquery is a companion tool to mdnsd, but can also be used stand-alone
+ with other mDNS servers.  It formats and sends mDNS service queries,
+ similar to how mdns-scan works, but with a fraction of the usability.
+
+Package: libmdnsd1
+Section: libs
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Architecture: any
+Description: small mDNS library for mdnsd
+ This is the multicast DNS (mDNS) library used by mdnsd.  It can be used
+ by any application in need of advertising its services over mDNS-SD.
+ .
+ See the libmdnsd-dev package for details.
+
+Package: libmdnsd-dev
+Priority: optional
+Section: libdevel
+Depends: ${misc:Depends}, libmdnsd1 (= ${binary:Version})
+Architecture: any
+Description: static library, header files, and docs for libmdnsd
+ This is the static library, including header files, for libmdnsd
+ which was originally made for mdnsd.
+ .
+ The documentation is scarce at best, see the source code for mdnsd
+ for the gory details.
+ 

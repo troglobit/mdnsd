@@ -1,0 +1,3 @@
+shlibs:Depends=libc6 (>= 2.15), libmdnsd1 (>= 0.9)
+misc:Depends=
+misc:Pre-Depends=
