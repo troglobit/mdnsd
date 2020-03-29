@@ -1323,18 +1323,19 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
 
 static int process_in(mdns_daemon_t *d, int sd)
 {
+	static unsigned char buf[MAX_PACKET_LEN + 1];
 	struct sockaddr_in from;
-	unsigned char buf[MAX_PACKET_LEN];
 	socklen_t ssize = sizeof(struct sockaddr_in);
 	ssize_t bsize;
 
+	memset(buf, 0, sizeof(buf));
 	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
-		struct message m;
+		struct message m = { 0 };
 		int rc;
 
+		buf[MAX_PACKET_LEN] = 0;
 		mdnsd_log_hex("Got Data:", buf, bsize);
 
-		memset(&m, 0, sizeof(m));
 		message_parse(&m, buf);
 		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
 		if (rc)
