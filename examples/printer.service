@@ -1,0 +1,3 @@
+# mDNS-SD advertisement of foo._printer._tcp.local.
+type _printer._tcp
+port 515

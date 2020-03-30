@@ -1,0 +1,3 @@
+# mDNS-SD advertisement of foo._ipp._tcp.local.
+type _ipp._tcp
+port 631
