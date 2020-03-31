@@ -110,6 +110,18 @@ Users who checked out the source from GitHub must run `./autogen.sh`
 first to create the configure script.  This requires GNU autotools and
 `pkg-config` to be installed on the build system.
 
+If you install to the default location used by the configure script,
+the library is installed in `/usr/local/lib`, which may not be in
+the default search path for your system.  Depending on the C library
+used, the file `/etc/ld.so.conf` may exist (there may also be a
+sub-directory).  If `/usr/local/lib` is already listed there, you
+may need to update the cache:
+
+    ldconfig -v |grep mdnsd
+
+If you don't get any output from the above command, the ld.so.conf needs
+updating, or you may not be using the GNU C library.
+
 
 Origin & References
 -------------------
