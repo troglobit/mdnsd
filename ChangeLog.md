@@ -4,8 +4,8 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v0.9][UNRELEASED]
-------------------
+[v0.9][] - 2020-04-02
+---------------------
 
 Bug fix and license clarification release.
 
@@ -63,6 +63,6 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.8...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.9...HEAD
 [v0.9]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
 [v0.8]: https://github.com/troglobit/mdnsd/compare/v0.7G...v0.8

@@ -12,7 +12,7 @@ mdnsd (0.9) stable; urgency=medium
     - libmdnsd1
     - libmdnsd-dev
 
- -- Joachim Nilsson <troglobit@gmail.com>  Mon, 23 Mar 2020 21:04:24 +0100
+ -- Joachim Nilsson <troglobit@gmail.com>  Thu, 02 Apr 2020 06:59:34 +0200
 
 mdnsd (0.8) unstable; urgency=low
 
