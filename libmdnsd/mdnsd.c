@@ -481,6 +481,7 @@ static void _gc(mdns_daemon_t *d)
 
 static int _cache(mdns_daemon_t *d, struct resource *r)
 {
+	unsigned long int ttl;
 	struct cached *c = 0;
 	int i = _namehash(r->name) % LPRIME;
 
@@ -508,6 +509,16 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	 * XXX: The c->rr.ttl is a hack for now, BAD SPEC, start
 	 *      retrying just after half-waypoint, then expire
 	 */
+	ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
+
+	/* If entry already exists, only udpate TTL value */
+	c = _c_next(d, NULL, r->name, r->type);
+	if (c) {
+		c->rr.ttl = ttl;
+		return 0;
+	}
+
+	/* New entry, cache it */
 	c = calloc(1, sizeof(struct cached));
 	if (!c)
 		return 1;
@@ -518,7 +529,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 		return 1;
 	}
 	c->rr.type = r->type;
-	c->rr.ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
+	c->rr.ttl = ttl;
 	c->rr.rdlen = r->rdlength;
 	if (r->rdlength && !r->rdata) {
 //		ERR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
