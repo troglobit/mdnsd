@@ -121,7 +121,7 @@ static int _namehash(const char *s)
 /* Basic linked list and hash primitives */
 static struct query *_q_next(mdns_daemon_t *d, struct query *q, const char *host, int type)
 {
-	if (q == 0)
+	if (!q)
 		q = d->queries[_namehash(host) % SPRIME];
 	else
 		q = q->next;
@@ -136,7 +136,7 @@ static struct query *_q_next(mdns_daemon_t *d, struct query *q, const char *host
 
 static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *host, int type)
 {
-	if (c == 0)
+	if (!c)
 		c = d->cache[_namehash(host) % LPRIME];
 	else
 		c = c->next;
@@ -151,7 +151,7 @@ static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *hos
 
 static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *host, int type)
 {
-	if (r == NULL)
+	if (!r)
 		r = d->published[_namehash(host) % SPRIME];
 	else
 		r = r->next;
@@ -444,7 +444,7 @@ static void _c_expire(mdns_daemon_t *d, struct cached **list)
 	struct cached *last = NULL;
 	struct cached *next;
 
-	while (cur != NULL) {
+	while (cur) {
 		next = cur->next;
 
 		if ((unsigned long)d->now.tv_sec >= cur->rr.ttl) {
@@ -521,7 +521,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	c->rr.ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 	c->rr.rdlen = r->rdlength;
 	if (r->rdlength && !r->rdata) {
-		//ERR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
+//		ERR("rdlength is %d but rdata is NULL for domain name %s, type: %d, ttl: %ld", r->rdlength, r->name, r->type, r->ttl);
 		free(c->rr.name);
 		free(c);
 		return 1;
@@ -652,7 +652,7 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 		mdns_record_t *r, *next;
 
 		r = d->published[i];
-		while (r != NULL) {
+		while (r) {
 			next = r->next;
 
 			if (r->rr.type == QTYPE_A)
@@ -774,13 +774,14 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 				continue;
 
 			INFO("Query for %s of type %d ...", m->qd[i].name, m->qd[i].type);
-			if ((r = _r_next(d, NULL, m->qd[i].name, m->qd[i].type)) == NULL)
+			r = _r_next(d, NULL, m->qd[i].name, m->qd[i].type);
+			if (!r)
 				continue;
 
 			/* Service enumeratio/discovery prepeare to send all matching records */
 			if (!strcmp(m->qd[i].name, DISCO_NAME)) {
 				d->disco = 1;
-				while (r != NULL) {
+				while (r) {
 					if (!strcmp(r->rr.name, DISCO_NAME))
 						_r_send(d, r);
 					r = _r_next(d, r, m->qd[i].name, m->qd[i].type);
