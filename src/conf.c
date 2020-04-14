@@ -217,6 +217,14 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	mdnsd_set_raw(d, r, (char *)packet, len);
 	free(packet);
 
+	free(srec.type);
+	free(srec.name);
+	free(srec.target);
+	free(srec.cname);
+	for (i = 0; i < NELEMS(srec.txt); i++) {
+		free(srec.txt[i]);
+	}
+
 	return 0;
 }
 
