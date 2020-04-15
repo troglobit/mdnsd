@@ -177,7 +177,7 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	}
 
 	if (!srec.name)
-		srec.name = hostname;
+		srec.name = strdup(hostname);
 	if (!srec.type)
 		srec.type = strdup("_http._tcp");
 
