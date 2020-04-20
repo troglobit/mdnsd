@@ -170,8 +170,9 @@ int main(int argc, char *argv[])
 			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
-				message_parse(&m, buf);
-				mdnsd_in(d, &m, from.sin_addr, from.sin_port);
+				if (message_parse(&m, buf)==0) {
+					mdnsd_in(d, &m, from.sin_addr, from.sin_port);
+				}
 			}
 			if (bsize < 0 && errno != EAGAIN) {
 				printf("Failed reading from socket %d: %s\n", errno, strerror(errno));

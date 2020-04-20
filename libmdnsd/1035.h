@@ -116,8 +116,9 @@ void long2net (unsigned long int  l, unsigned char **buf);
 /**
  * parse packet into message, packet must be at least MAX_PACKET_LEN and
  * message must be zero'd for safety
+ * @returns 0 if OK, else parser error.
  */
-void message_parse(struct message *m, unsigned char *packet);
+int message_parse(struct message *m, unsigned char *packet);
 
 /**
  * create a message for sending out on the wire

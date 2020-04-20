@@ -318,13 +318,13 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 	x = (void *)(m->_packet + m->_len);	\
 	m->_len += y;
 
-void message_parse(struct message *m, unsigned char *packet)
+int message_parse(struct message *m, unsigned char *packet)
 {
 	int i;
 	unsigned char *buf;
 
 	if (packet == 0 || m == 0)
-		return;
+		return 1;
 
 	/* Header stuff bit crap */
 	m->_buf = buf = packet;
@@ -347,25 +347,25 @@ void message_parse(struct message *m, unsigned char *packet)
 	m->qdcount = net2short(&buf);
 	if (m->_len + (sizeof(struct question) * m->qdcount) > MAX_PACKET_LEN - 8) {
 		m->qdcount = 0;
-		return;
+		return 1;
 	}
 
 	m->ancount = net2short(&buf);
 	if (m->_len + (sizeof(struct resource) * m->ancount) > MAX_PACKET_LEN - 8) {
 		m->ancount = 0;
-		return;
+		return 1;
 	}
 
 	m->nscount = net2short(&buf);
 	if (m->_len + (sizeof(struct resource) * m->nscount) > MAX_PACKET_LEN - 8) {
 		m->nscount = 0;
-		return;
+		return 1;
 	}
 
 	m->arcount = net2short(&buf);
 	if (m->_len + (sizeof(struct resource) * m->arcount) > MAX_PACKET_LEN - 8) {
 		m->arcount = 0;
-		return;
+		return 1;
 	}
 
 	/* Process questions */
@@ -381,11 +381,13 @@ void message_parse(struct message *m, unsigned char *packet)
 	my(m->ns, sizeof(struct resource) * m->nscount);
 	my(m->ar, sizeof(struct resource) * m->arcount);
 	if (_rrparse(m, m->an, m->ancount, &buf))
-		return;
+		return 1;
 	if (_rrparse(m, m->ns, m->nscount, &buf))
-		return;
+		return 1;
 	if (_rrparse(m, m->ar, m->arcount, &buf))
-		return;
+		return 1;
+
+	return 0;
 }
 
 void message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class)
