@@ -255,8 +255,10 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 //		fprintf(stderr, "Record type %d class 0x%2x ttl %lu len %d\n", rr[i].type, rr[i].class, rr[i].ttl, rr[i].rdlength);
 
 		/* If not going to overflow, make copy of source rdata */
-		if (rr[i].rdlength + (*bufp - m->_buf) > MAX_PACKET_LEN || m->_len + rr[i].rdlength > MAX_PACKET_LEN)
+		if (rr[i].rdlength + (*bufp - m->_buf) > MAX_PACKET_LEN || m->_len + rr[i].rdlength > MAX_PACKET_LEN) {
+			rr[i].rdlength = 0;
 			return 1;
+		}
 
 		/* For the following records the rdata will be parsed later. So don't set it here:
 		 * NS, CNAME, PTR, DNAME, SOA, MX, AFSDB, RT, KX, RP, PX, SRV, NSEC
