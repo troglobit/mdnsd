@@ -104,12 +104,14 @@ static void _label(struct message *m, unsigned char **bufp, char **namep)
 	/* Loop storing label in the block */
 	for (label = (char *)*bufp; *label != 0; name += *label + 1, label += *label + 1) {
 		/* Skip past any compression pointers, kick out if end encountered (bad data prolly) */
+		int prevOffset = -1;
 		while (*label & 0xc0) {
 			unsigned short int offset = _ldecomp(label);
-			if (offset > m->_len)
+			if (offset <= prevOffset || offset > m->_len)
 				return;
 			if (*(label = (char *)m->_buf + offset) == 0)
 				break;
+			prevOffset = offset;
 		}
 
 		/* Make sure we're not over the limits */
