@@ -199,7 +199,7 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 
 	if (srec.cname)
 		record(d, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
-	record(d, 0, NULL, hlocal, QTYPE_TXT, 4500);
+	r = record(d, 0, NULL, hlocal, QTYPE_TXT, 4500);
 
 	h = xht_new(11);
 	for (i = 0; i < srec.txt_num; i++) {
