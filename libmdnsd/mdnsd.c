@@ -512,8 +512,11 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 
 	/* If entry already exists, only udpate TTL value */
-	c = _c_next(d, NULL, r->name, r->type);
-	if (c) {
+	c = NULL;
+	while ((c = _c_next(d, c, r->name, r->type))) {
+		if (r->type == QTYPE_PTR && strcmp(c->rr.rdname, r->known.ns.name)) {
+			continue;
+		}
 		c->rr.ttl = ttl;
 		return 0;
 	}
