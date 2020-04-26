@@ -104,12 +104,14 @@ static void _label(struct message *m, unsigned char **bufp, char **namep)
 	/* Loop storing label in the block */
 	for (label = (char *)*bufp; *label != 0; name += *label + 1, label += *label + 1) {
 		/* Skip past any compression pointers, kick out if end encountered (bad data prolly) */
+		int prevOffset = -1;
 		while (*label & 0xc0) {
 			unsigned short int offset = _ldecomp(label);
-			if (offset > m->_len)
+			if (offset <= prevOffset || offset > m->_len)
 				return;
 			if (*(label = (char *)m->_buf + offset) == 0)
 				break;
+			prevOffset = offset;
 		}
 
 		/* Make sure we're not over the limits */
@@ -255,8 +257,10 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 //		fprintf(stderr, "Record type %d class 0x%2x ttl %lu len %d\n", rr[i].type, rr[i].class, rr[i].ttl, rr[i].rdlength);
 
 		/* If not going to overflow, make copy of source rdata */
-		if (rr[i].rdlength + (*bufp - m->_buf) > MAX_PACKET_LEN || m->_len + rr[i].rdlength > MAX_PACKET_LEN)
+		if (rr[i].rdlength + (*bufp - m->_buf) > MAX_PACKET_LEN || m->_len + rr[i].rdlength > MAX_PACKET_LEN) {
+			rr[i].rdlength = 0;
 			return 1;
+		}
 
 		/* For the following records the rdata will be parsed later. So don't set it here:
 		 * NS, CNAME, PTR, DNAME, SOA, MX, AFSDB, RT, KX, RP, PX, SRV, NSEC
@@ -316,13 +320,13 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 	x = (void *)(m->_packet + m->_len);	\
 	m->_len += y;
 
-void message_parse(struct message *m, unsigned char *packet)
+int message_parse(struct message *m, unsigned char *packet)
 {
 	int i;
 	unsigned char *buf;
 
 	if (packet == 0 || m == 0)
-		return;
+		return 1;
 
 	/* Header stuff bit crap */
 	m->_buf = buf = packet;
@@ -345,25 +349,25 @@ void message_parse(struct message *m, unsigned char *packet)
 	m->qdcount = net2short(&buf);
 	if (m->_len + (sizeof(struct question) * m->qdcount) > MAX_PACKET_LEN - 8) {
 		m->qdcount = 0;
-		return;
+		return 1;
 	}
 
 	m->ancount = net2short(&buf);
 	if (m->_len + (sizeof(struct resource) * m->ancount) > MAX_PACKET_LEN - 8) {
 		m->ancount = 0;
-		return;
+		return 1;
 	}
 
 	m->nscount = net2short(&buf);
 	if (m->_len + (sizeof(struct resource) * m->nscount) > MAX_PACKET_LEN - 8) {
 		m->nscount = 0;
-		return;
+		return 1;
 	}
 
 	m->arcount = net2short(&buf);
 	if (m->_len + (sizeof(struct resource) * m->arcount) > MAX_PACKET_LEN - 8) {
 		m->arcount = 0;
-		return;
+		return 1;
 	}
 
 	/* Process questions */
@@ -379,11 +383,13 @@ void message_parse(struct message *m, unsigned char *packet)
 	my(m->ns, sizeof(struct resource) * m->nscount);
 	my(m->ar, sizeof(struct resource) * m->arcount);
 	if (_rrparse(m, m->an, m->ancount, &buf))
-		return;
+		return 1;
 	if (_rrparse(m, m->ns, m->nscount, &buf))
-		return;
+		return 1;
 	if (_rrparse(m, m->ar, m->arcount, &buf))
-		return;
+		return 1;
+
+	return 0;
 }
 
 void message_qd(struct message *m, char *name, unsigned short int type, unsigned short int class)

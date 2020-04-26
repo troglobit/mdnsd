@@ -1351,7 +1351,9 @@ static int process_in(mdns_daemon_t *d, int sd)
 		buf[MAX_PACKET_LEN] = 0;
 		mdnsd_log_hex("Got Data:", buf, bsize);
 
-		message_parse(&m, buf);
+		rc = message_parse(&m, buf);
+		if (rc)
+			return 1;
 		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
 		if (rc)
 			return 1;
