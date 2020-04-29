@@ -120,7 +120,7 @@ static int _label(struct message *m, unsigned char **bufp, char **namep)
 		}
 
 		/* Make sure we're not over the limits */
-		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) > 4096)
+		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) >= MAX_PACKET_LEN)
 			return 1;
 
 		/* Copy chars for this label */
