@@ -93,10 +93,15 @@ static unsigned short int _ldecomp(char *ptr)
 	return i;
 }
 
-static void _label(struct message *m, unsigned char **bufp, char **namep)
+static int _label(struct message *m, unsigned char **bufp, char **namep)
 {
 	int x;
 	char *label, *name;
+
+
+	/* Sanity check */
+	if (m->_len > (int)sizeof(m->_packet))
+		return 1;
 
 	/* Set namep to the end of the block */
 	*namep = name = (char *)m->_packet + m->_len;
@@ -108,15 +113,15 @@ static void _label(struct message *m, unsigned char **bufp, char **namep)
 		while (*label & 0xc0) {
 			unsigned short int offset = _ldecomp(label);
 			if (offset <= prevOffset || offset > m->_len)
-				return;
+				return 1;
 			if (*(label = (char *)m->_buf + offset) == 0)
 				break;
 			prevOffset = offset;
 		}
 
 		/* Make sure we're not over the limits */
-		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) > 4096)
-			return;
+		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) >= MAX_PACKET_LEN)
+			return 1;
 
 		/* Copy chars for this label */
 		memcpy(name, label + 1, (size_t)*label);
@@ -135,13 +140,15 @@ static void _label(struct message *m, unsigned char **bufp, char **namep)
 			continue;
 
 		*namep = m->_labels[x];
-		return;
+		return 0;
 	}
 
 	/* No cache, so cache it if room */
 	if (x < MAX_NUM_LABELS && m->_labels[x] == 0)
 		m->_labels[x] = *namep;
 	m->_len += (name - *namep) + 1;
+
+	return 0;
 }
 
 /* Internal label matching */
@@ -249,7 +256,8 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 	int i;
 
 	for (i = 0; i < count; i++) {
-		_label(m, bufp, &(rr[i].name));
+		if (_label(m, bufp, &(rr[i].name)))
+			return 1;
 		rr[i].type     = net2short(bufp);
 		rr[i].class    = net2short(bufp);
 		rr[i].ttl      = net2long(bufp);
@@ -286,22 +294,26 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 			break;
 
 		case QTYPE_NS:
-			_label(m, bufp, &(rr[i].known.ns.name));
+			if (_label(m, bufp, &(rr[i].known.ns.name)))
+				return 1;
 			break;
 
 		case QTYPE_CNAME:
-			_label(m, bufp, &(rr[i].known.cname.name));
+			if (_label(m, bufp, &(rr[i].known.cname.name)))
+				return 1;
 			break;
 
 		case QTYPE_PTR:
-			_label(m, bufp, &(rr[i].known.ptr.name));
+			if (_label(m, bufp, &(rr[i].known.ptr.name)))
+				return 1;
 			break;
 
 		case QTYPE_SRV:
 			rr[i].known.srv.priority = net2short(bufp);
 			rr[i].known.srv.weight = net2short(bufp);
 			rr[i].known.srv.port = net2short(bufp);
-			_label(m, bufp, &(rr[i].known.srv.name));
+			if (_label(m, bufp, &(rr[i].known.srv.name)))
+				return 1;
 			break;
 
 		case QTYPE_TXT:
@@ -373,7 +385,8 @@ int message_parse(struct message *m, unsigned char *packet)
 	/* Process questions */
 	my(m->qd, sizeof(struct question) * m->qdcount);
 	for (i = 0; i < m->qdcount; i++) {
-		_label(m, &buf, &(m->qd[i].name));
+		if (_label(m, &buf, &(m->qd[i].name)))
+			return 1;
 		m->qd[i].type  = net2short(&buf);
 		m->qd[i].class = net2short(&buf);
 	}
