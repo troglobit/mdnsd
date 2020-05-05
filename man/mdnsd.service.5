@@ -1,0 +1,138 @@
+.\" Copyright (c) 2020  Joachim Nilsson <troglobit@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"     * Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"     * Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in the
+.\"       documentation and/or other materials provided with the distribution.
+.\"     * Neither the name of the copyright holders nor the names of its
+.\"       contributors may be used to endorse or promote products derived from
+.\"       this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+.\" ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd May 5 2020
+.Dt MDNSD.SERVICE 5 SMM
+.Os
+.Sh NAME
+.Nm mdnsd.service
+.Nd mdnsd service configuration file
+.Sh SYNOPSIS
+.Nm /etc/mdns.d/*.service
+.Sh DESCRIPTION
+.Nm mdnsd
+needs at least one
+.Pa .service
+file to actively annouce itself.  The systems that
+.Nm mdnsd
+targets usually have an SSH or HTTP/HTTPS service, which can be located
+by end-users with mDNS-SD.   E.g.,
+.Nm mdnsd
+may be embedded in your printer, an access point, an industrial switch,
+or other headless network connected device.
+.Pp
+Services are defined one per
+.Pa .service
+file and only two fields are mandatory:
+.Bl -tag -width TERM
+.It Cm type Ar TYPE
+The
+.Ar TYPE
+can be any service type from
+.Pa /etc/services ,
+prefixed with an underscore.  E.g., 'ipp' is port 631/tcp, which gives
+the type
+.Cm _ipp._tcp
+.It Cm port Ar PORT
+The port is the UDP or TCP port to annouce.  This can also be found in
+the file
+.Pa /etc/services .
+.El
+.Pp
+There are also a few optional fields supported, see below for examples:
+.Bl -tag -width TERM
+.It Cm name Ar STRING
+Free form string to describe service.  Usually what is presented to end
+users by discovery agents.
+.It Cm txt Ar STRING
+Text records are free-form strings that are included in service
+announcements.  Useful for announcing meta data about your service.
+.It Cm target Ar URL
+URL to announce as canonical for this service.
+.It Cm cname Ar URL
+A
+.Cm cname
+is an alias that can be announced for unique service reqords.  E.g., if
+only one HTTP service is available on the LAN it can be reached throught
+the full name, or using the
+.Cm cname
+alias.
+.El
+.Sh EXAMPLES
+This section has some examples of mDNS service definitions.
+.Ss SSH
+.Bd -unfilled -offset indent
+# mDNS-SD advertisement of SSH service
+type _ssh._tcp
+port 22
+.Ed
+.Ss FTP
+.Bd -unfilled -offset indent
+# mDNS-SD advertisement of FTP service
+name Troglobit FTP Server
+type _ftp._tcp
+port 21
+txt server=uftpd
+txt version=2.6
+target ftp.luthien.local
+.Ed
+.Ss HTTP
+.Bd -unfilled -offset indent
+# mDNS-SD advertisement of HTTP service
+type _http._tcp
+port 80
+txt server=merecat
+txt version=2.31
+cname home.local
+.Ed
+.Ss Printer
+.Bd -unfilled -offset indent
+# mDNS-SD advertisement of foo._printer._tcp.local.
+type _printer._tcp
+port 515
+.Ed
+.Ss IPP
+.Bd -unfilled -offset indent
+# mDNS-SD advertisement of foo._ipp._tcp.local.
+type _ipp._tcp
+port 631
+.Ed
+.Sh FILES
+.Bl -tag -width /etc/services -compact
+.It Pa /etc/services
+List of standard service definitions in UNIX
+.El
+.Sh SEE ALSO
+.Xr mquery 1 ,
+.Xr mdnsd 8
+.Sh AUTHORS
+This mDNS-SD implementation was initially developed by
+.An Jeremie Miller Aq jer@jabber.org
+in 2003.  Much later
+.An Joachim Nilsson Aq troglobit@gmail.com
+adopted it for further development and maintenance
+.Nm
+at
+.Lk https://github.com/troglobit/mdnsd GitHub
