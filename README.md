@@ -46,12 +46,13 @@ GNU/Linux, use `mdns-scan` or Wireshark to verify your setup.  Other
 operating systems have their own set of tools for mDNS-SD and mdnsd may
 not even have a place there.
 
-mdnsd uses the system routing table, specifically the default (unicast)
-route, to determine the default interface to use.  To run on systems
-without a default route, e.g. a link-local only system, use `-i IFACE`.
-Starting mdnsd early in the boot process means the system may not yet
-have acquired an IP address, or the interface itself may not even exist
-yet, in which case `-p` may likely also help.
+mdnsd currently only runs on one system interface.  To figure out which
+to use, the system routing table is queried, specifically the default
+route.  To run on systems without a default route, e.g. a link-local
+only system, use `-i IFACE`.  Starting mdnsd early in the boot process
+means the system may not yet have acquired an IP address, or the
+interface itself may not even exist yet, in which case `-p` may likely
+also help.
 
 See the file [API.md][] for pointers on how to use the mDNS library.
 
