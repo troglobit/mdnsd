@@ -1,3 +1,15 @@
+mdnsd (0.10) stable; urgency=medium
+
+  * Add mdnsd.service.5 for service record files
+  * Memory leak fixes
+  * Append text field to the TXT record instead of the A record, in the
+    case of a PTR type, the name must also match
+  * Fix potential endless loop when decoding message labels
+  * Skip message processing when the packet parser failed
+  * Misc. fuzzer fixes
+
+ -- Joachim Nilsson <troglobit@gmail.com>  Wed, 06 May 2020 10:03:00 +0200
+
 mdnsd (0.9) stable; urgency=medium
 
   * Clarify placeholders in BSD-3 license
