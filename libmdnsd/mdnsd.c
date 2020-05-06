@@ -1347,6 +1347,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 	ssize_t bsize;
 
 	memset(buf, 0, sizeof(buf));
+
 	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 		struct message m = { 0 };
 		int rc;
@@ -1356,10 +1357,10 @@ static int process_in(mdns_daemon_t *d, int sd)
 
 		rc = message_parse(&m, buf);
 		if (rc)
-			return 1;
+			continue;
 		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
 		if (rc)
-			return 1;
+			continue;
 	}
 
 	if (bsize < 0 && errno != EAGAIN)
