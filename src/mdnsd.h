@@ -35,7 +35,7 @@
 
 /* From The Practice of Programming, by Kernighan and Pike */
 #ifndef NELEMS
-#define NELEMS(array) (sizeof(array) / sizeof(array[0]))
+#define NELEMS(array) (sizeof(array) / sizeof((array)[0]))
 #endif
 
 void mdnsd_conflict(char *name, int type, void *arg);

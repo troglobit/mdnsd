@@ -995,7 +995,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 
 				if (d->probing == r)
 					d->probing = r->list;
-				else
+				else if (last)
 					last->list = r->list;
 
 				r->list = 0;
@@ -1014,7 +1014,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		}
 
 		/* Scan probe list again to append our to-be answers */
-		for (r = d->probing; r != 0; last = r, r = r->list) {
+		for (r = d->probing; r != 0; r = r->list) {
 			r->unique++;
 
 			INFO("Send Answer in Probe: Name: %s, Type: %d", r->rr.name, r->rr.type);
