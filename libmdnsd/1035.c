@@ -317,8 +317,8 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 #define my(x,y)					\
 	while (m->_len & 7)			\
 		m->_len++;			\
-	x = (void *)(m->_packet + m->_len);	\
-	m->_len += y;
+	(x) = (void *)(m->_packet + m->_len);	\
+	m->_len += (y);
 
 int message_parse(struct message *m, unsigned char *packet)
 {
