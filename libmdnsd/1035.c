@@ -470,7 +470,7 @@ void message_rdata_srv(struct message *m, unsigned short int priority, unsigned 
 
 void message_rdata_raw(struct message *m, unsigned char *rdata, unsigned short int rdlength)
 {
-	if (((unsigned char *)m->_buf - m->_packet) + rdlength > 4096)
+	if ((m->_buf - m->_packet) + rdlength > 4096)
 		rdlength = 0;
 	short2net(rdlength, &(m->_buf));
 	memcpy(m->_buf, rdata, rdlength);
@@ -516,5 +516,5 @@ int message_packet_len(struct message *m)
 	if (m->_buf == 0)
 		return 12;
 
-	return (unsigned char *)m->_buf - m->_packet;
+	return m->_buf - m->_packet;
 }
