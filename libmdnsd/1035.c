@@ -80,7 +80,7 @@ void long2net(unsigned long int l, unsigned char **bufp)
 	*bufp += 4;
 }
 
-static unsigned short int _ldecomp(char *ptr)
+static unsigned short int _ldecomp(const char *ptr)
 {
 	unsigned short int i;
 
@@ -152,7 +152,7 @@ static int _label(struct message *m, unsigned char **bufp, char **namep)
 }
 
 /* Internal label matching */
-static int _lmatch(struct message *m, char *l1, char *l2)
+static int _lmatch(const struct message *m, const char *l1, const char *l2)
 {
 	int len;
 
@@ -187,7 +187,7 @@ static int _lmatch(struct message *m, char *l1, char *l2)
 }
 
 /* Nasty, convert host into label using compression */
-static int _host(struct message *m, unsigned char **bufp, char *name)
+static int _host(struct message *m, unsigned char **bufp, const char *name)
 {
 	char label[256], *l;
 	int len = 0, x = 1, y = 0, last = 0;
