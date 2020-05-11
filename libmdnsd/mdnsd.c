@@ -142,7 +142,7 @@ static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *hos
 		c = c->next;
 
 	for (; c != 0; c = c->next) {
-		if ((type == c->rr.type || type == 255) && strcmp(c->rr.name, host) == 0)
+		if ((type == c->rr.type || type == QTYPE_ANY) && strcmp(c->rr.name, host) == 0)
 			return c;
 	}
 
@@ -157,7 +157,7 @@ static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *ho
 		r = r->next;
 
 	for (; r != NULL; r = r->next) {
-		if (type == r->rr.type && strcmp(r->rr.name, host) == 0)
+		if ((type == r->rr.type || type == QTYPE_ANY) && strcmp(r->rr.name, host) == 0)
 			return r;
 	}
 
