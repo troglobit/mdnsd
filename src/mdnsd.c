@@ -300,7 +300,6 @@ int main(int argc, char *argv[])
 	}
 
 	sig_init();
-	conf_init(d, path);
 
 retry:
 	while (iface_init(iface, &ina)) {
@@ -315,6 +314,7 @@ retry:
 		return 1;
 	}
 	mdnsd_set_address(d, ina);
+	conf_init(d, path);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
 	sd = multicast_socket(ina, (unsigned char)ttl);
