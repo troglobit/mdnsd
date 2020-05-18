@@ -34,7 +34,7 @@
 
 unsigned short int net2short(unsigned char **bufp)
 {
-	short int i;
+	unsigned short int i;
 
 	i = **bufp;
 	i <<= 8;
@@ -146,7 +146,7 @@ static int _label(struct message *m, unsigned char **bufp, char **namep)
 	/* No cache, so cache it if room */
 	if (x < MAX_NUM_LABELS && m->_labels[x] == 0)
 		m->_labels[x] = *namep;
-	m->_len += (name - *namep) + 1;
+	m->_len += (int)(name - *namep) + 1;
 
 	return 0;
 }
@@ -200,7 +200,7 @@ static int _host(struct message *m, unsigned char **bufp, const char *name)
 		if (name[y] == '.') {
 			if (!name[y + 1])
 				break;
-			label[last] = x - (last + 1);
+			label[last] = (char)(x - (last + 1));
 			last = x;
 		} else {
 			label[x] = name[y];
@@ -212,7 +212,7 @@ static int _host(struct message *m, unsigned char **bufp, const char *name)
 		y++;
 	}
 
-	label[last] = x - (last + 1);
+	label[last] = (char)(x - (last + 1));
 	if (x == 1)
 		x--;		/* Special case, bad names, but handle correctly */
 	len = x + 1;
@@ -225,7 +225,7 @@ static int _host(struct message *m, unsigned char **bufp, const char *name)
 				/* Matching label, set up pointer */
 				l = label + x;
 				short2net((unsigned char *)m->_labels[y] - m->_packet, (unsigned char **)&l);
-				label[x] |= 0xc0;
+				label[x] |= '\xc0';
 				len = x + 2;
 				break;
 			}
@@ -516,5 +516,5 @@ int message_packet_len(struct message *m)
 	if (m->_buf == 0)
 		return 12;
 
-	return m->_buf - m->_packet;
+	return (int)(m->_buf - m->_packet);
 }

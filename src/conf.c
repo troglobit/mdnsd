@@ -92,8 +92,14 @@ static void read_line(char *line, struct conf_srec *srec)
 		srec->type = strdup(arg);
 	if (match(token, "name"))
 		srec->name = strdup(arg);
-	if (match(token, "port"))
-		srec->port = atoi(arg);
+	if (match(token, "port")) {
+		char *end;
+		srec->port = (int)strtol(arg, &end, 10);
+		if (*end) {
+			DBG("Bad port number: %s", arg);
+			return;
+		}
+	}
 	if (match(token, "target"))
 		srec->target = strdup(arg);
 	if (match(token, "cname"))

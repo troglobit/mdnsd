@@ -164,9 +164,9 @@ static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *ho
 	return 0;
 }
 
-static int _rr_len(mdns_answer_t *rr)
+static size_t _rr_len(mdns_answer_t *rr)
 {
-	int len = 12;		/* name is always compressed (dup of earlier), plus normal stuff */
+	size_t len = 12;		/* name is always compressed (dup of earlier), plus normal stuff */
 
 	if (rr->rdata)
 		len += rr->rdlen;
@@ -205,9 +205,9 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 }
 
 /* Compare time values easily */
-static int _tvdiff(struct timeval old, struct timeval new)
+static long _tvdiff(struct timeval old, struct timeval new)
 {
-	int udiff = 0;
+	long udiff = 0;
 
 	if (old.tv_sec != new.tv_sec)
 		udiff = (new.tv_sec - old.tv_sec) * 1000000;
@@ -597,7 +597,7 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 	mdns_record_t *r;
 	int ret = 0;
 
-	while ((r = *list) != NULL && message_packet_len(m) + _rr_len(&r->rr) < d->frame) {
+	while ((r = *list) != NULL && message_packet_len(m) + (int)_rr_len(&r->rr) < d->frame) {
 		if (r != r->list)
 			*list = r->list;
 		else
@@ -927,7 +927,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		mdns_record_t *last = NULL;
 		mdns_record_t *next;
 
-		while (cur && message_packet_len(m) + _rr_len(&cur->rr) < d->frame) {
+		while (cur && message_packet_len(m) + (int)_rr_len(&cur->rr) < d->frame) {
 			if (cur->rr.type == QTYPE_PTR) {
 				INFO("Send Publish PTR: Name: %s, rdlen: %d, rdata: %s, rdname: %s", cur->rr.name,cur->rr.rdlen, cur->rr.rdata, cur->rr.rdname);
 			} else if (cur->rr.type == QTYPE_SRV) {
@@ -1066,7 +1066,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 			/* If room, add all known good entries */
 			c = 0;
 			while ((c = _c_next(d, c, q->name, q->type)) != 0 && c->rr.ttl > (unsigned long)d->now.tv_sec + 8 &&
-			       message_packet_len(m) + _rr_len(&c->rr) < d->frame) {
+				message_packet_len(m) + (int)_rr_len(&c->rr) < d->frame) {
 
 				INFO("Add known answer: Name: %s, Type: %d", c->rr.name, c->rr.type);
 				message_an(m, q->name, (unsigned short)q->type, (unsigned short)d->class, c->rr.ttl - (unsigned long)d->now.tv_sec);
@@ -1094,7 +1094,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 {
 	time_t expire;
-	int sec, usec;
+	long usec;
 
 	d->sleep.tv_sec = d->sleep.tv_usec = 0;
 
@@ -1127,7 +1127,8 @@ struct timeval *mdnsd_sleep(mdns_daemon_t *d)
 
 	/* Also check for queries with known answer expiration/retry */
 	if (d->checkqlist) {
-		if ((sec = d->checkqlist - d->now.tv_sec) > 0)
+		long sec;
+		if ((sec = (long)d->checkqlist - d->now.tv_sec) > 0)
 			d->sleep.tv_sec = sec;
 		RET;
 	}

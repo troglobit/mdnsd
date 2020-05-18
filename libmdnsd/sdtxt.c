@@ -32,9 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int _sd2txt_len(const char *key, char *val)
+static size_t _sd2txt_len(const char *key, char *val)
 {
-	int ret = strlen(key);
+	size_t ret = strlen(key);
 
 	if (!*val)
 		return ret;
@@ -47,18 +47,18 @@ static int _sd2txt_len(const char *key, char *val)
 
 static void _sd2txt_count(xht_t *__attribute__((unused)) h, const char *key, void *val, void *arg)
 {
-	int *count = (int *)arg;
+	int *const count = arg;
 
-	*count += _sd2txt_len(key, (char *)val) + 1;
+	*count += (int)_sd2txt_len(key, val) + 1;
 }
 
 static void _sd2txt_write(xht_t *__attribute__((unused)) h, const char *key, void *val, void *arg)
 {
-	unsigned char **txtp = (unsigned char **)arg;
-	char *cval = (char *)val;
+	unsigned char **txtp = arg;
+	char *const cval = val;
 
 	/* Copy in lengths, then strings */
-	**txtp = _sd2txt_len(key, (char *)val);
+	**txtp = _sd2txt_len(key, val);
 	(*txtp)++;
 	memcpy(*txtp, key, strlen(key));
 	*txtp += strlen(key);
@@ -77,7 +77,7 @@ unsigned char *sd2txt(xht_t *h, int *len)
 
 	*len = 0;
 
-	xht_walk(h, _sd2txt_count, (void *)len);
+	xht_walk(h, _sd2txt_count, len);
 	if (!*len) {
 		*len = 1;
 		return (unsigned char *)strdup("");
@@ -111,7 +111,7 @@ xht_t *txt2sd(unsigned char *txt, int len)
 		val = strchr(key, '=');
 		if (val) {
 			*val++ = 0;
-			xht_store(h, key, strlen(key), val, strlen(val));
+			xht_store(h, key, (int)strlen(key), val, (int)strlen(val));
 		}
 	}
 
