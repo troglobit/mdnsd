@@ -88,24 +88,28 @@ static void read_line(char *line, struct conf_srec *srec)
 		return;
 	}
 
-	if (match(token, "type"))
+	if (match(token, "type")) {
+		free(srec->type);
 		srec->type = strdup(arg);
-	if (match(token, "name"))
+	} else if (match(token, "name")) {
+		free(srec->name);
 		srec->name = strdup(arg);
-	if (match(token, "port")) {
+	} else if (match(token, "port")) {
 		char *end;
 		srec->port = (int)strtol(arg, &end, 10);
 		if (*end) {
 			DBG("Bad port number: %s", arg);
 			return;
 		}
-	}
-	if (match(token, "target"))
+	} else if (match(token, "target")) {
+		free(srec->target);
 		srec->target = strdup(arg);
-	if (match(token, "cname"))
+	} else if (match(token, "cname")) {
+		free(srec->cname);
 		srec->cname = strdup(arg);
-	if (match(token, "txt") && srec->txt_num < NELEMS(srec->txt))
+	} else if (match(token, "txt") && srec->txt_num < NELEMS(srec->txt)) {
 		srec->txt[srec->txt_num++] = strdup(arg);
+    }
 }
 
 static int parse(char *fn, struct conf_srec *srec)
