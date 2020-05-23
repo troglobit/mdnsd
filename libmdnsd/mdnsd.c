@@ -1350,6 +1350,9 @@ static int process_in(mdns_daemon_t *d, int sd)
 	memset(buf, 0, sizeof(buf));
 
 	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+		if (from.sin_addr.s_addr == d->addr.s_addr)
+			continue;	/* Drop own multicast packet */
+
 		struct message m = { 0 };
 		int rc;
 
