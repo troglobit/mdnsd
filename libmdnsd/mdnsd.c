@@ -869,7 +869,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 
 		INFO("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
 		r = _r_next(d, 0, m->an[i].name, m->an[i].type);
-		if (r != 0 && r->unique && !r->modified && _a_match(&m->an[i], &r->rr) == 0)
+		if (r != 0 && r->unique && r->modified && _a_match(&m->an[i], &r->rr))
 			_conflict(d, r);
 
 		if (d->received_callback)
