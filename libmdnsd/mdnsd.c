@@ -922,7 +922,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		ret += _r_out(d, m, &d->a_now);
 
 	/* Check if it's time to send the publish retries (unlink if done) */
-	if (d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
+	if (!d->probing && d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
 		mdns_record_t *cur = d->a_publish;
 		mdns_record_t *last = NULL;
 		mdns_record_t *next;
