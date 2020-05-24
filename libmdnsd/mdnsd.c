@@ -1423,3 +1423,18 @@ int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
 
 	return rc;
 }
+
+void records_clear(mdns_daemon_t *d)
+{
+	for (int i = 0; i < SPRIME; i++)
+	{
+		mdns_record_t *r = d->published[i];
+		while (r)
+		{
+			mdns_record_t *const next = r->next;
+			_r_remove_lists(d, r, NULL);
+			r = next;
+		}
+		d->published[i] = NULL;
+	}
+}

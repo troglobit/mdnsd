@@ -337,6 +337,7 @@ retry:
 			if (!running)
 				break;
 			if (reload) {
+				records_clear(d);
 				conf_init(d, path, hostname_idx);
 				reload = 0;
 			}

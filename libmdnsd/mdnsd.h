@@ -245,5 +245,9 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
  * Returns 0 on success, 1 on read error, 2 on write error
  */
 int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOut, struct timeval *tv);
-
+/**
+ * Clear all records from the list published
+ * Returns none
+ */
+void records_clear(mdns_daemon_t *d);
 #endif	/* LIB_MDNSD_H_ */
