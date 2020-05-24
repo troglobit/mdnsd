@@ -48,11 +48,16 @@ volatile sig_atomic_t reload = 0;
 char *prognm      = PACKAGE_NAME;
 int   background  = 1;
 int   logging     = 1;
+int   hostname_idx = 1;
 
 
 void mdnsd_conflict(char *name, int type, void *arg)
 {
-	ERR("conflicting name detected %s for type %d, dropping record ...", name, type);
+	WARN("conflicting name detected %s for type %d, reload config ...", name, type);
+	if (!reload) {
+		hostname_idx++;
+		reload = 1;
+	}
 }
 
 static void record_received(const struct resource *r, void *data)
@@ -314,7 +319,7 @@ retry:
 		return 1;
 	}
 	mdnsd_set_address(d, ina);
-	conf_init(d, path);
+	conf_init(d, path, hostname_idx);
 	mdnsd_register_receive_callback(d, record_received, NULL);
 
 	sd = multicast_socket(ina, (unsigned char)ttl);
@@ -328,11 +333,11 @@ retry:
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
 		rc = select(sd + 1, &fds, NULL, NULL, &tv);
-		if (rc < 0 && EINTR == errno) {
+		if ((rc < 0 && EINTR == errno) || reload) {
 			if (!running)
 				break;
 			if (reload) {
-				conf_init(d, path);
+				conf_init(d, path, hostname_idx);
 				reload = 0;
 			}
 		}

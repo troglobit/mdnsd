@@ -44,6 +44,6 @@ void mdnsd_conflict(char *name, int type, void *arg);
 int getaddr(char *iface, struct in_addr *ina);
 
 /* conf.c */
-int conf_init(mdns_daemon_t *d, char *path);
+int conf_init(mdns_daemon_t *d, char *path, int hostname_idx);
 
 #endif /* MDNSD_H_ */
