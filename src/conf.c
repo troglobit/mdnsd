@@ -243,7 +243,7 @@ int conf_init(mdns_daemon_t *d, char *path, int hostname_idx)
 	gethostname(hostname, sizeof(hostname));
 	if (hostname_idx > 1) {
 		char suffix[16];
-		snprintf(suffix, sizeof(suffix) - 1, " #%d", hostname_idx);
+		snprintf(suffix, sizeof(suffix) - 1, "-%d", hostname_idx);
 		const size_t hlen = strlen(hostname);
 		const size_t tlen = strlen(suffix);
 		const size_t ofs  = hlen + tlen < HOST_NAME_MAX ? hlen : HOST_NAME_MAX - tlen - 1;
