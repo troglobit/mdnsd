@@ -869,7 +869,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 
 		INFO("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
 		r = _r_next(d, 0, m->an[i].name, m->an[i].type);
-		if (r != 0 && r->unique && !r->modified && _a_match(&m->an[i], &r->rr) == 0)
+		if (r != 0 && r->unique && r->modified && _a_match(&m->an[i], &r->rr))
 			_conflict(d, r);
 
 		if (d->received_callback)
@@ -922,7 +922,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		ret += _r_out(d, m, &d->a_now);
 
 	/* Check if it's time to send the publish retries (unlink if done) */
-	if (d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
+	if (!d->probing && d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
 		mdns_record_t *cur = d->a_publish;
 		mdns_record_t *last = NULL;
 		mdns_record_t *next;
@@ -1350,6 +1350,9 @@ static int process_in(mdns_daemon_t *d, int sd)
 	memset(buf, 0, sizeof(buf));
 
 	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+		if (from.sin_addr.s_addr == d->addr.s_addr)
+			continue;	/* Drop own multicast packet */
+
 		struct message m = { 0 };
 		int rc;
 
@@ -1419,4 +1422,19 @@ int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
 		d->disco = 0;
 
 	return rc;
+}
+
+void records_clear(mdns_daemon_t *d)
+{
+	for (int i = 0; i < SPRIME; i++)
+	{
+		mdns_record_t *r = d->published[i];
+		while (r)
+		{
+			mdns_record_t *const next = r->next;
+			_r_remove_lists(d, r, NULL);
+			r = next;
+		}
+		d->published[i] = NULL;
+	}
 }

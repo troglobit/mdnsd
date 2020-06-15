@@ -238,13 +238,21 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	return 0;
 }
 
-int conf_init(mdns_daemon_t *d, char *path)
+int conf_init(mdns_daemon_t *d, char *path, int hostname_idx)
 {
 	struct stat st;
 	char hostname[HOST_NAME_MAX];
 	int rc = 0;
 
 	gethostname(hostname, sizeof(hostname));
+	if (hostname_idx > 1) {
+		char suffix[16];
+		snprintf(suffix, sizeof(suffix) - 1, "-%d", hostname_idx);
+		const size_t hlen = strlen(hostname);
+		const size_t tlen = strlen(suffix);
+		const size_t ofs  = hlen + tlen < HOST_NAME_MAX ? hlen : HOST_NAME_MAX - tlen - 1;
+		strncpy(hostname + ofs, suffix, HOST_NAME_MAX - ofs);
+	}
 
 	if (stat(path, &st)) {
 		if (ENOENT == errno)
