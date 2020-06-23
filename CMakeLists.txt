@@ -61,6 +61,11 @@ install(TARGETS mdnsd mquery
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
+install(
+    FILES "${PROJECT_SOURCE_DIR}/LICENSE"
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/licenses"
+)
+
 #if(MDNSD_BUILD_UNIT_TESTS)
 #  enable_testing()
 #  add_subdirectory(tests)
