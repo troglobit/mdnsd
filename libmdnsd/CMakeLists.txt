@@ -8,6 +8,8 @@ set(MDNSD_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported")
 option(MDNSD_COMPILE_AS_CXX "Force compilation with a C++ compiler" OFF)
 mark_as_advanced(MDNSD_COMPILE_AS_CXX)
 
+option(CMAKE_POSITION_INDEPENDENT_CODE "Build mdnsd using -fPIC" ON)
+
 if(NOT MDNSD_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang"))
   add_definitions(-std=c99 -pipe
                   -Wall -Wextra -Werror
@@ -25,9 +27,12 @@ if(NOT MDNSD_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER
     add_definitions(-Wpedantic)
   endif()
   if(NOT WIN32 AND NOT CYGWIN)
-    add_definitions(-Wshadow -Wconversion -fvisibility=hidden -fPIC)
+    add_definitions(-Wshadow -Wconversion)
   endif()
 endif()
+
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 option(MDNSD_ENABLE_COVERAGE "Enable gcov coverage" OFF)
 if(MDNSD_ENABLE_COVERAGE)
@@ -47,7 +52,7 @@ configure_file("mdnsd_config.h.in" "${PROJECT_BINARY_DIR}/mdnsd_config.h")
 include_directories(${PROJECT_BINARY_DIR})
 
 set(PUBLIC_INCLUDES mdnsd.h 1035.h sdtxt.h xht.h)
-if(WIN32)
+if(CMAKE_C_COMPILER_ID MATCHES MSVC)
   list(APPEND PUBLIC_INCLUDES ms_stdint.h)
 endif()
 
@@ -63,37 +68,34 @@ if (MDNSD_BUILD_FUZZING_CORPUS)
 endif()
 
 if(MDNSD_COMPILE_AS_CXX)
-  set_source_files_properties(${LIBRARY_FILES} PROPERTIES LANGUAGE CXX)
+    set_source_files_properties(${LIBRARY_FILES} PROPERTIES LANGUAGE CXX)
 endif()
 
-if(MDNSD_BUILD_OSS_FUZZ)
-    add_library(libmdnsd ${LIBRARY_FILES} ${PUBLIC_INCLUDES})
-else()
-    add_library(libmdnsd SHARED ${LIBRARY_FILES} ${PUBLIC_INCLUDES})
+add_library(libmdnsd ${LIBRARY_FILES} ${PUBLIC_INCLUDES})
+set_property(TARGET libmdnsd PROPERTY OUTPUT_NAME "mdnsd")
+set_property(TARGET libmdnsd PROPERTY DEFINE_SYMBOL "MDNSD_DYNAMIC_LINKING_EXPORT")
+
+if(WIN32)
+  target_link_libraries(libmdnsd PUBLIC wsock32 ws2_32)
 endif()
-
-if(WIN32 OR MINGW)
-  target_link_libraries(libmdnsd wsock32 ws2_32)
-endif()
-
-target_compile_definitions(libmdnsd PRIVATE -DMDNSD_DYNAMIC_LINKING_EXPORT)
-
-include(GNUInstallDirs)
 
 install(
     TARGETS ${PROJECT_NAME}
-    EXPORT ${PROJECT_NAME}Targets
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
 install(
     FILES ${PUBLIC_INCLUDES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}"
 )
 
 install(
-  FILES ${PROJECT_BINARY_DIR}/mdnsd_config.h
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
+    FILES ${PROJECT_BINARY_DIR}/mdnsd_config.h
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}"
+)
+install(
+    FILES "${PROJECT_SOURCE_DIR}/LICENSE"
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/licenses/${PROJECT_NAME}"
 )

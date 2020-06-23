@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.8)
 
 project(mdnsd)
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/tools/cmake")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/tools/cmake")
+
+include(GNUInstallDirs)
 
 option(MDNSD_BUILD_OSS_FUZZ "Special build switch used in oss-fuzz" OFF)
 mark_as_advanced(MDNSD_BUILD_OSS_FUZZ)
@@ -13,13 +15,21 @@ if(MDNSD_BUILD_FUZZING)
     add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 endif()
 
+set(BUILD_SHARED_LIBS_DEFAULT ON)
+if(MDNSD_BUILD_OSS_FUZZ)
+    set(BUILD_SHARED_LIBS_DEFAULT OFF)
+endif()
+option(BUILD_SHARED_LIBS "Build libmdnsd as a shared library" ${BUILD_SHARED_LIBS_DEFAULT})
+
 if(MDNSD_BUILD_FUZZING_CORPUS)
     add_definitions(-DMDNSD_DEBUG_DUMP_PKGS_FILE)
 endif()
 
+option(MDNSD_ENABLE_SANITIZERS "enable sanitizers for mdnsd ON)" ON)
+
 # Debug
 string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER_CASE)
-if(BUILD_TYPE_LOWER_CASE STREQUAL "debug" AND UNIX)
+if(MDNSD_ENABLE_SANITIZERS AND BUILD_TYPE_LOWER_CASE STREQUAL "debug" AND UNIX)
     if("x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang")
         # Add default sanitizer settings when using clang and Debug build.
         # This allows e.g. CLion to find memory locations for SegFaults
@@ -42,17 +52,14 @@ if(MDNSD_BUILD_FUZZING OR MDNSD_BUILD_OSS_FUZZ)
 endif()
 
 add_executable(mdnsd mdnsd.c)
-target_link_libraries(mdnsd libmdnsd)
-if(WIN32 OR MINGW)
-  target_link_libraries(mdnsd wsock32 ws2_32)
-endif()
+target_link_libraries(mdnsd PRIVATE libmdnsd)
 
 add_executable(mquery mquery.c)
-target_link_libraries(mquery libmdnsd)
-if(WIN32 OR MINGW)
-  target_link_libraries(mquery wsock32 ws2_32)
-endif()
+target_link_libraries(mquery PRIVATE libmdnsd)
 
+install(TARGETS mdnsd mquery
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
 
 #if(MDNSD_BUILD_UNIT_TESTS)
 #  enable_testing()
