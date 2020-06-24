@@ -1,7 +1,7 @@
 version: '{build}'
 
 clone_folder: c:\projects\mdnsd
-clone_depth: 20
+clone_depth: 1
 
 environment:
     global:
@@ -11,25 +11,27 @@ environment:
         CYG_MIRROR: http://cygwin.mirror.constant.com
         CYG_CACHE: C:\cygwin\var\cache\setup
         CYG_BASH: C:/cygwin/bin/bash
+        SHARED: ON
 
     matrix:
-        - CC_NAME: MinGW Makefiles
-          CC_SHORTNAME: mingw
-          MAKE: mingw32-make
+        - GENERATOR: MinGW Makefiles
           FORCE_CXX: OFF
-        - CC_NAME: Visual Studio 9 2008
-          CC_SHORTNAME: vs2008
-          MAKE: msbuild mdnsd.sln /m
+        - GENERATOR: Visual Studio 9 2008
           FORCE_CXX: ON
-        - CC_NAME: Visual Studio 12 2013
-          CC_SHORTNAME: vs2013
-          MAKE: msbuild mdnsd.sln /m
+        - GENERATOR: Visual Studio 12 2013
           FORCE_CXX: OFF
-        - CC_NAME: Visual Studio 12 2013 Win64
-          CC_SHORTNAME: vs2013-x64
-          MAKE: msbuild mdnsd.sln /m
+          APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2013
+        - GENERATOR: Visual Studio 12 2013 Win64
           FORCE_CXX: OFF
-
+          APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2013
+        - GENERATOR: Visual Studio 16 2019
+          SHARED: ON
+          FORCE_CXX: OFF
+          APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+        - GENERATOR: Visual Studio 16 2019
+          SHARED: OFF
+          FORCE_CXX: OFF
+          APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
 cache:
   - '%CYG_CACHE%'
@@ -54,10 +56,10 @@ before_build:
   - set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
 
 build_script:
-  - cd c:\projects\mdnsd
+  - cd "%APPVEYOR_BUILD_FOLDER%""
   - md build
   - cd build
-  - echo "Testing %CC_NAME%"
-  - cmake -DMDNSD_COMPILE_AS_CXX:BOOL=%FORCE_CXX% -G"%CC_NAME%" ..
-  - '%MAKE%'
+  - echo "Testing %GENERATOR%"
+  - cmake -DMDNSD_COMPILE_AS_CXX:BOOL=%FORCE_CXX% -DBUILD_SHARED_LIBS:BOOL=%SHARED% -G"%GENERATOR%" ..
+  - cmake --build .
   - echo "Build done"
