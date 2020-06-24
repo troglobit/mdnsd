@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(mdnsd)
+project(mdnsd C)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/tools/cmake")
 
 include(GNUInstallDirs)
+set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 
 option(MDNSD_BUILD_OSS_FUZZ "Special build switch used in oss-fuzz" OFF)
 mark_as_advanced(MDNSD_BUILD_OSS_FUZZ)
@@ -42,11 +43,6 @@ endif()
 
 add_subdirectory(libmdnsd)
 
-#option(MDNSD_BUILD_UNIT_TESTS "Build the unit tests" OFF)
-
-include_directories(${PROJECT_SOURCE_DIR})
-include_directories(${PROJECT_BINARY_DIR}/libmdnsd)
-
 if(MDNSD_BUILD_FUZZING OR MDNSD_BUILD_OSS_FUZZ)
     add_subdirectory(tests/fuzz)
 endif()
@@ -57,16 +53,24 @@ target_link_libraries(mdnsd PRIVATE libmdnsd)
 add_executable(mquery mquery.c)
 target_link_libraries(mquery PRIVATE libmdnsd)
 
-install(TARGETS mdnsd mquery
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+include(CMakePackageConfigHelpers)
+configure_package_config_file(mdnsdConfig.cmake.in mdnsdConfig.cmake
+    INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
 )
 
+install(
+    TARGETS mdnsd mquery
+    EXPORT mdnsd
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
 install(
     FILES "${PROJECT_SOURCE_DIR}/LICENSE"
     DESTINATION "${CMAKE_INSTALL_PREFIX}/licenses"
 )
-
-#if(MDNSD_BUILD_UNIT_TESTS)
-#  enable_testing()
-#  add_subdirectory(tests)
-#endif()
+install(EXPORT mdnsd
+    DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
+    FILE "mdnsdConfigTargets.cmake"
+)
+install(FILES "${PROJECT_BINARY_DIR}/mdnsdConfig.cmake"
+    DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
+)
