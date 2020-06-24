@@ -71,6 +71,7 @@ endif()
 
 if(MDNSD_COMPILE_AS_CXX)
     set_source_files_properties(${LIBRARY_FILES} PROPERTIES LANGUAGE CXX)
+    enable_language(CXX)
 endif()
 
 add_library(libmdnsd ${LIBRARY_FILES} ${PUBLIC_INCLUDES})
