@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(mdnsd C)
+project(mdnsd C CXX)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/tools/cmake")
 
 include(GNUInstallDirs)
