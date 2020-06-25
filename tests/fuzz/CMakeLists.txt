@@ -32,7 +32,11 @@ endmacro()
 
 # Add new fuzzers here
 add_fuzzer(fuzz_mdns_message fuzz_mdns_message.cc)
-add_fuzzer(fuzz_mdns_xht fuzz_mdns_xht.cc)
+
+# We cannot run this fuzzer on oss-fuzz, since its coverage is too small
+if (NOT MDNSD_BUILD_OSS_FUZZ)
+    add_fuzzer(fuzz_mdns_xht fuzz_mdns_xht.cc)
+endif()
 
 
 SET(CORPUS_CMDS "")

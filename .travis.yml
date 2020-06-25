@@ -49,18 +49,18 @@ matrix:
       env:
          - ANALYZE=false
   #
-  # clang-6 full host build with tests:
+  # clang-8 full host build with tests:
     - os: linux
-      compiler: clang-3.9
+      compiler: clang-8
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-6.0
+            - llvm-toolchain-trusty-8
             - ubuntu-toolchain-r-test
           packages:
             - check
             - cppcheck
-            - clang-3.9
+            - clang-8
             - valgrind
       env:
          - ANALYZE=false
@@ -109,21 +109,21 @@ matrix:
       env:
          - ANALYZE=true
  #
- # clang-6 FUZZER build
+ # clang-8 FUZZER build
     - os: linux
-      compiler: clang-6.0
+      compiler: clang-8
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-6.0
+            - llvm-toolchain-trusty-8
             - ubuntu-toolchain-r-test
           packages:
             - check
             - cppcheck
             - valgrind
-            - clang-6.0
-            - clang-tidy-6.0
-            - libfuzzer-6.0-dev
+            - clang-8
+            - clang-tidy-8
+            - libfuzzer-8-dev
       env:
         - FUZZER=true
 #

@@ -9,8 +9,10 @@ if ! [ -z ${FUZZER+x} ]; then
     ./tests/fuzz/check_build.sh
     if [ $? -ne 0 ] ; then exit 1 ; fi
 
-    cd build_fuzz
-    make && make run_fuzzer
+
+	#mkdir -p build_fuzz && cd build_fuzz
+	#cmake -DMDNSD_BUILD_FUZZING=ON ..
+    #make && make run_fuzzer
     if [ $? -ne 0 ] ; then exit 1 ; fi
     exit 0
 fi
