@@ -1,15 +1,19 @@
 # using c for language overwrites our compilers
-language: generic
+language: c
+sudo: false
 
 dist: trusty
-sudo: false
 
 matrix:
   include:
+#
+# gcc-4.8 (trusty) full host and cross build with tests:
     - os: linux
+      compiler: gcc-4.8
       addons:
         apt:
           sources:
+            # see https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
             - ubuntu-toolchain-r-test
           packages:
             - binutils-mingw-w64-i686
@@ -19,7 +23,6 @@ matrix:
             - gcc-multilib
             - gcc-4.9
             - gcc-mingw-w64-i686
-            - g++-4.9
             - g++-multilib
             - g++-mingw-w64
             - libc6-dev-i386
@@ -29,27 +32,26 @@ matrix:
       env:
          - ANALYZE=false
          - MINGW=true
-         - CC=gcc-4.9
-         - CXX=g++-4.9
+#
+# gcc-8 full host build with tests:
     - os: linux
+      compiler: gcc-8
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - gcc-8
+            - gcc-8-multilib
             - check
             - cppcheck
-            - gcc-7
-            - gcc-7-multilib
-            - g++-7
-            - g++-7-multilib
-            - linux-libc-dev:i386
             - valgrind
       env:
          - ANALYZE=false
-         - CC=gcc-7
-         - CXX=g++-7
+  #
+  # clang-6 full host build with tests:
     - os: linux
+      compiler: clang-3.9
       addons:
         apt:
           sources:
@@ -62,9 +64,8 @@ matrix:
             - valgrind
       env:
          - ANALYZE=false
-         - CC=clang-3.9
-         - CXX=clang++-3.9
     - os: linux
+      compiler: clang-6.0
       addons:
         apt:
           sources:
@@ -78,27 +79,22 @@ matrix:
             - valgrind
       env:
          - ANALYZE=false
-         - CC=clang-6.0
-         - CXX=clang++-6.0
+#
+# gcc-4.8 static code analysis
     - os: linux
+      compiler: gcc
       addons:
         apt:
-          sources:
-            - ubuntu-toolchain-r-test
           packages:
             - check
             - cppcheck
-            - gcc-7
-            - gcc-7-multilib
-            - g++-7
-            - g++-7-multilib
-            - linux-libc-dev:i386
             - valgrind
       env:
-         - ANALYZE=true
-         - CC=gcc-7
-         - CXX=g++-7
+        - ANALYZE=true
+#
+# clang-6 static code analysis
     - os: linux
+      compiler: clang-6.0
       addons:
         apt:
           sources:
@@ -112,8 +108,6 @@ matrix:
             - valgrind
       env:
          - ANALYZE=true
-         - CC=clang-6.0
-         - CXX=clang++-6.0
  #
  # clang-6 FUZZER build
     - os: linux
@@ -124,13 +118,23 @@ matrix:
             - llvm-toolchain-trusty-6.0
             - ubuntu-toolchain-r-test
           packages:
+            - check
+            - cppcheck
+            - valgrind
             - clang-6.0
             - clang-tidy-6.0
             - libfuzzer-6.0-dev
-     env:
-       - FUZZER=true
+      env:
+        - FUZZER=true
+#
+# OSX clang build
     - os: osx
       compiler: clang
+      # disable homebrew auto update which takes a lot of time
+      env: HOMEBREW_NO_AUTO_UPDATE=1
+      cache:
+        directories:
+          - $HOME/Library/Caches/Homebrew
       env:
          - ANALYZE=false
 
