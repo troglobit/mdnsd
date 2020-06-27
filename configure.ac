@@ -1,6 +1,7 @@
 # Use v2.61 for backwards compat with Ubuntu 12.04 LTS
 AC_PREREQ([2.61])
 AC_INIT(mdnsd, 0.10, https://github.com/troglobit/mdnsd/issues)
+AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign no-dist-gzip dist-xz])
 AM_SILENT_RULES([yes])
 
