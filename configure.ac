@@ -41,6 +41,9 @@ test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
 SYSCONFDIR=`eval echo $sysconfdir`
 SYSCONFDIR=`eval echo $SYSCONFDIR`
 AC_SUBST(SYSCONFDIR)
+BINDIR=`eval echo $bindir`
+BINDIR=`eval echo $BINDIR`
+AC_SUBST(BINDIR)
 SBINDIR=`eval echo $sbindir`
 SBINDIR=`eval echo $SBINDIR`
 AC_SUBST(SBINDIR)
@@ -52,3 +55,34 @@ AC_SUBST(runstatedir)
 
 # Create all config files
 AC_OUTPUT
+
+# Expand directories for configuration summary, unexpanded defaults:
+# sysconfdir  => ${prefix}/etc
+# runstatedir => ${localstatedir}/run
+SYSCONFDIR=`eval echo $sysconfdir`
+LOCALSTATEDIR=`eval echo $localstatedir`
+RUNSTATEDIR=`eval echo $runstatedir`
+RUNSTATEDIR=`eval echo $RUNSTATEDIR`
+
+cat <<EOF
+
+------------------ Summary ------------------
+ $PACKAGE_NAME version $PACKAGE_VERSION
+  Install prefix.....: $prefix
+  mdnsd install dir..: $SBINDIR
+  mquery install dir.: $BINDIR
+  PID file...........: $RUNSTATEDIR/mdnsd.pid
+  mDNS-SD .service in: $SYSCONFDIR/mdns.d/*.service
+  C Compiler.........: $CC $CFLAGS $CPPFLAGS $LDFLAGS $LIBS
+
+ Optional features:
+  systemd............: $with_systemd
+
+------------- Compiler version --------------
+$($CC --version || true)
+---------------------------------------------
+
+Check the above options and compile with:
+ ${MAKE-make}
+
+EOF
