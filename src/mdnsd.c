@@ -191,6 +191,7 @@ static int usage(int code)
 {
 	printf("Usage: %s [-hnpsv] [-a ADDRESS] [-l LEVEL] [PATH]\n"
 	       "\n"
+	       "Options:\n"
 	       "    -a ADDR   Address of service/host to announce, default: auto\n"
 	       "    -h        This help text\n"
 	       "    -i IFACE  Interface to announce services on, and get address from\n"
@@ -200,6 +201,9 @@ static int usage(int code)
 	       "    -s        Use syslog even if running in foreground\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
 	       "    -v        Show program version\n"
+	       "\n"
+	       "Arguments:\n"
+	       "    PATH      Path to mDNS-SD .service files, default: /etc/mdns.d\n"
 	       "\n"
 	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
 
