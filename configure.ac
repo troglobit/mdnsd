@@ -45,4 +45,10 @@ SBINDIR=`eval echo $sbindir`
 SBINDIR=`eval echo $SBINDIR`
 AC_SUBST(SBINDIR)
 
+# Workaround for autoconf < 2.70, although some major distros have
+# backported support for runstatedir already.
+AS_IF([test -z "$runstatedir"], runstatedir="$localstatedir/run")
+AC_SUBST(runstatedir)
+
+# Create all config files
 AC_OUTPUT
