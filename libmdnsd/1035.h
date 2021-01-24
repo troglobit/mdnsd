@@ -1,7 +1,7 @@
 /* Standalone DNS parsing, RFC10350
  *
  * Copyright (c) 2003  Jeremie Miller <jer@jabber.org>
- * Copyright (c) 2016-2020  Joachim Nilsson <troglobit@gmail.com>
+ * Copyright (c) 2016-2021  Joachim Wiberg <troglobit@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

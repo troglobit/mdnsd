@@ -3,7 +3,7 @@ Section: net
 Priority: optional
 Build-Depends: debhelper (>= 10), pkg-config, systemd
 Standards-Version: 4.3.0
-Maintainer: Joachim Nilsson <troglobit@gmail.com>
+Maintainer: Joachim Wiberg <troglobit@gmail.com>
 Homepage: https://github.com/troglobit/mdnsd
 Vcs-Git: https://github.com/troglobit/mdnsd.git
 Vcs-Browser: https://github.com/troglobit/mdnsd/commits/
