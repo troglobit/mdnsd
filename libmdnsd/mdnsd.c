@@ -542,6 +542,11 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	}
 	if (r->rdlength) {
 		c->rr.rdata = malloc(r->rdlength);
+		if (!c->rr.rdata) {
+			free(c->rr.name);
+			free(c);
+			return 1;
+		}
 		memcpy(c->rr.rdata, r->rdata, r->rdlength);
 	} else {
 		c->rr.rdata = NULL;
@@ -1174,7 +1179,13 @@ void mdnsd_query(mdns_daemon_t *d, const char *host, int type, int (*answer)(mdn
 			return;
 
 		q = calloc(1, sizeof(struct query));
+		if (!q)
+			return;
 		q->name = strdup(host);
+		if (!q->name) {
+			free(q);
+			return;
+		}
 		q->type = type;
 		q->next = d->queries[i];
 		q->list = d->qlist;
@@ -1220,7 +1231,15 @@ mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short t
 	mdns_record_t *r;
 
 	r = calloc(1, sizeof(struct mdns_record));
+	if (!r)
+		return NULL;
+
 	r->rr.name = strdup(host);
+	if (!r->rr.name) {
+		free(r);
+		return NULL;
+	}
+
 	r->rr.type = type;
 	r->rr.ttl = ttl;
 	r->next = d->published[i];
@@ -1235,6 +1254,9 @@ mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short t
 	mdns_record_t *r;
 
 	r = mdnsd_shared(d, host, type, ttl);
+	if (!r)
+		return NULL;
+
 	r->conflict = conflict;
 	r->arg = arg;
 	r->unique = 1;
@@ -1320,6 +1342,9 @@ void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigne
 
 void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name)
 {
+	if (!r)
+		return;
+
 	if (r->rr.rdname)
 		free(r->rr.rdname);
 	r->rr.rdname = strdup(name);

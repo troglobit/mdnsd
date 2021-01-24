@@ -84,6 +84,9 @@ unsigned char *sd2txt(xht_t *h, int *len)
 	}
 
 	raw = buf = malloc(*len);
+	if (!buf)
+		return NULL;
+
 	xht_walk(h, _sd2txt_write, &buf);
 
 	return raw;

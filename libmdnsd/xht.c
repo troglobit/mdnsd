@@ -83,8 +83,15 @@ xht_t *xht_new(int prime)
 	xht_t *xnew;
 
 	xnew = malloc(sizeof(struct xht));
+	if (!xnew)
+		return NULL;
+
 	xnew->prime = prime;
 	xnew->zen = calloc(1, sizeof(struct xhn) * prime);	/* array of xhn_t size of prime */
+	if (!xnew->zen) {
+		free(xnew);
+		return NULL;
+	}
 
 	return xnew;
 }
@@ -109,8 +116,10 @@ static xhn_t *_xht_set(xht_t *h, const char *key, void *val, char flag)
 
 	/* if none, make a new one, link into this index */
 	if (n == NULL) {
-		n = malloc(sizeof(struct xhn));
-		memset(n, 0, sizeof(struct xhn));
+		n = calloc(1, sizeof(struct xhn));
+		if (n == NULL)
+			return NULL;
+
 		n->next = h->zen[i].next;
 		h->zen[i].next = n;
 	}
@@ -143,9 +152,18 @@ void xht_store(xht_t *h, const char *key, int klen, void *val, int vlen)
 		return;
 
 	ckey = malloc(klen + 1);
+	if (!ckey)
+		return;
+
 	memcpy(ckey, key, klen);
 	ckey[klen] = '\0';
+
 	cval = malloc(vlen + 1);
+	if (!cval) {
+		free(ckey);
+		return;
+	}
+
 	memcpy(cval, val, vlen);
 	cval[vlen] = '\0';	/* convenience, in case it was a string too */
 	_xht_set(h, ckey, cval, 1);
