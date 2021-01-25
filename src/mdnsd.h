@@ -46,7 +46,7 @@ void mdnsd_conflict(char *name, int type, void *arg);
 int getaddr(char *iface, struct in_addr *ina);
 
 /* conf.c */
-int conf_init(mdns_daemon_t *d, char *path, int hostname_idx);
+int conf_init(mdns_daemon_t *d, char *path, int hostid);
 
 /* replacement functions for systems that don't have them  */
 #ifndef HAVE_STRLCPY

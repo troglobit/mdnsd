@@ -238,20 +238,27 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	return 0;
 }
 
-int conf_init(mdns_daemon_t *d, char *path, int hostname_idx)
+int conf_init(mdns_daemon_t *d, char *path, int hostid)
 {
-	struct stat st;
 	char hostname[HOST_NAME_MAX];
+	struct stat st;
 	int rc = 0;
 
-	gethostname(hostname, sizeof(hostname));
-	if (hostname_idx > 1) {
+	/* apparently gethostname() can fail ... */
+	if (gethostname(hostname, sizeof(hostname)) == -1)
+		strlcpy(hostname, "default", sizeof(hostname));
+
+	/* uniqify hostname by appending -hostid, e.g., default-2 */
+	if (hostid > 1) {
+		size_t hlen, slen;
 		char suffix[16];
-		snprintf(suffix, sizeof(suffix) - 1, "-%d", hostname_idx);
-		const size_t hlen = strlen(hostname);
-		const size_t tlen = strlen(suffix);
-		const size_t ofs  = hlen + tlen < HOST_NAME_MAX ? hlen : HOST_NAME_MAX - tlen - 1;
-		strncpy(hostname + ofs, suffix, HOST_NAME_MAX - ofs);
+
+		slen = snprintf(suffix, sizeof(suffix), "-%d", hostid) + 1;
+		hlen = strlen(hostname);
+		if (hlen + slen >= sizeof(hostname))
+			hlen = sizeof(hostname) - slen;
+
+		strlcpy(&hostname[hlen], suffix, sizeof(hostname) - hlen);
 	}
 
 	if (stat(path, &st)) {
