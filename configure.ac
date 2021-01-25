@@ -11,6 +11,7 @@ AC_CONFIG_FILES([Makefile mdnsd.service examples/Makefile libmdnsd/Makefile man/
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_PROG_CC
+AC_PROG_INSTALL
 AM_PROG_AR
 LT_INIT
 PKG_PROG_PKG_CONFIG
