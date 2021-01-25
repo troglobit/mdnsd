@@ -18,6 +18,11 @@ PKG_PROG_PKG_CONFIG
 AC_HEADER_STDC
 AC_C_CONST
  
+# Check for usually missing API's, which we can replace
+AC_REPLACE_FUNCS([strlcpy])
+AC_CONFIG_LIBOBJ_DIR([lib])
+
+# Options
 AC_ARG_WITH([systemd],
 	[AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
 	[with_systemd=auto])

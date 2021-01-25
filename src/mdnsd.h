@@ -30,6 +30,8 @@
 #ifndef MDNSD_H_
 #define MDNSD_H_
 
+#include "config.h"
+
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
 
@@ -45,5 +47,10 @@ int getaddr(char *iface, struct in_addr *ina);
 
 /* conf.c */
 int conf_init(mdns_daemon_t *d, char *path, int hostname_idx);
+
+/* replacement functions for systems that don't have them  */
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif
 
 #endif /* MDNSD_H_ */
