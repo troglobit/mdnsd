@@ -76,7 +76,7 @@ static char *getifname(char *ifname, size_t len)
 			continue;
 
 		if (!ifname[0] || !strncmp(ifname, "tun", 3)) {
-			strncpy(ifname, name, len);
+			strlcpy(ifname, name, len);
 			found = 1;
 			break;
 		}
@@ -105,7 +105,7 @@ static int valid_addr(struct in_addr *ina)
 int getaddr(char *iface, struct in_addr *ina)
 {
 	struct ifaddrs *ifaddr, *ifa;
-	char ifname[17] = { 0 };
+	char ifname[IFNAMSIZ] = { 0 };
 	char buf[20] = { 0 };
 	int rc = -1;
 

@@ -268,7 +268,7 @@ int conf_init(mdns_daemon_t *d, char *path, int hostname_idx)
 		char pat[strlen(path) + 64];
 		int flags = GLOB_ERR;
 
-		strcpy(pat, path);
+		strlcpy(pat, path, sizeof(pat));
 		if (pat[strlen(path) - 1] != '/')
 			strcat(pat, "/");
 		strcat(pat, "*.service");
