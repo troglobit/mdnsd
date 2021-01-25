@@ -1,5 +1,4 @@
-ACLOCAL_AMFLAGS           = -I m4
-DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
+ACLOCAL_AMFLAGS         = -I m4
 
 nobase_include_HEADERS  = libmdnsd/mdnsd.h libmdnsd/1035.h libmdnsd/sdtxt.h libmdnsd/xht.h
 SUBDIRS                 = examples libmdnsd man src
@@ -52,3 +51,5 @@ release: release-hook distcheck package md5-dist
 	@for file in `cd ..; ls $(PACKAGE)_$(VERSION)*`; do			\
 		printf "%-32s Debian/Ubuntu package\n" $$file;			\
 	done
+
+DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
