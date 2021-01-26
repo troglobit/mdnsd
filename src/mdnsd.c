@@ -333,6 +333,8 @@ retry:
 	}
 
 	NOTE("%s starting.", PACKAGE_STRING);
+	pidfile(PACKAGE_NAME);
+
 	while (running) {
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
@@ -343,6 +345,7 @@ retry:
 			if (reload) {
 				records_clear(d);
 				conf_init(d, path, hostid);
+				pidfile(PACKAGE_NAME);
 				reload = 0;
 			}
 		}

@@ -49,6 +49,10 @@ int getaddr(char *iface, struct in_addr *ina);
 int conf_init(mdns_daemon_t *d, char *path, int hostid);
 
 /* replacement functions for systems that don't have them  */
+#ifndef HAVE_PIDFILE
+int pidfile(const char *basename);
+#endif
+
 #ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif

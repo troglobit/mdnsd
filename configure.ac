@@ -20,7 +20,7 @@ AC_HEADER_STDC
 AC_C_CONST
  
 # Check for usually missing API's, which we can replace
-AC_REPLACE_FUNCS([strlcpy])
+AC_REPLACE_FUNCS([pidfile strlcpy utimensat])
 AC_CONFIG_LIBOBJ_DIR([lib])
 
 # Options
