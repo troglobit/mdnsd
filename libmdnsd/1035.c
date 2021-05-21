@@ -86,7 +86,7 @@ static unsigned short int _ldecomp(const char *ptr)
 
 	i = 0xc0 ^ ptr[0];
 	i <<= 8;
-	i |= ptr[1];
+	i |= (unsigned char)ptr[1];
 	if (i >= 4096)
 		i = 4095;
 
