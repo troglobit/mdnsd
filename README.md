@@ -1,6 +1,6 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
-[![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
+[![License Badge][]][License] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
 
 - [About](#about)
 - [Usage](#usage)
@@ -142,7 +142,7 @@ and maintain it for the long haul.
 [API.md]:          https://github.com/troglobit/mdnsd/blob/master/API.md
 [License]:         https://en.wikipedia.org/wiki/BSD_licenses
 [License Badge]:   https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
-[Travis]:          https://travis-ci.org/troglobit/mdnsd
-[Travis Status]:   https://travis-ci.org/troglobit/mdnsd.png?branch=master
+[GitHub]:          https://github.com/troglobit/mdnsd/actions/workflows/build.yml/
+[GitHub Status]:   https://github.com/troglobit/mdnsd/actions/workflows/build.yml/badge.svg
 [Coverity Scan]:   https://scan.coverity.com/projects/20680
 [Coverity Status]: https://scan.coverity.com/projects/20680/badge.svg
