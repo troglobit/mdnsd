@@ -35,7 +35,7 @@
 .Nm mdnsd
 needs at least one
 .Pa .service
-file to actively annouce itself.  The systems that
+file to actively announce itself.  The systems that
 .Nm mdnsd
 targets usually have an SSH or HTTP/HTTPS service, which can be located
 by end-users with mDNS-SD.   E.g.,
@@ -56,7 +56,7 @@ prefixed with an underscore.  E.g., 'ipp' is port 631/tcp, which gives
 the type
 .Cm _ipp._tcp
 .It Cm port Ar PORT
-The port is the UDP or TCP port to annouce.  This can also be found in
+The port is the UDP or TCP port to announce.  This can also be found in
 the file
 .Pa /etc/services .
 .El
@@ -75,7 +75,7 @@ URL to announce as canonical for this service.
 A
 .Cm cname
 is an alias that can be announced for unique service reqords.  E.g., if
-only one HTTP service is available on the LAN it can be reached throught
+only one HTTP service is available on the LAN it can be reached through
 the full name, or using the
 .Cm cname
 alias.
