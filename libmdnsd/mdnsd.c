@@ -700,6 +700,9 @@ void mdnsd_shutdown(mdns_daemon_t *d)
 	int i;
 	mdns_record_t *cur, *next;
 
+	if (!d)
+		return;
+
 	d->a_now = 0;
 	for (i = 0; i < SPRIME; i++) {
 		for (cur = d->published[i]; cur != 0;) {
@@ -727,6 +730,9 @@ void mdnsd_flush(mdns_daemon_t *d)
 void mdnsd_free(mdns_daemon_t *d)
 {
 	struct unicast *u;
+
+	if (!d)
+		return;
 
 	for (size_t i = 0; i< LPRIME; i++) {
 		struct cached *cur = d->cache[i];
