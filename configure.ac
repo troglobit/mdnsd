@@ -23,6 +23,11 @@ AC_C_CONST
 AC_REPLACE_FUNCS([pidfile strlcpy utimensat])
 AC_CONFIG_LIBOBJ_DIR([lib])
 
+AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], , ,
+[
+#include <netinet/in.h>
+])
+
 # Options
 AC_ARG_WITH([systemd],
 	[AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,

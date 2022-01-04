@@ -26,10 +26,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <errno.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -51,44 +53,9 @@
 #define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == IN_LINKLOCALNETNUM)
 #endif
 
-/* Find default outbound *LAN* interface, i.e. skipping tunnels */
-static char *getifname(char *ifname, size_t len)
-{
-	uint32_t dest, gw, mask;
-	char buf[256], name[17];
-	FILE *fp;
-	int rc, flags, cnt, use, metric, mtu, win, irtt;
-	int found = 0;
+static TAILQ_HEAD(iflist, iface) iface_list = TAILQ_HEAD_INITIALIZER(iface_list);
 
-	fp = fopen("/proc/net/route", "r");
-	if (!fp)
-		return NULL;
-
-	while (fgets(buf, sizeof(buf), fp) != NULL) {
-		rc = sscanf(buf, "%16s %X %X %X %d %d %d %X %d %d %d\n",
-			   name, &dest, &gw, &flags, &cnt, &use, &metric,
-			   &mask, &mtu, &win, &irtt);
-			
-		if (rc < 10 || !(flags & 1)) /* IFF_UP */
-			continue;
-
-		if (dest != 0 || mask != 0)
-			continue;
-
-		if (!ifname[0] || !strncmp(ifname, "tun", 3)) {
-			strlcpy(ifname, name, len);
-			found = 1;
-			break;
-		}
-	}
-	fclose(fp);
-
-	if (found)
-		return ifname;
-
-	return NULL;
-}
-
+#if 0	/* unused from v0.11 and later */
 /* Check if valid address */
 static int valid_addr(struct in_addr *ina)
 {
@@ -100,57 +67,126 @@ static int valid_addr(struct in_addr *ina)
 
 	return 1;
 }
+#endif	/* unused */
 
-/* Find IPv4 address of default outbound LAN interface */
-int getaddr(char *iface, struct in_addr *ina)
+struct iface *iface_iterator(int first)
+{
+	static struct iface *iface = NULL;
+
+	if (first)
+		iface = TAILQ_FIRST(&iface_list);
+	else
+		iface = TAILQ_NEXT(iface, link);
+
+	return iface;
+}
+
+struct iface *iface_find(const char *ifname)
+{
+	struct iface *iface;
+
+	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
+		if (strcmp(iface->ifname, ifname))
+			continue;
+
+		return iface;
+	}
+
+	return NULL;
+}
+
+int iface_update(char *ifname)
 {
 	struct ifaddrs *ifaddr, *ifa;
-	char ifname[IFNAMSIZ] = { 0 };
-	char buf[20] = { 0 };
+	struct iface *iface = NULL;
+	int changed = 0;
 	int rc = -1;
 
-	if (!iface)
-		iface = getifname(ifname, sizeof(ifname));
-	DBG("Default interface: %s", iface ? iface : "N/A");
-
 	rc = getifaddrs(&ifaddr);
-	if (rc)
-		return -1;
+	if (rc) {
+		ERR("Failed fetching system interfaces: %s", strerror(errno));
+		return 0;
+	}
+
+	if (ifname)
+		iface = iface_find(ifname);
 
 	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+		struct in_addr ina;
+		char buf[20];
+
 		if (!ifa->ifa_addr)
 			continue;
 
 		if (ifa->ifa_flags & IFF_LOOPBACK)
-			continue;
+			continue; /* skip for now, mDNSResponder has it as fallback */
 
 		if (!(ifa->ifa_flags & IFF_MULTICAST))
 			continue;
 
+		if (!(ifa->ifa_flags & IFF_UP))
+			continue; /* skip for now, not enabled */
+
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 
-		if (iface && strcmp(iface, ifa->ifa_name))
+		if (ifname && strcmp(ifname, ifa->ifa_name))
 			continue;
 
-		rc = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
-				 buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
-		if (!rc) {
-			if (!inet_aton(buf, ina))
-				continue;
-			if (!valid_addr(ina))
-				continue;
+		/* Validate IP address */
+		rc = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
+		if (rc)
+			continue;
 
-			DBG("Found interface %s, address %s", ifa->ifa_name, buf);
-			break;
+		/* Use address from getnameinfo() */
+		if (!inet_aton(buf, &ina))
+			continue;
+
+		if (!ifname)
+			iface = iface_find(ifa->ifa_name);
+
+		if (!iface) {
+			iface = calloc(1, sizeof(*iface));
+			if (!iface) {
+				ERR("Failed allocating memory for iface %s: %s", ifa->ifa_name, strerror(errno));
+				exit(1);
+			}
+			TAILQ_INSERT_TAIL(&iface_list, iface, link);
+
+			strlcpy(iface->ifname, ifa->ifa_name, sizeof(iface->ifname));
+			iface->ifindex = if_nametoindex(ifa->ifa_name);
+			iface->sd = -1;
+		} else {
+			iface->unused = 0;
 		}
+
+		if (iface->inaddr.s_addr != ina.s_addr) {
+			DBG("Found interface %s, address %s", ifa->ifa_name, buf);
+			iface->inaddr = ina;
+			iface->changed = 1;
+			changed++;
+		}
+		iface = NULL;
+
+		if (ifname)
+			break;
 	}
 	freeifaddrs(ifaddr);
 
-	if (rc || IN_ZERONET(ntohl(ina->s_addr)))
-		return -1;
+	return changed;
+}
 
-	DBG("Using address: %s", inet_ntoa(*ina));
+void iface_init(char *ifname)
+{
+	iface_update(ifname);
+}
 
-	return 0;
+void iface_exit(void)
+{
+	struct iface *iface, *tmp;
+
+	TAILQ_FOREACH_SAFE(iface, &iface_list, link, tmp) {
+		TAILQ_REMOVE(&iface_list, iface, link);
+		free(iface);
+	}
 }

@@ -32,18 +32,39 @@
 
 #include "config.h"
 
+#include <net/if.h>		/* IFNAMSIZ */
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
+
+#include "queue.h"
 
 /* From The Practice of Programming, by Kernighan and Pike */
 #ifndef NELEMS
 #define NELEMS(array) (sizeof(array) / sizeof((array)[0]))
 #endif
 
+struct iface {
+	TAILQ_ENTRY(iface) link;
+	char               unused;
+	char               changed;
+
+	char               ifname[IFNAMSIZ];
+	int                ifindex;		/* Physical interface index   */
+	struct in_addr     inaddr;		/* == 0 for non IP interfaces */
+	int                sd;
+
+	mdns_daemon_t     *mdns;
+};
+
 void mdnsd_conflict(char *name, int type, void *arg);
 
 /* addr.c */
-int getaddr(char *iface, struct in_addr *ina);
+struct iface *iface_iterator(int first);
+struct iface *iface_find(const char *ifname);
+int           iface_update(char *ifname);
+
+void          iface_init(char *ifname);
+void          iface_exit(void);
 
 /* conf.c */
 int conf_init(mdns_daemon_t *d, char *path, int hostid);
