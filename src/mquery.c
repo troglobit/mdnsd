@@ -27,10 +27,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
@@ -41,6 +44,88 @@
 
 #include <libmdnsd/mdnsd.h>
 
+char *prognm = "mquery";
+mdns_daemon_t *d;
+int simple;
+
+
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif
+
+/* Find default outbound *LAN* interface, i.e. skipping tunnels */
+static char *getifname(char *ifname, size_t len)
+{
+	uint32_t dest, gw, mask;
+	char buf[256], name[17];
+	FILE *fp;
+	int found = 0;
+
+	fp = fopen("/proc/net/route", "r");
+	if (!fp)
+		return NULL;
+
+	while (fgets(buf, sizeof(buf), fp) != NULL) {
+		int rc, flags, cnt, use, metric, mtu, win, irtt;
+
+		rc = sscanf(buf, "%16s %X %X %X %d %d %d %X %d %d %d\n",
+			   name, &dest, &gw, &flags, &cnt, &use, &metric,
+			   &mask, &mtu, &win, &irtt);
+
+		if (rc < 10 || !(flags & 1)) /* IFF_UP */
+			continue;
+
+		if (dest != 0 || mask != 0)
+			continue;
+
+		if (!ifname[0] || !strncmp(ifname, "tun", 3)) {
+			strlcpy(ifname, name, len);
+			found = 1;
+			break;
+		}
+	}
+	fclose(fp);
+
+	if (found)
+		return ifname;
+
+	return NULL;
+}
+
+static const char *type2str(int type)
+{
+	static char str[20] = { 0 };
+
+	switch(type) {
+	case QTYPE_A:
+		return "A (1)";
+
+	case QTYPE_NS:
+		return "NS (2)";
+
+	case QTYPE_CNAME:
+		return "CNAME (5)";
+
+	case QTYPE_PTR:
+		return "TR (12)";
+
+	case QTYPE_TXT:
+		return "TXT (16)";
+
+	case QTYPE_SRV:
+		return "SRV (33)";
+
+	case QTYPE_ANY:
+		return "ANY (255)";
+
+	default:
+		snprintf(str, sizeof(str), "UNKNOWN (%d)", type);
+		break;
+	}
+
+	return str;
+}
+
 /* Print an answer */
 static int ans(mdns_answer_t *a, void *arg)
 {
@@ -50,6 +135,23 @@ static int ans(mdns_answer_t *a, void *arg)
 		now = 0;
 	else
 		now = a->ttl - time(0);
+
+	if (!simple) {
+		char *spec = (char *)arg;
+
+		if (a->type != QTYPE_PTR)
+			return 0;
+
+		if (!spec) {
+			mdnsd_query(d, a->rdname, a->type, ans, strdup(a->rdname));
+			return 0;
+		}
+
+		printf("+ %s (%s)\n", a->rdname, inet_ntoa(a->ip));
+		free(spec);
+
+		return 0;
+	}
 
 	switch (a->type) {
 	case QTYPE_A:
@@ -65,18 +167,23 @@ static int ans(mdns_answer_t *a, void *arg)
 		break;
 
 	default:
-		printf("%d %s for %d seconds with %d data\n", a->type, a->name, now, a->rdlen);
+		printf("%s %s for %d seconds with %d data\n", type2str(a->type), a->name, now, a->rdlen);
 	}
 
 	return 0;
 }
 
 /* Create multicast 224.0.0.251:5353 socket */
-static int msock(void)
+static int msock(char *ifname)
 {
 	struct sockaddr_in sin;
-	struct ip_mreq imr;
+#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
+	struct ip_mreqn imrqn = { 0 };
+#endif
+	struct ip_mreq imrq = { 0 };
 	int sd, flag = 1;
+	size_t len;
+	void *imr;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 	if (sd < 0)
@@ -89,54 +196,98 @@ static int msock(void)
 	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
 		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
 
+#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
+	if (ifname) {
+		/* Only join group on the given interface */
+		imrqn.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
+		imrqn.imr_ifindex = if_nametoindex(ifname);
+		if (!imrqn.imr_ifindex)
+			goto fallback;
+
+		imr = &imrqn;
+		len = sizeof(imrqn);
+
+		/* Set interface for outbound multicast */
+		if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, imr, len))
+			WARN("Failed setting IP_MULTICAST_IF %d: %s", imrqn.imr_ifindex, strerror(errno));
+
+		/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
+		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, ifname, strlen(ifname)))
+			WARN("Failed setting SO_BINDTODEVICE: %s", strerror(errno));
+	} else
+#endif
+	{
+	fallback:
+		imrq.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
+		imrq.imr_interface.s_addr = htonl(INADDR_ANY);
+		imr = &imrq;
+		len = sizeof(imrq);
+	}
+
+	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, imr, len))
+		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
+
+	/* Filter inbound traffic from anyone (ANY) to port 5353 */
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(5353);
-	sin.sin_addr.s_addr = 0;
-
 	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
 		close(sd);
 		return 0;
 	}
-
-	imr.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-	imr.imr_interface.s_addr = htonl(INADDR_ANY);
-	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr)))
-		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
 
 	return sd;
 }
 
 static int usage(int code)
 {
-	/* mquery 12 _http._tcp.local. */
-	printf("usage: mquery [-h] [-t TYPE] [NAME]\n");
+	/* mquery -t 12 _http._tcp.local. */
+	printf("usage: mquery [-hsv] [-i IFNAME] [-t TYPE] [-w SEC] [NAME]\n");
 	return code;
 }
 
 int main(int argc, char *argv[])
 {
-	mdns_daemon_t *d;
 	struct message m;
 	struct in_addr ip;
 	unsigned short port;
 	ssize_t bsize;
 	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
+	char default_iface[IFNAMSIZ];
 	struct sockaddr_in from, to;
-	fd_set fds;
 	char *name = DISCO_NAME;
+	char *ifname = NULL;
 	int type = QTYPE_PTR;	/* 12 */
+	time_t start;
+	int wait = 0;
+	fd_set fds;
 	int sd, c;
 
-	while ((c = getopt(argc, argv, "h?t:")) != EOF) {
+	while ((c = getopt(argc, argv, "h?i:st:vw:")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
 			return usage(0);
 
+		case 'i':
+			ifname = optarg;
+			break;
+
+		case 's':
+			simple = 1;
+			break;
+
 		case 't':
 			type = atoi(optarg);
+			break;
+
+		case 'v':
+			puts(PACKAGE_VERSION);
+			return 0;
+
+		case 'w':
+			wait = atoi(optarg);
 			break;
 
 		default:
@@ -147,14 +298,21 @@ int main(int argc, char *argv[])
 	if (optind < argc)
 		name = argv[optind];
 
-	d = mdnsd_new(1, 1000);
-	sd = msock();
+	if (!ifname)
+		ifname = getifname(default_iface, sizeof(default_iface));
+
+	sd = msock(ifname);
 	if (sd == -1) {
 		printf("Failed creating multicast socket: %s\n", strerror(errno));
 		return 1;
 	}
 
-	printf("Querying type %d for %s ...\n", type, name);
+	d = mdnsd_new(1, 1000);
+	if (!d)
+		return 1;
+
+	printf("Querying for %s type %d ... press Ctrl-C to stop\n", name, type);
+	start = time(NULL);
 	mdnsd_query(d, name, type, ans, NULL);
 
 	while (1) {
@@ -170,9 +328,8 @@ int main(int argc, char *argv[])
 			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
-				if (message_parse(&m, buf)==0) {
+				if (message_parse(&m, buf)==0)
 					mdnsd_in(d, &m, from.sin_addr, from.sin_port);
-				}
 			}
 			if (bsize < 0 && errno != EAGAIN) {
 				printf("Failed reading from socket %d: %s\n", errno, strerror(errno));
@@ -191,6 +348,9 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 		}
+
+		if (wait && (time(NULL) - start >= wait))
+			break;
 	}
 
 	mdnsd_shutdown(d);

@@ -31,7 +31,10 @@
 .Nd small query tool for multicast DNS
 .Sh SYNOPSIS
 .Nm mquery
+.Op Fl hsv
+.Op Fl i Ar IFACE
 .Op Fl t Ar TYPE
+.Op Fl w Ar SEC
 .Op Ar NAME
 .Sh DESCRIPTION
 .Nm
@@ -42,24 +45,48 @@ and sends mDNS service queries, similar to how
 .Xr mdns-scan 1
 works, but with a fraction of the usability.
 .Pp
+.Nm
+runs on the system default interface, derived from the routing table.
+To run on another interface, use the
+.Fl i Ar IFACE
+command line option.  It runs continuously monitoring for responses to
+the initial query, by default
+.Cm _services._dns-sd._udp.local.
+.Pp
 .Sh OPTIONS
 This program follows the usual UNIX command line syntax. The options are
 as follows:
 .Bl -tag
+.It Fl h
+Print a bare bones help message and exits.
+.It Fl i Ar IFACE
+Interface to run query on, by default the system default interface is
+used, derived from the routing table.
+.It Fl s
+By default
+.Nm
+behaves a lot like
+.Xr mdns-scan 1 ,
+which after receiving an initial reply to a scan, sends a specific PTR
+query to the respondent.  This option skips that specific scan and runs
+.Nm
+in a simple mode.
 .It Fl t Ar TYPE
 Query type, default 12 (PTR).
 .It Fl h
 Print a help message and exit.
+.It Fl v
+Show program version.
+.It Fl w Ar SEC
+Delay (approximate) in seconds before automatically exiting.
 .El
 .Sh SEE ALSO
 .Xr mdns-scan 1
 .Xr mdnsd 8 ,
 .Sh AUTHORS
-This mDNS-SD implementation was initially developed by
-.An Jeremie Miller Aq jer@jabber.org
-in 2003.  Much later
+This mDNS-SD implementation was created in 2003 by
+.An Jeremie Miller Aq jer@jabber.org .
+Much later, in 2016, it was adopted by
 .An Joachim Wiberg Aq troglobit@gmail.com
-adopted it for further development and maintenance
-.Nm
-at
-.Lk https://github.com/troglobit/mdnsd GitHub .
+for further development and maintenance at GitHub:
+.Aq https://github.com/troglobit/mdnsd .
