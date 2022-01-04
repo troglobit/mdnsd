@@ -25,11 +25,10 @@ Usage
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
 different path can be given, which may be a directory or a single file.
 
-    Usage: mdnsd [-hnpsv] [-a ADDRESS] [-l LEVEL] [PATH]
+    Usage: mdnsd [-hnpsv] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]
     
-        -a ADDR   Address of service/host to announce, default: auto
         -h        This help text
-        -i IFACE  Interface to announce services on, and get address from
+        -i IFACE  Announce services only on this interface, default: all
         -l LEVEL  Set log level: none, err, notice (default), info, debug
         -n        Run in foreground, do not detach from controlling terminal
         -p        Persistent mode, retry if the socket or interface is lost

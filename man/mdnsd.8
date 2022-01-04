@@ -32,8 +32,9 @@
 .Sh SYNOPSIS
 .Nm mdnsd
 .Op Fl hnpsv
-.Op Fl a Ar ADDRESS
+.Op Fl i Ar IFACE
 .Op Fl l Ar LEVEL
+.Op Fl t Ar TTL
 .Op Ar PATH
 .Sh DESCRIPTION
 .Nm
@@ -46,31 +47,23 @@ depending on the operating system.
 .Nm
 reads service definitions of services to announce from
 .Pa /etc/mdns.d/*.service ,
-a different path may be given, which can be a directory or a single
-service file.
+a different path may be given on the command line, which can be a
+directory or a single service file.
 .Pp
 .Nm
-listens on the system default interface, which it locates by querying
-the routing table, specifically the default (unicast) route.  To run on
-systems without a default route, e.g. a link-local only system, use
-.Fl i Ar IFACE .
-Starting
-.Nm
-early in the boot process means the system may not yet have acquired an
-IP address, or the interface itself may not even exist yet, in which
-case
-.Fl p
-may likely also help.
+by default runs on all multicast capable interfaces on a system.  Use
+.Fl i Ar IFACE
+to only run on a single interface.
 .Sh OPTIONS
 This program follows the usual UNIX command line syntax. The options are
 as follows:
 .Bl -tag
-.It Fl a Ar ADDRESS
-Address of service/host to announce, default: auto.
 .It Fl h
 Print a help message and exit.
 .It Fl i Ar IFACE
-Interface to announce services on, and get address from.
+Interface to announce services on.  By default
+.Nm
+runs on all interfaces.
 .It Fl l Ar LEVEL
 Set log level: none, err, notice (default), info, debug.
 .It Fl n
@@ -94,11 +87,9 @@ mDNS-SD services to announce.
 .Xr mdnsd.service 5 ,
 .Xr mdns-scan 1
 .Sh AUTHORS
-This mDNS-SD implementation was initially developed by
-.An Jeremie Miller Aq jer@jabber.org
-in 2003.  Much later
+This mDNS-SD implementation was created in 2003 by
+.An Jeremie Miller Aq jer@jabber.org .
+Much later, in 2016, it was adopted by
 .An Joachim Wiberg Aq troglobit@gmail.com
-adopted it for further development and maintenance
-.Nm
-at
-.Lk https://github.com/troglobit/mdnsd GitHub
+for further development and maintenance at GitHub:
+.Aq https://github.com/troglobit/mdnsd .
