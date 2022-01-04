@@ -44,12 +44,17 @@ static TAILQ_HEAD(iflist, iface) iface_list = TAILQ_HEAD_INITIALIZER(iface_list)
 
 struct iface *iface_iterator(int first)
 {
-	static struct iface *iface = NULL;
+	static struct iface *next = NULL;
+	struct iface *iface;
 
 	if (first)
 		iface = TAILQ_FIRST(&iface_list);
 	else
-		iface = TAILQ_NEXT(iface, link);
+		iface = next;
+
+	/* prepare for next, in case iface is unlinked */
+	if (iface)
+		next = TAILQ_NEXT(iface, link);
 
 	return iface;
 }
