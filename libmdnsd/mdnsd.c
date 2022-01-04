@@ -874,8 +874,12 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 
 		INFO("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
 		r = _r_next(d, NULL, m->an[i].name, m->an[i].type);
-		if (r && r->unique && r->modified && _a_match(&m->an[i], &r->rr))
+		if (r && r->unique && r->modified && _a_match(&m->an[i], &r->rr)) {
+			/* double check, is this actually from us, looped back? */
+			if (ip.s_addr == d->addr.s_addr)
+				continue;
 			_conflict(d, r);
+		}
 
 		if (d->received_callback)
 			d->received_callback(&m->an[i], d->received_callback_data);
@@ -1375,9 +1379,6 @@ static int process_in(mdns_daemon_t *d, int sd)
 	memset(buf, 0, sizeof(buf));
 
 	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
-		if (from.sin_addr.s_addr == d->addr.s_addr)
-			continue;	/* Drop own multicast packet */
-
 		struct message m = { 0 };
 		int rc;
 
