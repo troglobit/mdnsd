@@ -483,7 +483,7 @@ static void _gc(mdns_daemon_t *d)
 	d->expireall = (unsigned long)(d->now.tv_sec + GC);
 }
 
-static int _cache(mdns_daemon_t *d, struct resource *r)
+static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 {
 	unsigned long int ttl;
 	struct cached *c = 0;
@@ -565,6 +565,7 @@ static int _cache(mdns_daemon_t *d, struct resource *r)
 	case QTYPE_CNAME:
 	case QTYPE_PTR:
 		c->rr.rdname = strdup(r->known.ns.name);
+		c->rr.ip = ip;
 		break;
 
 	case QTYPE_SRV:
@@ -888,7 +889,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		if (d->received_callback)
 			d->received_callback(&m->an[i], d->received_callback_data);
 
-		if (_cache(d, &m->an[i]) != 0) {
+		if (_cache(d, &m->an[i], ip) != 0) {
 			ERR("Failed caching answer, possibly too long packet, skipping.");
 			continue;
 		}
