@@ -131,7 +131,7 @@ static struct query *_q_next(mdns_daemon_t *d, struct query *q, const char *host
 			return q;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *host, int type)
@@ -146,7 +146,7 @@ static struct cached *_c_next(mdns_daemon_t *d, struct cached *c,const char *hos
 			return c;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *host, int type)
@@ -161,7 +161,7 @@ static mdns_record_t *_r_next(mdns_daemon_t *d, mdns_record_t *r, const char *ho
 			return r;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static size_t _rr_len(mdns_answer_t *rr)
@@ -873,8 +873,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		}
 
 		INFO("Got Answer: Name: %s, Type: %d", m->an[i].name, m->an[i].type);
-		r = _r_next(d, 0, m->an[i].name, m->an[i].type);
-		if (r != 0 && r->unique && r->modified && _a_match(&m->an[i], &r->rr))
+		r = _r_next(d, NULL, m->an[i].name, m->an[i].type);
+		if (r && r->unique && r->modified && _a_match(&m->an[i], &r->rr))
 			_conflict(d, r);
 
 		if (d->received_callback)
