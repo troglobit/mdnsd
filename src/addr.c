@@ -73,6 +73,15 @@ struct iface *iface_find(const char *ifname)
 	return NULL;
 }
 
+void iface_free(struct iface *iface)
+{
+	if (!iface)
+		return;
+
+	TAILQ_REMOVE(&iface_list, iface, link);
+	free(iface);
+}
+
 int iface_update(char *ifname)
 {
 	struct ifaddrs *ifaddr, *ifa;
