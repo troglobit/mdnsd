@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+# export DH_VERBOSE=1
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --with=autoreconf,systemd
+
+override_dh_installchangelogs:
+	dh_installchangelogs ChangeLog.md
+
+override_dh_auto_install:
+	dh_auto_install
+	rm -f debian/mdnsd/usr/share/doc/mdnsd/LICENSE
+	rm -f debian/mdnsd/usr/share/doc/mdnsd/ChangeLog.md
+
+override_dh_installinit:
+	dh_systemd_enable
+	dh_installinit
+	dh_systemd_start --no-restart-on-upgrade

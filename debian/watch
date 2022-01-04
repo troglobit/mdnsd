@@ -1,0 +1,3 @@
+version=3
+opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/mdnsd-$1\.tar\.xz/ \
+  https://github.com/troglobit/mdnsd/releases .*/mdnsd-?(\d\S*)\.tar\.xz
