@@ -3,6 +3,42 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+
+[v0.11][UNRELEASED]
+----------------------
+
+Multiple interface support, and a lot of fixes again from the team at
+[devolo AG](https://www.devolo.com).
+
+### Changes
+- Add support for multiple interfaces.  Similar to running one
+  mdnsd v0.10 per interface, sharing the same .conf files, issue #8
+- Removed `-a ADDR` flag, not applicable anymore
+- The `-i IFACE` option now limits mdnsd to run on one interface
+- Add support for query type ANY, by Peter Fleer, issue #34
+- Create PID file when starting up, and touch on .conf reload.  This
+  is used by process supervisors like Finit to acknowledge that the
+  process (mdnsd) is done and ready to serve requests again
+- Updated mquery tool to behave a bit more like mdns-scan(1), except
+  with more command line options.  mquery still only runs on one
+  interface, unlike mdnsd itself
+
+### Fixes
+- Fix #33: multiple code cleanups and minor fixes by Wolfgang Rösler
+- Fix #35: validate port number in .conf file
+- Fix #38: possible NULL pointer dereference and memory leaks when
+  reading .conf files, by Wolfgang Rösler
+- Fix #39: multiple fixes by Peter Fleer
+  - Fix conflict detection
+  - If a conflict is detected, append `-index` suffix to hostname
+    to uniqify the name -- this happens in multi-deploy scenarios
+  - When reloading .conf files, delete previously published records
+  - Drop own, looped back, multicast packets -- only if we detect
+    it as our own published records
+  - Send publish records only if probes have gone unanswered
+- Fix #43: _ldecomp() breaking on long name offsets, by Chris Beaumont
+
+
 [v0.10][] - 2020-05-06
 ----------------------
 
@@ -85,6 +121,8 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.9...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.10...HEAD
+[v0.11]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
+[v0.10]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
 [v0.9]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
 [v0.8]: https://github.com/troglobit/mdnsd/compare/v0.7G...v0.8
