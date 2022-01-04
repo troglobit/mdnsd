@@ -46,6 +46,7 @@ libmdnsd.so.1 libmdnsd1 #MINVER#
  net2long@Base 0.9
  net2short@Base 0.9
  prioritynames@Base 0.9
+ records_clear@Base 0.11
  sd2txt@Base 0.9
  short2net@Base 0.9
  txt2sd@Base 0.9
