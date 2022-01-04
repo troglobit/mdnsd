@@ -13,7 +13,8 @@ Multiple interface support, and a lot of fixes again from the team at
 ### Changes
 - Add support for multiple interfaces.  Similar to running one
   mdnsd v0.10 per interface, sharing the same .conf files, issue #8
-- Removed `-a ADDR` flag, not applicable anymore
+- Drop `-a ADDR` command line option, not applicable anymore
+- Drop `-p` command line option, not needed anymore
 - The `-i IFACE` option now limits mdnsd to run on one interface
 - Add support for query type ANY, by Peter Fleer, issue #34
 - Create PID file when starting up, and touch on .conf reload.  This

@@ -31,7 +31,7 @@
 .Nd small multicast DNS daemon
 .Sh SYNOPSIS
 .Nm mdnsd
-.Op Fl hnpsv
+.Op Fl hnsv
 .Op Fl i Ar IFACE
 .Op Fl l Ar LEVEL
 .Op Fl t Ar TTL
@@ -68,8 +68,6 @@ runs on all interfaces.
 Set log level: none, err, notice (default), info, debug.
 .It Fl n
 Run in foreground, do not detach from controlling terminal.
-.It Fl p
-Persistent mode, retry if the socket or interface is lost.
 .It Fl s
 Use syslog even if running in foreground.
 .It Fl t Ar TTL

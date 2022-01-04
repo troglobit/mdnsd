@@ -215,14 +215,13 @@ static void multicast_socket(struct iface *iface, unsigned char ttl)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hnpsv] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]\n"
+	printf("Usage: %s [-hnsv] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]\n"
 	       "\n"
 	       "Options:\n"
 	       "    -h        This help text\n"
 	       "    -i IFACE  Interface to announce services on, and get address from\n"
 	       "    -l LEVEL  Set log level: none, err, notice (default), info, debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
-	       "    -p        Persistent mode, retry if the socket or interface is lost\n"
 	       "    -s        Use syslog even if running in foreground\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
 	       "    -v        Show program version\n"
@@ -255,12 +254,11 @@ int main(int argc, char *argv[])
 	char *ifname = NULL;
 	fd_set fds;
 	char *path;
-	int persistent = 0;
 	int ttl = 255;
 	int c, rc;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "hi:l:npst:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "hi:l:nst:v?")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
@@ -278,10 +276,6 @@ int main(int argc, char *argv[])
 		case 'n':
 			background = 0;
 			logging--;
-			break;
-
-		case 'p':
-			persistent = 1;
 			break;
 
 		case 's':
@@ -441,9 +435,8 @@ retry:
 		}
 	}
 
-	if (running && persistent) {
+	if (running) {
 		DBG("Restarting ...");
-		sleep(1);
 		goto retry;
 	}
 

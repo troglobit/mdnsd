@@ -31,7 +31,6 @@ different path can be given, which may be a directory or a single file.
         -i IFACE  Announce services only on this interface, default: all
         -l LEVEL  Set log level: none, err, notice (default), info, debug
         -n        Run in foreground, do not detach from controlling terminal
-        -p        Persistent mode, retry if the socket or interface is lost
         -s        Use syslog even if running in foreground
         -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
         -v        Show program version
@@ -47,9 +46,9 @@ for mDNS-SD and mdnsd may not even have a place there.
 
 mdnsd runs on all multicast enabled system interfaces.  It can be limted
 to run on only one using the `-i IFACE` command line option.  Starting
-mdnsd early in the boot process means the system may not yet have
+mdnsd early in the boot process, when the interface may not yet have
 acquired an IP address, or the interface itself may not even exist yet,
-in which case `-p` may likely also help.
+mdnsd handles this by periodically probing for interface changes.
 
 See the file [API.md][] for pointers on how to use the mDNS library.
 
