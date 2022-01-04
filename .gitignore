@@ -1,6 +1,8 @@
 *~
 *.swp
 .config
+.gdb_history
+.gdbinit
 .unpacked
 autom4te.cache/
 GPATH
