@@ -43,6 +43,19 @@
 #define NELEMS(array) (sizeof(array) / sizeof((array)[0]))
 #endif
 
+#ifndef IN_ZERONET
+#define IN_ZERONET(addr) ((addr & IN_CLASSA_NET) == 0)
+#endif
+
+#ifndef IN_LOOPBACK
+#define IN_LOOPBACK(addr) ((addr & IN_CLASSA_NET) == 0x7f000000)
+#endif
+
+#ifndef IN_LINKLOCAL
+#define IN_LINKLOCALNETNUM 0xa9fe0000
+#define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == IN_LINKLOCALNETNUM)
+#endif
+
 struct iface {
 	TAILQ_ENTRY(iface) link;
 	char               unused;
@@ -77,5 +90,26 @@ int pidfile(const char *basename);
 #ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
+
+static inline int is_linklocal(struct in_addr *ina)
+{
+	return IN_LINKLOCAL(ntohl(ina->s_addr));
+}
+
+static inline int is_zeronet(struct in_addr *ina)
+{
+	return IN_ZERONET(ntohl(ina->s_addr));
+}
+
+static inline int is_add_valid(struct in_addr *ina)
+{
+	in_addr_t addr;
+
+	addr = ntohl(ina->s_addr);
+	if (IN_ZERONET(addr) || IN_LOOPBACK(addr) || IN_LINKLOCAL(addr))
+		return 0;
+
+	return 1;
+}
 
 #endif /* MDNSD_H_ */

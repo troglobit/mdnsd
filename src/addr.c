@@ -40,34 +40,7 @@
 
 #include "mdnsd.h"
 
-#ifndef IN_ZERONET
-#define IN_ZERONET(addr) ((addr & IN_CLASSA_NET) == 0)
-#endif
-
-#ifndef IN_LOOPBACK
-#define IN_LOOPBACK(addr) ((addr & IN_CLASSA_NET) == 0x7f000000)
-#endif
-
-#ifndef IN_LINKLOCAL
-#define IN_LINKLOCALNETNUM 0xa9fe0000
-#define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == IN_LINKLOCALNETNUM)
-#endif
-
 static TAILQ_HEAD(iflist, iface) iface_list = TAILQ_HEAD_INITIALIZER(iface_list);
-
-#if 0	/* unused from v0.11 and later */
-/* Check if valid address */
-static int valid_addr(struct in_addr *ina)
-{
-	in_addr_t addr;
-
-	addr = ntohl(ina->s_addr);
-	if (IN_ZERONET(addr) || IN_LOOPBACK(addr) || IN_LINKLOCAL(addr))
-		return 0;
-
-	return 1;
-}
-#endif	/* unused */
 
 struct iface *iface_iterator(int first)
 {
