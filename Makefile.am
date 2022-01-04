@@ -10,12 +10,6 @@ systemd_DATA            = mdnsd.service
 endif
 
 #
-# Generate .deb package(s)
-#
-package:
-	@debuild -uc -us -B --lintian-opts --profile debian -i -I --show-overrides
-
-#
 # Check if tagged in git
 #
 release-hook:
