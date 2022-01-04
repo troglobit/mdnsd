@@ -329,7 +329,7 @@ retry:
 		if (!iface->mdns) {
 			iface->mdns = mdnsd_new(QCLASS_IN, 1000);
 			if (!iface->mdns) {
-				ERR("Failed creating daemon context: %s", strerror(errno));
+				ERR("Failed creating mDNS context for iface %s: %s", iface->ifname, strerror(errno));
 				return 1;
 			}
 		}
@@ -354,7 +354,7 @@ retry:
 
 		FD_ZERO(&fds);
 		for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
-			if (iface->sd < 0)
+			if (iface->sd < 0 || iface->unused)
 				continue;
 
 			FD_SET(iface->sd, &fds);
@@ -362,7 +362,13 @@ retry:
 				nfds = iface->sd;
 		}
 
-		rc = select(nfds + 1, &fds, NULL, NULL, &tv);
+		if (nfds > 0)
+			nfds++;
+		else
+			tv.tv_sec = 2;
+
+		DBG("Going to sleep for %d sec ...", (int)tv.tv_sec);
+		rc = select(nfds, &fds, NULL, NULL, &tv);
 		if ((rc < 0 && EINTR == errno) || reload) {
 			if (!running)
 				break;
@@ -405,8 +411,6 @@ retry:
 			close(iface->sd);
 			iface->sd = -1;
 		}
-
-		DBG("Going back to sleep, for %d sec ...", (int)tv.tv_sec);
 	}
 
 	if (running && persistent) {
