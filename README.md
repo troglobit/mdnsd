@@ -14,9 +14,9 @@ About
 
 [Jeremie Miller's][jeremie] original mDNS/mDNS-SD library daemon.
 
-Download a [relased tarball][releases] (not a GitHub zip) to unlock a
-fully supported version.  Hardcore devs. can proceed to clone the GIT
-repository, see below for help.
+> Download a [versioned relased tarball][releases] (not a GitHub zip) to
+> unlock a fully supported version.  Hardcore devs. can proceed to clone
+> the GIT repository, see below for help.
 
 
 Usage
@@ -126,13 +126,15 @@ Origin & References
 
 This mDNS-SD implementation was developed by [Jeremie Miller][jeremie]
 in 2003, originally [announced on the rendezvous-dev][announced] mailing
-list.  It has many forks and has been used by many other applications
-over the years.
+list.  The original name was 'mhttp'.  It has many forks and has been
+used by many other applications over the years.
 
-This GitHub project is an attempt to clean it up, develop it further,
-and maintain it for the long haul.
+The GitHub project is an attempt by [Joachim Wiberg][troglobit] to clean
+up the original code base, develop it further, and maintain it for the
+long haul under the name `mdnsd`.
 
 [jeremie]:      https://github.com/quartzjer
+[troglobit]:    https://github.com/troglobit
 [releases]:     https://github.com/troglobit/mdnsd/releases
 [announced]:    https://web.archive.org/web/20140115142008/http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
 [API.md]:       https://github.com/troglobit/mdnsd/blob/master/API.md
