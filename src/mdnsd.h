@@ -64,6 +64,7 @@ struct iface {
 	char               ifname[IFNAMSIZ];
 	int                ifindex;		/* Physical interface index   */
 	struct in_addr     inaddr;		/* == 0 for non IP interfaces */
+	struct in_addr     inaddr_old;
 	int                sd;
 
 	mdns_daemon_t     *mdns;
@@ -74,6 +75,7 @@ void mdnsd_conflict(char *name, int type, void *arg);
 /* addr.c */
 struct iface *iface_iterator(int first);
 struct iface *iface_find(const char *ifname);
+void          iface_free(struct iface *iface);
 int           iface_update(char *ifname);
 
 void          iface_init(char *ifname);

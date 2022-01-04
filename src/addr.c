@@ -82,11 +82,44 @@ void iface_free(struct iface *iface)
 	free(iface);
 }
 
+static void mark(void)
+{
+	struct iface *iface;
+
+	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
+		iface->unused = 1;
+		iface->inaddr_old = iface->inaddr;
+		memset(&iface->inaddr, 0, sizeof(iface->inaddr));
+	}
+}
+
+static int sweep(void)
+{
+	struct iface *iface;
+	int changed = 0;
+
+	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
+		if (iface->unused)
+			continue;
+
+		if (!iface->changed)
+			continue;
+
+		if (iface->inaddr.s_addr == iface->inaddr_old.s_addr) {
+			iface->changed = 0;
+			continue;
+		}
+
+		changed++;
+	}
+
+	return changed;
+}
+
 int iface_update(char *ifname)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	struct iface *iface = NULL;
-	int changed = 0;
 	int rc = -1;
 
 	rc = getifaddrs(&ifaddr);
@@ -94,6 +127,8 @@ int iface_update(char *ifname)
 		ERR("Failed fetching system interfaces: %s", strerror(errno));
 		return 0;
 	}
+
+	mark();
 
 	if (ifname)
 		iface = iface_find(ifname);
@@ -138,6 +173,8 @@ int iface_update(char *ifname)
 				ERR("Failed allocating memory for iface %s: %s", ifa->ifa_name, strerror(errno));
 				exit(1);
 			}
+
+			DBG("Found interface %s, address %s", ifa->ifa_name, buf);
 			TAILQ_INSERT_TAIL(&iface_list, iface, link);
 
 			strlcpy(iface->ifname, ifa->ifa_name, sizeof(iface->ifname));
@@ -148,11 +185,13 @@ int iface_update(char *ifname)
 		}
 
 		if (iface->inaddr.s_addr != ina.s_addr) {
-			DBG("Found interface %s, address %s", ifa->ifa_name, buf);
-			iface->inaddr = ina;
-			iface->changed = 1;
-			changed++;
+			if (is_zeronet(&iface->inaddr) || is_linklocal(&iface->inaddr)) {
+				iface->inaddr = ina;
+				iface->changed = 1;
+			}
 		}
+
+		/* prepare for next */
 		iface = NULL;
 
 		if (ifname)
@@ -160,7 +199,7 @@ int iface_update(char *ifname)
 	}
 	freeifaddrs(ifaddr);
 
-	return changed;
+	return sweep();
 }
 
 void iface_init(char *ifname)

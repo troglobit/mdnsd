@@ -385,10 +385,38 @@ retry:
 		/* Check if IP address changed, needed to update A records */
 		if (iface_update(ifname)) {
 			for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
-				if (!iface->changed || !iface->unused)
+				if (!iface->changed)
 					continue;
 
-				multicast_socket(iface, (unsigned char)ttl);
+				if (iface->unused) {
+					mdnsd_shutdown(iface->mdns);
+					mdnsd_free(iface->mdns);
+					if (iface->sd >= 0) {
+						FD_CLR(iface->sd, &fds);
+						close(iface->sd);
+					}
+					iface_free(iface);
+					continue;
+				}
+
+				if (!iface->mdns) {
+					iface->mdns = mdnsd_new(QCLASS_IN, 1000);
+					if (!iface->mdns) {
+						ERR("Failed creating mDNS context for iface %s: %s", iface->ifname, strerror(errno));
+						return 1;
+					}
+
+					conf_init(iface->mdns, path, hostid);
+					mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
+				}
+				if (iface->sd < 0) {
+					multicast_socket(iface, (unsigned char)ttl);
+					if (iface->sd < 0) {
+						ERR("Failed creating socket: %s", strerror(errno));
+						return 1;
+					}
+				}
+
 				mdnsd_set_address(iface->mdns, iface->inaddr);
 				iface->changed = 0;
 			}
