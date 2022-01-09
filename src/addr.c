@@ -116,7 +116,7 @@ static int sweep(void)
 	return changed;
 }
 
-int iface_update(char *ifname)
+void iface_init(char *ifname)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	struct iface *iface = NULL;
@@ -125,7 +125,7 @@ int iface_update(char *ifname)
 	rc = getifaddrs(&ifaddr);
 	if (rc) {
 		ERR("Failed fetching system interfaces: %s", strerror(errno));
-		return 0;
+		return;
 	}
 
 	mark();
@@ -179,6 +179,7 @@ int iface_update(char *ifname)
 
 			strlcpy(iface->ifname, ifa->ifa_name, sizeof(iface->ifname));
 			iface->ifindex = if_nametoindex(ifa->ifa_name);
+			iface->hostid = 1;
 			iface->sd = -1;
 		} else {
 			iface->unused = 0;
@@ -199,12 +200,7 @@ int iface_update(char *ifname)
 	}
 	freeifaddrs(ifaddr);
 
-	return sweep();
-}
-
-void iface_init(char *ifname)
-{
-	iface_update(ifname);
+	sweep();
 }
 
 void iface_exit(void)

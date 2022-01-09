@@ -27,7 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <config.h>
 #include <getopt.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -39,23 +38,33 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "mdnsd.h"
+
+#define SYS_INTERVAL 10		/* System inteface poll interval */
 
 volatile sig_atomic_t running = 1;
 volatile sig_atomic_t reload = 0;
 char *prognm      = PACKAGE_NAME;
+char *ifname      = NULL;
+char *path        = NULL;
 int   background  = 1;
 int   logging     = 1;
-int   hostid      = 1;
+int   ttl         = 255;
+
+static int multicast_socket(struct iface *iface, unsigned char ttl);
 
 
 void mdnsd_conflict(char *name, int type, void *arg)
 {
-	WARN("conflicting name detected %s for type %d, reload config ...", name, type);
+	struct iface *iface = (struct iface *)arg;
+
+	WARN("%s: conlicting name detected %s for type %d, reloading config ...", iface->ifname, name, type);
 	if (!reload) {
-		hostid++;
+		iface->hostid++;
 		reload = 1;
 	}
 }
@@ -97,12 +106,83 @@ static void record_received(const struct resource *r, void *data)
 	}
 }
 
-static void done(int sig)
+static void free_iface(struct iface *iface)
+{
+	mdnsd_shutdown(iface->mdns);
+	mdnsd_free(iface->mdns);
+	if (iface->sd >= 0)
+		close(iface->sd);
+}
+
+static void setup_iface(struct iface *iface)
+{
+	if (!iface->changed)
+		return;
+
+	if (iface->unused) {
+		free_iface(iface);
+		return;
+	}
+
+	if (!iface->mdns) {
+		iface->mdns = mdnsd_new(QCLASS_IN, 1000);
+		if (!iface->mdns) {
+			ERR("Failed creating mDNS context for iface %s: %s", iface->ifname, strerror(errno));
+			exit(1);
+		}
+
+		conf_init(iface, path);
+		mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
+	}
+
+	if (iface->sd < 0) {
+		iface->sd = multicast_socket(iface, (unsigned char)ttl);
+		if (iface->sd < 0) {
+			ERR("Failed creating socket: %s", strerror(errno));
+			exit(1);
+		}
+	}
+
+	mdnsd_set_address(iface->mdns, iface->inaddr);
+	iface->changed = 0;
+}
+
+static int sys_timeout(int *timeout)
+{
+	static struct timespec before;
+	struct timespec now;
+
+	if (*timeout == 0) {
+		clock_gettime(CLOCK_MONOTONIC, &before);
+		*timeout = SYS_INTERVAL;
+	} else {
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		if (before.tv_sec + SYS_INTERVAL <= now.tv_sec) {
+			before = now;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static void sys_init(void)
+{
+	struct iface *iface;
+
+	/* Initialize or check if IP address changed, needed to update A records */
+	iface_init(ifname);
+
+	for (iface = iface_iterator(1); iface; iface = iface_iterator(0))
+		setup_iface(iface);
+}
+
+static void done(int signo)
 {
 	running = 0;
 }
 
-static void reconf(int sig)
+static void reconf(int signo)
 {
 	reload = 1;
 }
@@ -119,7 +199,7 @@ static void sig_init(void)
  * Create a multicast socket and bind it to the given interface.
  * Conclude by joining 224.0.0.251:5353 to hear others.
  */
-static void multicast_socket(struct iface *iface, unsigned char ttl)
+static int multicast_socket(struct iface *iface, unsigned char ttl)
 {
 #ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
 	struct ip_mreqn imr = { .imr_ifindex = iface->ifindex };
@@ -131,70 +211,69 @@ static void multicast_socket(struct iface *iface, unsigned char ttl)
 	int unicast_ttl = 255;
 	unsigned char on = 1;
 	int bufsiz, flag = 1;
+	int sd;
 
-	if (iface->sd < 0) {
-		iface->sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-		if (iface->sd < 0) {
-			ERR("Failed creating UDP socket: %s", strerror(errno));
-			return;
-		}
+	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	if (sd < 0) {
+		ERR("Failed creating UDP socket: %s", strerror(errno));
+		return -1;
 	}
+
 #ifdef SO_REUSEPORT
-	if (setsockopt(iface->sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
 		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
 #endif
-	if (setsockopt(iface->sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
 		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
 
 	/* Double the size of the receive buffer (getsockopt() returns the double) */
 	len = sizeof(bufsiz);
-	if (!getsockopt(iface->sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len)) {
-		if (setsockopt(iface->sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz)))
+	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len)) {
+		if (setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz)))
 			INFO("Failed doubling the size of the receive buffer: %s", strerror(errno));
 	}
 
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_PKTINFO, &flag, sizeof(flag)))
+	if (setsockopt(sd, IPPROTO_IP, IP_PKTINFO, &flag, sizeof(flag)))
 		WARN("Failed setting %s IP_PKTINFO: %s", iface->ifindex, strerror(errno));
 
 	/* Set interface for outbound multicast */
 #ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
 		WARN("Failed setting IP_MULTICAST_IF %d: %s", iface->ifindex, strerror(errno));
 #else
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina)))
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina)))
 		WARN("Failed setting IP_MULTICAST_IF to %s: %s",
 		     inet_ntoa(ina), strerror(errno));
 #endif
 
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_MULTICAST_LOOP, &on, sizeof(on)))
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &on, sizeof(on)))
 		WARN("Failed disabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
 
 	flag = 0;
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_MULTICAST_ALL, &flag, sizeof(flag)))
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_ALL, &flag, sizeof(flag)))
 		WARN("Failed disabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
 
 	/*
 	 * All traffic on 224.0.0.* is link-local only, so the default
 	 * TTL is set to 1.  Some users may however want to route mDNS.
 	 */
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)))
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)))
 		WARN("Failed setting IP_MULTICAST_TTL to %d: %s", ttl, strerror(errno));
 
 	/* mDNS also supports unicast, so we need a relevant TTL there too */
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_TTL, &unicast_ttl, sizeof(unicast_ttl)))
+	if (setsockopt(sd, IPPROTO_IP, IP_TTL, &unicast_ttl, sizeof(unicast_ttl)))
 		WARN("Failed setting IP_TTL to %d: %s", unicast_ttl, strerror(errno));
 
 	/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
-	if (setsockopt(iface->sd, SOL_SOCKET, SO_BINDTODEVICE, &iface->ifname, strlen(iface->ifname)))
+	if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, &iface->ifname, strlen(iface->ifname)))
 		WARN("Failed setting SO_BINDTODEVICE: %s", strerror(errno));
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(5353);
-	if (bind(iface->sd, (struct sockaddr *)&sin, sizeof(sin))) {
-		close(iface->sd);
-		iface->sd = -1;
-		return;
+	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
+		close(sd);
+		return -1;
 	}
 	INFO("Bound to *:5353 on iface %s", iface->ifname);
 
@@ -209,8 +288,10 @@ static void multicast_socket(struct iface *iface, unsigned char ttl)
 #else
 	imr.imr_interface = iface->inaddr;
 #endif
-	if (setsockopt(iface->sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr)))
+	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr)))
 		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
+
+	return sd;
 }
 
 static int usage(int code)
@@ -251,10 +332,8 @@ int main(int argc, char *argv[])
 {
 	struct timeval tv = { 0 };
 	struct iface *iface;
-	char *ifname = NULL;
 	fd_set fds;
-	char *path;
-	int ttl = 255;
+	int timeout = 0;
 	int c, rc;
 
 	prognm = progname(argv[0]);
@@ -314,33 +393,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	sig_init();
-
-retry:
-	iface_init(ifname);
-
-	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
-		if (!iface->mdns) {
-			iface->mdns = mdnsd_new(QCLASS_IN, 1000);
-			if (!iface->mdns) {
-				ERR("Failed creating mDNS context for iface %s: %s", iface->ifname, strerror(errno));
-				return 1;
-			}
-		}
-
-		mdnsd_set_address(iface->mdns, iface->inaddr);
-
-		conf_init(iface->mdns, path, hostid);
-		mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
-
-		multicast_socket(iface, (unsigned char)ttl);
-		if (iface->sd < 0) {
-			ERR("Failed creating socket: %s", strerror(errno));
-			return 1;
-		}
-	}
-
 	NOTE("%s starting.", PACKAGE_STRING);
+	sig_init();
+	sys_init();
 	pidfile(PACKAGE_NAME);
 
 	while (running) {
@@ -358,8 +413,6 @@ retry:
 
 		if (nfds > 0)
 			nfds++;
-		else
-			tv.tv_sec = 2;
 
 		DBG("Going to sleep for %d sec ...", (int)tv.tv_sec);
 		rc = select(nfds, &fds, NULL, NULL, &tv);
@@ -367,86 +420,48 @@ retry:
 			if (!running)
 				break;
 			if (reload) {
+				sys_init();
 				for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
 					records_clear(iface->mdns);
-					conf_init(iface->mdns, path, hostid);
+					conf_init(iface, path);
 				}
 				pidfile(PACKAGE_NAME);
 				reload = 0;
 			}
+
+			continue;
 		}
 
-		/* Check if IP address changed, needed to update A records */
-		if (iface_update(ifname)) {
-			for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
-				if (!iface->changed)
-					continue;
+		if (sys_timeout(&timeout))
+		    sys_init();
 
-				if (iface->unused) {
-					mdnsd_shutdown(iface->mdns);
-					mdnsd_free(iface->mdns);
-					if (iface->sd >= 0) {
-						FD_CLR(iface->sd, &fds);
-						close(iface->sd);
-					}
-					iface_free(iface);
-					continue;
-				}
-
-				if (!iface->mdns) {
-					iface->mdns = mdnsd_new(QCLASS_IN, 1000);
-					if (!iface->mdns) {
-						ERR("Failed creating mDNS context for iface %s: %s", iface->ifname, strerror(errno));
-						return 1;
-					}
-
-					conf_init(iface->mdns, path, hostid);
-					mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
-				}
-				if (iface->sd < 0) {
-					multicast_socket(iface, (unsigned char)ttl);
-					if (iface->sd < 0) {
-						ERR("Failed creating socket: %s", strerror(errno));
-						return 1;
-					}
-				}
-
-				mdnsd_set_address(iface->mdns, iface->inaddr);
-				iface->changed = 0;
-			}
-		}
-
+		tv.tv_sec = timeout;
 		for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
+			struct timeval next;
+
 			DBG("Checking iface %s for activity ...", iface->ifname);
 			if (iface->unused || iface->sd < 0)
 				continue;
 
-			rc = mdnsd_step(iface->mdns, iface->sd, FD_ISSET(iface->sd, &fds), true, &tv);
-			if (!rc)
+			rc = mdnsd_step(iface->mdns, iface->sd, FD_ISSET(iface->sd, &fds), true, &next);
+			if (!rc) {
+				if (tv.tv_sec > next.tv_sec)
+					tv = next;
 				continue;
+			}
 
 			if (rc == 1)
 				ERR("Failed reading from socket %d: %s", errno, strerror(errno));
 			if (rc == 2)
 				ERR("Failed writing to socket: %s", strerror(errno));
 
-			close(iface->sd);
-			iface->sd = -1;
+			free_iface(iface);
 		}
 	}
 
-	if (running) {
-		DBG("Restarting ...");
-		goto retry;
-	}
-
 	NOTE("%s exiting.", PACKAGE_STRING);
-	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
-		mdnsd_shutdown(iface->mdns);
-		mdnsd_free(iface->mdns);
-		if (iface->sd >= 0)
-			close(iface->sd);
-	}
+	for (iface = iface_iterator(1); iface; iface = iface_iterator(0))
+		free_iface(iface);
 	iface_exit();
 
 	return 0;

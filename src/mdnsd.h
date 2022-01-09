@@ -68,6 +68,7 @@ struct iface {
 	int                sd;
 
 	mdns_daemon_t     *mdns;
+	int                hostid;              /* init to 1, +1 on conflict  */
 };
 
 void mdnsd_conflict(char *name, int type, void *arg);
@@ -76,13 +77,11 @@ void mdnsd_conflict(char *name, int type, void *arg);
 struct iface *iface_iterator(int first);
 struct iface *iface_find(const char *ifname);
 void          iface_free(struct iface *iface);
-int           iface_update(char *ifname);
-
 void          iface_init(char *ifname);
 void          iface_exit(void);
 
 /* conf.c */
-int conf_init(mdns_daemon_t *d, char *path, int hostid);
+int conf_init(struct iface *iface, char *path);
 
 /* replacement functions for systems that don't have them  */
 #ifndef HAVE_PIDFILE
