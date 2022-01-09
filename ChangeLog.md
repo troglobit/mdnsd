@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v0.11][UNRELEASED]
+[v0.11][] - 2022-01-09
 ----------------------
 
 Multiple interface support, and a lot of fixes again from the team at
@@ -17,6 +17,8 @@ Multiple interface support, and a lot of fixes again from the team at
 - Drop `-p` command line option, not needed anymore
 - The `-i IFACE` option now limits mdnsd to run on one interface
 - Add support for query type ANY, by Peter Fleer, issue #34
+- The libmdnsd function `mdnsd_step()` is now always non-blocking by
+  employing `MSG_DONTWAIT` for its `sendto()` and `recvfrom()` ops
 - Create PID file when starting up, and touch on .conf reload.  This
   is used by process supervisors like Finit to acknowledge that the
   process (mdnsd) is done and ready to serve requests again
@@ -123,7 +125,7 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed memory leaks
 
 [UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.10...HEAD
-[v0.11]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
-[v0.10]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
+[v0.11]: https://github.com/troglobit/mdnsd/compare/v0.10...v0.11
+[v0.10]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
 [v0.9]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
 [v0.8]: https://github.com/troglobit/mdnsd/compare/v0.7G...v0.8
