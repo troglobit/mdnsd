@@ -316,9 +316,7 @@ int main(int argc, char *argv[])
 	mdnsd_query(d, name, type, ans, NULL);
 
 	while (1) {
-		struct timeval *tv;
-
-		tv = mdnsd_sleep(d);
+		struct timeval *tv = mdnsd_sleep(d);
 
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
@@ -328,7 +326,7 @@ int main(int argc, char *argv[])
 			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
-				if (message_parse(&m, buf)==0)
+				if (message_parse(&m, buf) == 0)
 					mdnsd_in(d, &m, from.sin_addr, from.sin_port);
 			}
 			if (bsize < 0 && errno != EAGAIN) {
@@ -338,12 +336,13 @@ int main(int argc, char *argv[])
 		}
 
 		while (mdnsd_out(d, &m, &ip, &port)) {
+			int len = message_packet_len(&m);
+
 			memset(&to, 0, sizeof(to));
 			to.sin_family = AF_INET;
 			to.sin_port = port;
 			to.sin_addr = ip;
-			if (sendto(sd, message_packet(&m), message_packet_len(&m), 0, (struct sockaddr *)&to,
-				   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
+			if (sendto(sd, message_packet(&m), len, 0, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len) {
 				printf("Failed writing to socket: %s\n", strerror(errno));
 				return 1;
 			}
