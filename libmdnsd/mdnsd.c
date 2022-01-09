@@ -1389,7 +1389,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 
 	memset(buf, 0, sizeof(buf));
 
-	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, MSG_DONTWAIT, (struct sockaddr *)&from, &ssize)) > 0) {
 		struct message m = { 0 };
 		int rc;
 
@@ -1430,7 +1430,7 @@ static int process_out(mdns_daemon_t *d, int sd)
 		buf = message_packet(&m);
 		mdnsd_log_hex("Send Data:", buf, len);
 
-		if (sendto(sd, buf, len, 0, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len)
+		if (sendto(sd, buf, len, MSG_DONTWAIT, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len)
 			return 2;
 	}
 
