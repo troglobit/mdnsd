@@ -2,7 +2,7 @@
 AC_PREREQ([2.61])
 AC_INIT(mdnsd, 0.11-dev, https://github.com/troglobit/mdnsd/issues)
 AC_CONFIG_AUX_DIR(aux)
-AM_INIT_AUTOMAKE([1.11 foreign no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign dist-xz])
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_SRCDIR(src/mdnsd.c)
