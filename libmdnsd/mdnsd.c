@@ -202,6 +202,9 @@ static int _a_match(struct resource *r, mdns_answer_t *a)
 	if (r->type == QTYPE_A || !memcmp(&r->known.a.ip, &a->ip, 4))
 		return 1;
 
+	if (r->type == QTYPE_AAAA || !memcmp(&r->known.aaaa.ip6, &a->ip6, 16))
+		return 1;
+
 	if (r->rdlength == a->rdlen && !memcmp(r->rdata, a->rdata, r->rdlength))
 		return 1;
 
@@ -559,6 +562,10 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 	switch (r->type) {
 	case QTYPE_A:
 		c->rr.ip = r->known.a.ip;
+		break;
+
+	case QTYPE_AAAA:
+		c->rr.ip6 = r->known.aaaa.ip6;
 		break;
 
 	case QTYPE_NS:
