@@ -294,6 +294,16 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 			*bufp += sizeof(rr[i].known.a.ip.s_addr);
 			break;
 
+		case QTYPE_AAAA:
+			if (m->_len + INET6_ADDRSTRLEN > MAX_PACKET_LEN)
+				return 1;
+			rr[i].known.aaaa.name = (char *)m->_packet + m->_len;
+			m->_len += INET6_ADDRSTRLEN;
+			inet_ntop(AF_INET6, *bufp, rr[i].known.aaaa.name, INET6_ADDRSTRLEN);
+			memcpy(rr[i].known.aaaa.ip6.s6_addr, *bufp, sizeof(rr[i].known.aaaa.ip6.s6_addr));
+			*bufp += sizeof(rr[i].known.aaaa.ip6.s6_addr);
+			break;
+
 		case QTYPE_NS:
 			if (_label(m, bufp, &(rr[i].known.ns.name)))
 				return 1;
