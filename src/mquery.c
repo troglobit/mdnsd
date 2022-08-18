@@ -112,6 +112,9 @@ static const char *type2str(int type)
 	case QTYPE_TXT:
 		return "TXT (16)";
 
+	case QTYPE_AAAA:
+		return "AAAA (28)";
+
 	case QTYPE_SRV:
 		return "SRV (33)";
 
@@ -130,6 +133,7 @@ static const char *type2str(int type)
 static int ans(mdns_answer_t *a, void *arg)
 {
 	int now;
+	char ipinput[INET6_ADDRSTRLEN];
 
 	if (a->ttl == 0)
 		now = 0;
@@ -155,7 +159,13 @@ static int ans(mdns_answer_t *a, void *arg)
 
 	switch (a->type) {
 	case QTYPE_A:
-		printf("A %s for %d seconds to ip %s\n", a->name, now, inet_ntoa(a->ip));
+		inet_ntop(AF_INET, &(a->ip), ipinput, INET_ADDRSTRLEN);
+		printf("A %s for %d seconds to ip %s\n", a->name, now, ipinput);
+		break;
+
+	case QTYPE_AAAA:
+		inet_ntop(AF_INET6, &(a->ip6), ipinput, INET6_ADDRSTRLEN);
+		printf("AAAA %s for %d seconds to ip %s\n", a->name, now, ipinput);
 		break;
 
 	case QTYPE_PTR:

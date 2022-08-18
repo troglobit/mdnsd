@@ -71,12 +71,17 @@ void mdnsd_conflict(char *name, int type, void *arg)
 
 static void record_received(const struct resource *r, void *data)
 {
-	char ipinput[INET_ADDRSTRLEN];
+	char ipinput[INET6_ADDRSTRLEN];
 
 	switch(r->type) {
 	case QTYPE_A:
 		inet_ntop(AF_INET, &(r->known.a.ip), ipinput, INET_ADDRSTRLEN);
 		DBG("Got %s: A %s->%s", r->name, r->known.a.name, ipinput);
+		break;
+
+	case QTYPE_AAAA:
+		inet_ntop(AF_INET6, &(r->known.aaaa.ip6), ipinput, INET6_ADDRSTRLEN);
+		DBG("Got %s: AAAA %s->%s", r->name, r->known.aaaa.name, ipinput);
 		break;
 
 	case QTYPE_NS:
