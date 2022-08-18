@@ -384,12 +384,18 @@ static void _free_cached(struct cached *c)
 	if (!c)
 		return;
 
-	if (c->rr.name)
+	if (c->rr.name) {
 		free(c->rr.name);
-	if (c->rr.rdata)
+		c->rr.name = NULL;
+	}
+	if (c->rr.rdata) {
 		free(c->rr.rdata);
-	if (c->rr.rdname)
+		c->rr.rdata = NULL;
+	}
+	if (c->rr.rdname) {
 		free(c->rr.rdname);
+		c->rr.rdname = NULL;
+	}
 	free(c);
 }
 
@@ -398,12 +404,18 @@ static void _free_record(mdns_record_t *r)
 	if (!r)
 		return;
 
-	if (r->rr.name)
-	    free(r->rr.name);
-	if (r->rr.rdata)
+	if (r->rr.name) {
+		free(r->rr.name);
+		r->rr.name = NULL;
+	}
+	if (r->rr.rdata) {
 		free(r->rr.rdata);
-	if (r->rr.rdname)
+		r->rr.rdata = NULL;
+	}
+	if (r->rr.rdname) {
 		free(r->rr.rdname);
+		r->rr.rdname = NULL;
+	}
 	free(r);
 }
 
@@ -747,6 +759,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		while (cur) {
 			struct cached *next = cur->next;
 
+			cur->next = NULL;
 			_free_cached(cur);
 			cur = next;
 		}
@@ -759,6 +772,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		while (cur) {
 			struct mdns_record *next = cur->next;
 
+			cur->next = NULL;
 			_free_record(cur);
 			cur = next;
 		}
@@ -767,6 +781,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		while (curq) {
 			struct query *next = curq->next;
 
+			curq->next = NULL;
 			free(curq->name);
 			free(curq);
 			curq = next;
@@ -777,6 +792,7 @@ void mdnsd_free(mdns_daemon_t *d)
 	while (u) {
 		struct unicast *next = u->next;
 
+		u->next = NULL;
 		free(u);
 		u = next;
 	}

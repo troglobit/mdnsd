@@ -197,15 +197,20 @@ void xht_free(xht_t *h)
 
 		if (n->flag) {
 			free(n->u.key);
+			n->u.key = NULL;
 			free(n->val);
+			n->val = NULL;
 		}
 
 		for (n = (&h->zen[i])->next; n != 0;) {
 			xhn_t *f = n->next;
 
+			n->next = NULL;
 			if (n->flag) {
 				free(n->u.key);
+				n->u.key = NULL;
 				free(n->val);
+				n->val = NULL;
 			}
 			free(n);
 			n = f;
@@ -213,6 +218,7 @@ void xht_free(xht_t *h)
 	}
 
 	free(h->zen);
+	h->zen = NULL;
 	free(h);
 }
 
