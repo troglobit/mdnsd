@@ -285,12 +285,13 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 		/* Parse commonly known ones */
 		switch (rr[i].type) {
 		case QTYPE_A:
-			if (m->_len + 16 > MAX_PACKET_LEN)
+			if (m->_len + INET_ADDRSTRLEN > MAX_PACKET_LEN)
 				return 1;
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
-			m->_len += 16;
-			sprintf(rr[i].known.a.name, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
-			rr[i].known.a.ip.s_addr = net2long(bufp);
+			m->_len += INET_ADDRSTRLEN;
+			inet_ntop(AF_INET, *bufp, rr[i].known.a.name, INET_ADDRSTRLEN);
+			memcpy(&(rr[i].known.a.ip.s_addr), *bufp, sizeof(rr[i].known.a.ip.s_addr));
+			*bufp += sizeof(rr[i].known.a.ip.s_addr);
 			break;
 
 		case QTYPE_NS:
