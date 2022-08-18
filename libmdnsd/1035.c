@@ -454,10 +454,24 @@ void message_ar(struct message *m, char *name, unsigned short int type, unsigned
 	_rrappend(m, name, type, class, ttl);
 }
 
-void message_rdata_long(struct message *m, struct in_addr l)
+void message_rdata_long(struct message *m, unsigned long l)
 {
 	short2net(4, &(m->_buf));
-	long2net(l.s_addr, &(m->_buf));
+	long2net(l, &(m->_buf));
+}
+
+void message_rdata_ipv4(struct message *m, struct in_addr a)
+{
+	short2net(4, &(m->_buf));
+	memcpy(m->_buf, &a.s_addr, 4);
+	m->_buf += 4;
+}
+
+void message_rdata_ipv6(struct message *m, struct in6_addr a6)
+{
+	short2net(16, &(m->_buf));
+	memcpy(m->_buf, a6.s6_addr, 16);
+	m->_buf += 16;
 }
 
 void message_rdata_name(struct message *m, char *name)
