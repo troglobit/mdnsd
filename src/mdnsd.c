@@ -106,10 +106,12 @@ static void record_received(const struct resource *r, void *data)
 	}
 }
 
-static void free_iface(struct iface *iface)
+static void free_iface(struct iface *iface, int free_mdnsd)
 {
-	mdnsd_shutdown(iface->mdns);
-	mdnsd_free(iface->mdns);
+	if (free_mdnsd) {
+		mdnsd_shutdown(iface->mdns);
+		mdnsd_free(iface->mdns);
+	}
 	if (iface->sd >= 0)
 		close(iface->sd);
 }
@@ -120,7 +122,8 @@ static void setup_iface(struct iface *iface)
 		return;
 
 	if (iface->unused) {
-		free_iface(iface);
+		free_iface(iface, true);
+		iface_free(iface);
 		return;
 	}
 
@@ -455,13 +458,13 @@ int main(int argc, char *argv[])
 			if (rc == 2)
 				ERR("Failed writing to socket: %s", strerror(errno));
 
-			free_iface(iface);
+			free_iface(iface, false);
 		}
 	}
 
 	NOTE("%s exiting.", PACKAGE_STRING);
 	for (iface = iface_iterator(1); iface; iface = iface_iterator(0))
-		free_iface(iface);
+		free_iface(iface, true);
 	iface_exit();
 
 	return 0;
