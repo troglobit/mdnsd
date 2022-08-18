@@ -147,13 +147,11 @@ static int ans(mdns_answer_t *a, void *arg)
 			return 0;
 
 		if (!spec) {
-			mdnsd_query(d, a->rdname, a->type, ans, strdup(a->rdname));
+			mdnsd_query(d, a->rdname, a->type, ans, a->rdname);
 			return 0;
 		}
 
 		printf("+ %s (%s)\n", a->rdname, inet_ntoa(a->ip));
-		free(spec);
-
 		return 0;
 	}
 
