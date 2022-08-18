@@ -62,7 +62,7 @@ void mdnsd_conflict(char *name, int type, void *arg)
 {
 	struct iface *iface = (struct iface *)arg;
 
-	WARN("%s: conlicting name detected %s for type %d, reloading config ...", iface->ifname, name, type);
+	WARN("%s: conflicting name detected %s for type %d, reloading config ...", iface->ifname, name, type);
 	if (!reload) {
 		iface->hostid++;
 		reload = 1;
@@ -127,7 +127,7 @@ static void setup_iface(struct iface *iface)
 	if (!iface->mdns) {
 		iface->mdns = mdnsd_new(QCLASS_IN, 1000);
 		if (!iface->mdns) {
-			ERR("Failed creating mDNS context for iface %s: %s", iface->ifname, strerror(errno));
+			ERR("Failed creating mDNS context for interface %s: %s", iface->ifname, strerror(errno));
 			exit(1);
 		}
 
@@ -289,7 +289,7 @@ static int multicast_socket(struct iface *iface, unsigned char ttl)
 	imr.imr_interface = iface->inaddr;
 #endif
 	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr)))
-		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
+		WARN("Failed joining mDNS group 224.0.0.251: %s", strerror(errno));
 
 	return sd;
 }
@@ -439,7 +439,7 @@ int main(int argc, char *argv[])
 		for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
 			struct timeval next;
 
-			DBG("Checking iface %s for activity ...", iface->ifname);
+			DBG("Checking interface %s for activity ...", iface->ifname);
 			if (iface->unused || iface->sd < 0)
 				continue;
 
