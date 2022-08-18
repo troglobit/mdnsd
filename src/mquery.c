@@ -264,7 +264,7 @@ int main(int argc, char *argv[])
 	ssize_t bsize;
 	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
-	char default_iface[IFNAMSIZ];
+	char default_iface[IFNAMSIZ] = { 0 };
 	struct sockaddr_in from, to;
 	char *name = DISCO_NAME;
 	char *ifname = NULL;
