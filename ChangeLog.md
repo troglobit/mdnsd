@@ -39,7 +39,7 @@ Multiple interface support, and a lot of fixes again from the team at
   - Drop own, looped back, multicast packets -- only if we detect
     it as our own published records
   - Send publish records only if probes have gone unanswered
-- Fix #43: _ldecomp() breaking on long name offsets, by Chris Beaumont
+- Fix #43: `_ldecomp()` breaking on long name offsets, by Chris Beaumont
 
 
 [v0.10][] - 2020-05-06
