@@ -250,7 +250,7 @@ static int msock(char *ifname)
 static int usage(int code)
 {
 	/* mquery -t 12 _http._tcp.local. */
-	printf("usage: mquery [-hsv] [-i IFNAME] [-t TYPE] [-w SEC] [NAME]\n");
+	printf("usage: mquery [-hsv] [-i IFNAME] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
 	return code;
 }
 
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	int sd, c;
 
-	while ((c = getopt(argc, argv, "h?i:st:vw:")) != EOF) {
+	while ((c = getopt(argc, argv, "h?i:l:st:vw:")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
@@ -280,6 +280,11 @@ int main(int argc, char *argv[])
 
 		case 'i':
 			ifname = optarg;
+			break;
+
+		case 'l':
+			if (-1 == mdnsd_log_level(optarg))
+				return usage(1);
 			break;
 
 		case 's':
