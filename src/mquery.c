@@ -146,10 +146,8 @@ static int ans(mdns_answer_t *a, void *arg)
 		if (a->type != QTYPE_PTR)
 			return 0;
 
-		if (!spec) {
+		if (!spec)
 			mdnsd_query(d, a->rdname, a->type, ans, a->rdname);
-			return 0;
-		}
 
 		printf("+ %s (%s)\n", a->rdname, inet_ntoa(a->ip));
 		return 0;
