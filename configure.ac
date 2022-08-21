@@ -7,7 +7,7 @@ AM_SILENT_RULES([yes])
 
 AC_CONFIG_SRCDIR(src/mdnsd.c)
 AM_CONFIG_HEADER(config.h)
-AC_CONFIG_FILES([Makefile mdnsd.service examples/Makefile libmdnsd/Makefile man/Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile mdnsd.service examples/Makefile libmdnsd/Makefile man/Makefile src/Makefile test/Makefile])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_PROG_CC
