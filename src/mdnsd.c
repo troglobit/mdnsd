@@ -49,6 +49,7 @@
 volatile sig_atomic_t running = 1;
 volatile sig_atomic_t reload = 0;
 char *prognm      = PACKAGE_NAME;
+char *hostnm      = NULL;
 char *ifname      = NULL;
 char *path        = NULL;
 int   background  = 1;
@@ -136,7 +137,7 @@ static void setup_iface(struct iface *iface)
 			exit(1);
 		}
 
-		conf_init(iface, path);
+		conf_init(iface, path, hostnm);
 		mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
 	}
 
@@ -342,8 +343,12 @@ int main(int argc, char *argv[])
 	int c, rc;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "hi:l:nst:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "H:hi:l:nst:v?")) != EOF) {
 		switch (c) {
+		case 'H':
+			hostnm = optarg;
+			break;
+
 		case 'h':
 		case '?':
 			return usage(0);
@@ -428,7 +433,7 @@ int main(int argc, char *argv[])
 				sys_init();
 				for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
 					records_clear(iface->mdns);
-					conf_init(iface, path);
+					conf_init(iface, path, hostnm);
 				}
 				pidfile(PACKAGE_NAME);
 				reload = 0;

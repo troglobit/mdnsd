@@ -81,7 +81,7 @@ void          iface_init(char *ifname);
 void          iface_exit(void);
 
 /* conf.c */
-int conf_init(struct iface *iface, char *path);
+int conf_init(struct iface *iface, char *path, char *hostnm);
 
 /* replacement functions for systems that don't have them  */
 #ifndef HAVE_PIDFILE

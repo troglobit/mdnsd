@@ -239,16 +239,20 @@ static int load(struct iface *iface, char *path, char *hostname)
 	return 0;
 }
 
-int conf_init(struct iface *iface, char *path)
+int conf_init(struct iface *iface, char *path, char *hostnm)
 {
 	char hostname[HOST_NAME_MAX];
 	int hostid = iface->hostid;
 	struct stat st;
 	int rc = 0;
 
-	/* apparently gethostname() can fail ... */
-	if (gethostname(hostname, sizeof(hostname)) == -1)
-		strlcpy(hostname, "default", sizeof(hostname));
+	if (hostnm) {
+		strlcpy(hostname, hostnm, sizeof(hostname));
+	} else {
+		/* apparently gethostname() can fail ... */
+		if (gethostname(hostname, sizeof(hostname)) == -1)
+			strlcpy(hostname, "default", sizeof(hostname));
+	}
 
 	/* uniqify hostname by appending -hostid, e.g., default-2 */
 	if (hostid > 1) {
