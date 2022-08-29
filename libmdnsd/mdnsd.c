@@ -98,6 +98,7 @@ struct mdns_daemon {
 	struct query *queries[SPRIME], *qlist;
 
 	struct in_addr addr;
+	struct in6_addr addr_v6;
 
 	mdnsd_record_received_callback received_callback;
 	void *received_callback_data;
@@ -715,6 +716,35 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 struct in_addr mdnsd_get_address(mdns_daemon_t *d)
 {
 	return d->addr;
+}
+
+void mdnsd_set_ipv6_address(mdns_daemon_t *d, struct in6_addr addr)
+{
+	int i;
+
+	if (!memcmp(&d->addr_v6, &addr, sizeof(d->addr_v6)))
+		return;		/* No change */
+
+	for (i = 0; i < SPRIME; i++) {
+		mdns_record_t *r, *next;
+
+		r = d->published[i];
+		while (r) {
+			next = r->next;
+
+			if (r->rr.type == QTYPE_AAAA)
+				mdnsd_set_ipv6(d, r, addr);
+
+			r = next;
+		}
+	}
+
+	d->addr_v6 = addr;
+}
+
+struct in6_addr mdnsd_get_ipv6_address(mdns_daemon_t *d)
+{
+	return d->addr_v6;
 }
 
 /* Shutting down, zero out ttl and push out all records */

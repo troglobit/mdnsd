@@ -115,6 +115,16 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr);
 struct in_addr mdnsd_get_address(mdns_daemon_t *d);
 
 /**
+ * Set mDNS daemon host IPv6 address
+ */
+void mdnsd_set_ipv6_address(mdns_daemon_t *d, struct in6_addr addr);
+
+/**
+ * Get mDNS daemon host IPv6 address from previous set
+ */
+struct in6_addr mdnsd_get_ipv6_address(mdns_daemon_t *d);
+
+/**
  * Gracefully shutdown the daemon, use mdnsd_out() to get the last
  * packets
  */
