@@ -239,6 +239,7 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r);
 void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len);
 void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name);
 void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
+void mdnsd_set_ipv6(mdns_daemon_t *d, mdns_record_t *r, struct in6_addr ip6);
 void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name);
 
 /**
