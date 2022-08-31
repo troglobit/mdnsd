@@ -62,13 +62,16 @@ struct iface {
 	char               changed;
 
 	char               ifname[IFNAMSIZ];
-	int                ifindex;		/* Physical interface index   */
-	struct in_addr     inaddr;		/* == 0 for non IP interfaces */
+	int                ifindex;          /* Physical interface index   */
+	struct in_addr     inaddr;           /* == 0 for non IP interfaces */
 	struct in_addr     inaddr_old;
+	struct in6_addr    in6addr;          /* == :: for non IP interfaces */
+	struct in6_addr    in6addr_old;
+
 	int                sd;
 
 	mdns_daemon_t     *mdns;
-	int                hostid;              /* init to 1, +1 on conflict  */
+	int                hostid;           /* init to 1, +1 on conflict  */
 };
 
 void mdnsd_conflict(char *name, int type, void *arg);

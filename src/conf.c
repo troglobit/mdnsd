@@ -213,6 +213,13 @@ static int load(struct iface *iface, char *path, char *hostname)
 		mdnsd_set_ip(d, r, ipv4addr);
 	}
 
+	/* If an IPv6 address is already set, add an AAAA record for it. */
+	struct in6_addr ipv6addr = mdnsd_get_ipv6_address(d);
+	if (!IN6_IS_ADDR_UNSPECIFIED(&ipv6addr)) {
+		r = record(iface, 0, NULL, nlocal, QTYPE_AAAA, 120);
+		mdnsd_set_ipv6(d, r, ipv6addr);
+	}
+
 	if (srec.cname)
 		record(iface, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
 	r = record(iface, 0, NULL, hlocal, QTYPE_TXT, 4500);
