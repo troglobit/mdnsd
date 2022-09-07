@@ -948,7 +948,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		INFO("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
 
 		d->uanswers = u->next;
-		*port = u->port;
+		*port = htons(u->port);
 		*ip = u->to;
 		m->id = u->id;
 		message_qd(m, u->r->rr.name, u->r->rr.type, d->class);
