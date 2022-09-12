@@ -1,0 +1,6 @@
+*~
+*.o
+*.log
+*.trs
+.deps
+xht

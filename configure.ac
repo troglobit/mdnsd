@@ -7,7 +7,13 @@ AM_SILENT_RULES([yes])
 
 AC_CONFIG_SRCDIR(src/mdnsd.c)
 AM_CONFIG_HEADER(config.h)
-AC_CONFIG_FILES([Makefile mdnsd.service examples/Makefile libmdnsd/Makefile man/Makefile src/Makefile test/Makefile])
+AC_CONFIG_FILES([Makefile mdnsd.service
+		 examples/Makefile
+		 libmdnsd/Makefile
+		 man/Makefile
+		 src/Makefile
+		 test/Makefile
+		 test/src/Makefile])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_PROG_CC
@@ -16,8 +22,8 @@ AM_PROG_AR
 LT_INIT
 PKG_PROG_PKG_CONFIG
 
-AC_HEADER_STDC
-AC_C_CONST
+# XXX: maybe hide behind an --enable-tests
+PKG_CHECK_MODULES([cmocka], [cmocka >= 1.1.0])
  
 # Check for usually missing API's, which we can replace
 AC_REPLACE_FUNCS([pidfile strlcpy utimensat])
