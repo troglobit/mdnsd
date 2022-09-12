@@ -105,7 +105,8 @@ create a Makefile for your system and then call make.
 
 Users who checked out the source from GitHub must run `./autogen.sh`
 first to create the configure script.  This requires GNU autotools and
-`pkg-config` to be installed on the build system.
+`pkg-config` to be installed on the build system.  For the test suite
+you also need `libcmocka-dev`.
 
 If you install to the default location used by the configure script,
 the library is installed in `/usr/local/lib`, which may not be in
