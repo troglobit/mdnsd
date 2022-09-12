@@ -42,7 +42,7 @@ jobs:
       - name: Installing dependencies ...
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install tree doxygen
+          sudo apt-get -y install tree doxygen libcap-dev
       - name: Creating Makefiles ...
         run: |
           ./autogen.sh

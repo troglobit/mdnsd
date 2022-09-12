@@ -53,7 +53,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install pkg-config libsystemd-dev libcap-dev
+          sudo apt-get -y install pkg-config libsystemd-dev libcmocka-dev
       - name: Configure
         run: |
           ./autogen.sh
