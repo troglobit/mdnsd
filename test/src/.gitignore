@@ -3,4 +3,6 @@
 *.log
 *.trs
 .deps
+.libs
 xht
+addr
