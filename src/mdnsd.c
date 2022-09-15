@@ -137,6 +137,7 @@ static void setup_iface(struct iface *iface)
 			exit(1);
 		}
 
+		mdnsd_set_address(iface->mdns, iface->inaddr);
 		conf_init(iface, path, hostnm);
 		mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
 	}

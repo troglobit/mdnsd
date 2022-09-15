@@ -206,8 +206,12 @@ static int load(struct iface *iface, char *path, char *hostname)
 	r = record(iface, 0, NULL, hlocal, QTYPE_SRV, 120);
 	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
 
-	r = record(iface, 0, NULL, nlocal, QTYPE_A, 120);
-	mdnsd_set_ip(d, r, mdnsd_get_address(d));
+	/* If an IPv4 address is already set, add an A record for it. */
+	struct in_addr ipv4addr = mdnsd_get_address(d);
+	if (ipv4addr.s_addr != 0) {
+		r = record(iface, 0, NULL, nlocal, QTYPE_A, 120);
+		mdnsd_set_ip(d, r, ipv4addr);
+	}
 
 	if (srec.cname)
 		record(iface, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
