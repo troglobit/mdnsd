@@ -90,6 +90,8 @@ static void mark(void)
 		iface->unused = 1;
 		iface->inaddr_old = iface->inaddr;
 		memset(&iface->inaddr, 0, sizeof(iface->inaddr));
+		iface->in6addr_old = iface->in6addr;
+		memset(&iface->in6addr, 0, sizeof(iface->in6addr));
 	}
 }
 
@@ -105,7 +107,7 @@ static int sweep(void)
 		if (!iface->changed)
 			continue;
 
-		if (iface->inaddr.s_addr == iface->inaddr_old.s_addr) {
+		if (iface->inaddr.s_addr == iface->inaddr_old.s_addr &&	IN6_ARE_ADDR_EQUAL(&iface->in6addr, &iface->in6addr_old)) {
 			iface->changed = 0;
 			continue;
 		}
@@ -130,12 +132,10 @@ void iface_init(char *ifname)
 
 	mark();
 
-	if (ifname)
-		iface = iface_find(ifname);
-
 	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-		struct in_addr ina;
-		char buf[20];
+		struct in6_addr ina;
+		char buf[INET6_ADDRSTRLEN];
+
 
 		if (!ifa->ifa_addr)
 			continue;
@@ -149,22 +149,26 @@ void iface_init(char *ifname)
 		if (!(ifa->ifa_flags & IFF_UP))
 			continue; /* skip for now, not enabled */
 
-		if (ifa->ifa_addr->sa_family != AF_INET)
+		if (ifa->ifa_addr->sa_family != AF_INET && ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
 		if (ifname && strcmp(ifname, ifa->ifa_name))
 			continue;
 
 		/* Validate IP address */
-		rc = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
+		socklen_t salen = ifa->ifa_addr->sa_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+		rc = getnameinfo(ifa->ifa_addr, salen, buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
 		if (rc)
 			continue;
 
 		/* Use address from getnameinfo() */
-		if (!inet_aton(buf, &ina))
+		char* pc = strchr(buf, '%');
+		if (pc != NULL)  /* inet_pton cannot handle the interface part of a link local IPv6 address. */
+			*pc = '\0';
+		if (inet_pton(ifa->ifa_addr->sa_family, buf, &ina) <= 0)
 			continue;
 
-		if (!ifname)
+		if (!iface)
 			iface = iface_find(ifa->ifa_name);
 
 		if (!iface) {
@@ -174,7 +178,7 @@ void iface_init(char *ifname)
 				exit(1);
 			}
 
-			DBG("Found interface %s, address %s", ifa->ifa_name, buf);
+			DBG("Creating iface instance for interface %s, address %s", ifa->ifa_name, buf);
 			TAILQ_INSERT_TAIL(&iface_list, iface, link);
 
 			strlcpy(iface->ifname, ifa->ifa_name, sizeof(iface->ifname));
@@ -185,18 +189,32 @@ void iface_init(char *ifname)
 			iface->unused = 0;
 		}
 
-		if (iface->inaddr.s_addr != ina.s_addr) {
-			if (is_zeronet(&iface->inaddr) || is_linklocal(&iface->inaddr)) {
-				iface->inaddr = ina;
-				iface->changed = 1;
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			if (iface->inaddr.s_addr != ina.s6_addr32[0]) {
+				if (is_zeronet(&iface->inaddr) || is_linklocal(&iface->inaddr)) {
+					iface->inaddr.s_addr = ina.s6_addr32[0];
+					iface->changed = 1;
+				}
+			}
+		} else {
+			if (! IN6_ARE_ADDR_EQUAL(&iface->in6addr, &ina)) {
+				if (IN6_IS_ADDR_UNSPECIFIED(&iface->in6addr)    /* Everything is better than no address (::) */
+					/* Any address is preferred over link local address */
+					|| IN6_IS_ADDR_LINKLOCAL(&iface->in6addr)
+					/* Any address is preferred over a site local address except for a link local address. */
+					|| (IN6_IS_ADDR_SITELOCAL(&iface->in6addr) && !IN6_IS_ADDR_LINKLOCAL(&ina))
+					/* A unique local address shall only be overwritten by a global address. */
+					|| ((iface->in6addr.s6_addr[0] & 0xfe) == 0xfc && !IN6_IS_ADDR_SITELOCAL(&ina) && !IN6_IS_ADDR_LINKLOCAL(&ina))
+					) {
+					iface->in6addr = ina;
+					iface->changed = 1;
+				}
 			}
 		}
 
 		/* prepare for next */
-		iface = NULL;
-
-		if (ifname)
-			break;
+		if (!ifname)
+			iface = NULL;
 	}
 	freeifaddrs(ifaddr);
 

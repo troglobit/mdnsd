@@ -14,6 +14,8 @@ client="${DIR}/client"
 server="${DIR}/server"
 client_addr=192.168.42.101
 server_addr=192.168.42.1
+client_addr_6=2001:db8:0:f101::2a:65
+server_addr_6=2001:db8:0:f101::2a:1
 
 # Print heading for test phases
 print()
@@ -50,7 +52,26 @@ mdnsd()
 
 	print "Starting mdnsd ..."
 	nsenter --net="$server" -- "$bin" -H test -n ../examples &
-	echo "$!" >>"$DIR/pids"
+	echo "$! mdnsd" >>"$DIR/pids"
+	sleep 1
+}
+
+# stop all instances of the mdnsd
+mdnsd_stop()
+{
+	[ -f "${DIR}/pids" ] || SKIP "Cannot find PID file"
+
+	print "Stopping mdnsd ..."
+	leftpids=""
+	while read pid prog; do
+		if [ "$prog" == "mdnsd" ] ; then
+			kill "$pid" 2>/dev/null
+		else
+			leftpids="${leftpids}$pid $prog\n"
+		fi
+	done < "${DIR}/pids"
+	echo -n "${leftpids}" > "${DIR}/pids"
+
 	sleep 1
 }
 
@@ -73,7 +94,7 @@ collect()
 {
     print "Starting collector on $client ..."
     nsenter --net="$client" -- tshark -w "$DIR/pcap" -lni eth0 2>/dev/null &
-    echo $! >> "$DIR/pids"
+    echo "$! tshark" >> "$DIR/pids"
     sleep 2
 }
 
@@ -126,7 +147,7 @@ topo_teardown()
 
 	# shellcheck disable=SC2162
 	if [ -f "${DIR}/pids" ]; then
-		while read ln; do kill "$ln" 2>/dev/null; done < "${DIR}/pids"
+		while read pid prog; do kill "$pid" 2>/dev/null; done < "${DIR}/pids"
 	fi
 
 	if [ -n "$KEEP_TEST_DATA" ]; then

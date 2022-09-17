@@ -146,7 +146,9 @@ void message_ar(struct message *m, char *name, unsigned short int type, unsigned
 /**
  * Append various special types of resource data blocks
  */
-void message_rdata_long (struct message *m, struct in_addr l);
+void message_rdata_long (struct message *m, unsigned long l);
+void message_rdata_ipv4 (struct message *m, struct in_addr a);
+void message_rdata_ipv6 (struct message *m, struct in6_addr a6);
 void message_rdata_name (struct message *m, char *name);
 void message_rdata_srv  (struct message *m, unsigned short int priority, unsigned short int weight,
 			 unsigned short int port, char *name);

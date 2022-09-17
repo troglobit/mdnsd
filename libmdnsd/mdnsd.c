@@ -98,6 +98,7 @@ struct mdns_daemon {
 	struct query *queries[SPRIME], *qlist;
 
 	struct in_addr addr;
+	struct in6_addr addr_v6;
 
 	mdnsd_record_received_callback received_callback;
 	void *received_callback_data;
@@ -174,6 +175,8 @@ static size_t _rr_len(mdns_answer_t *rr)
 		len += strlen(rr->rdname); /* worst case */
 	if (rr->ip.s_addr)
 		len += 4;
+	if (! IN6_IS_ADDR_UNSPECIFIED(&(rr->ip6)))
+		len += 16;
 	if (rr->type == QTYPE_PTR)
 		len += 6;	/* srv record stuff */
 
@@ -613,7 +616,9 @@ static void _a_copy(struct message *m, mdns_answer_t *a)
 	}
 
 	if (a->ip.s_addr)
-		message_rdata_raw(m, (unsigned char *)&a->ip, 4);
+		message_rdata_ipv4(m, a->ip);
+	else if (!IN6_IS_ADDR_UNSPECIFIED(&(a->ip6)))
+		message_rdata_ipv6(m, a->ip6);
 	if (a->type == QTYPE_SRV)
 		message_rdata_srv(m, a->srv.priority, a->srv.weight, a->srv.port, a->rdname);
 	else if (a->rdname)
@@ -711,6 +716,35 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 struct in_addr mdnsd_get_address(mdns_daemon_t *d)
 {
 	return d->addr;
+}
+
+void mdnsd_set_ipv6_address(mdns_daemon_t *d, struct in6_addr addr)
+{
+	int i;
+
+	if (!memcmp(&d->addr_v6, &addr, sizeof(d->addr_v6)))
+		return;		/* No change */
+
+	for (i = 0; i < SPRIME; i++) {
+		mdns_record_t *r, *next;
+
+		r = d->published[i];
+		while (r) {
+			next = r->next;
+
+			if (r->rr.type == QTYPE_AAAA)
+				mdnsd_set_ipv6(d, r, addr);
+
+			r = next;
+		}
+	}
+
+	d->addr_v6 = addr;
+}
+
+struct in6_addr mdnsd_get_ipv6_address(mdns_daemon_t *d)
+{
+	return d->addr_v6;
 }
 
 /* Shutting down, zero out ttl and push out all records */
@@ -1392,6 +1426,12 @@ void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name)
 void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip)
 {
 	r->rr.ip = ip;
+	_r_publish(d, r);
+}
+
+void mdnsd_set_ipv6(mdns_daemon_t *d, mdns_record_t *r, struct in6_addr ip6)
+{
+	r->rr.ip6 = ip6;
 	_r_publish(d, r);
 }
 

@@ -5,4 +5,4 @@ SUBDIRS            = src
 TEST_EXTENSIONS    = .sh
 TESTS_ENVIRONMENT  = unshare -mrun
 
-TESTS              = discover.sh
+TESTS              = discover.sh iprecords.sh
