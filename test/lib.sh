@@ -64,7 +64,7 @@ mdnsd_stop()
 	print "Stopping mdnsd ..."
 	leftpids=""
 	while read pid prog; do
-		if [ "$prog" == "mdnsd" ] ; then
+		if [ x"$prog" = x"mdnsd" ] ; then
 			kill "$pid" 2>/dev/null
 		else
 			leftpids="${leftpids}$pid $prog\n"
@@ -96,6 +96,25 @@ collect()
     nsenter --net="$client" -- tshark -w "$DIR/pcap" -lni eth0 2>/dev/null &
     echo "$! tshark" >> "$DIR/pids"
     sleep 2
+}
+
+# stop all instances of the pcap collector
+stop_collect()
+{
+	[ -f "${DIR}/pids" ] || SKIP "Cannot find PID file"
+
+	print "Stopping collector ..."
+	leftpids=""
+	while read pid prog; do
+		if [ x"$prog" = x"tshark" ] ; then
+			kill "$pid" 2>/dev/null
+		else
+			leftpids="${leftpids}$pid $prog\n"
+		fi
+	done < "${DIR}/pids"
+	echo -n "${leftpids}" > "${DIR}/pids"
+
+	sleep 1
 }
 
 # Set up two logically separated network namespaces, connected via a
