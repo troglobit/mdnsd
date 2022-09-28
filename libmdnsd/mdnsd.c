@@ -703,8 +703,15 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 		while (r) {
 			next = r->next;
 
-			if (r->rr.type == QTYPE_A)
-				mdnsd_set_ip(d, r, addr);
+			if (r->rr.type == QTYPE_A) {
+				if (addr.s_addr == 0) {
+					r->rr.ttl = 0;
+					r->list = d->a_now;
+					d->a_now = r;
+				} else {
+					mdnsd_set_ip(d, r, addr);
+				}
+			}
 
 			r = next;
 		}
@@ -732,8 +739,15 @@ void mdnsd_set_ipv6_address(mdns_daemon_t *d, struct in6_addr addr)
 		while (r) {
 			next = r->next;
 
-			if (r->rr.type == QTYPE_AAAA)
-				mdnsd_set_ipv6(d, r, addr);
+			if (r->rr.type == QTYPE_AAAA) {
+				if (IN6_IS_ADDR_UNSPECIFIED(&addr)) {
+					r->rr.ttl = 0;
+					r->list = d->a_now;
+					d->a_now = r;
+				} else {
+					mdnsd_set_ipv6(d, r, addr);
+				}
+			}
 
 			r = next;
 		}
