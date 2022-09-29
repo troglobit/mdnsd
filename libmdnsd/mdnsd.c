@@ -33,7 +33,7 @@
 #include <time.h>
 #include <errno.h>
 
-#define SPRIME 108		/* Size of query/publish hashes */
+#define SPRIME 109		/* Size of query/publish hashes */
 #define LPRIME 1009		/* Size of cache hash */
 
 #define GC 86400                /* Brute force garbage cleanup
