@@ -9,6 +9,7 @@ fi
 
 # Test name, used everywhere as /tmp/$NM/foo
 NM=$(basename "$0" .sh)
+SRC=${top_srcdir:-..}
 DIR="${SESSION}/${NM}"
 client="${DIR}/client"
 server="${DIR}/server"
@@ -51,7 +52,7 @@ mdnsd()
 	[ -x "$bin" ] || SKIP "Cannot find mdnsd"
 
 	print "Starting mdnsd ..."
-	nsenter --net="$server" -- "$bin" -H test -n ../examples &
+	nsenter --net="$server" -- "$bin" -H test -n "$SRC/examples" &
 	echo "$! mdnsd" >>"$DIR/pids"
 	sleep 1
 }
