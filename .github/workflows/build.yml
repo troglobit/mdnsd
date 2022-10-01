@@ -52,3 +52,20 @@ jobs:
         with:
           name: mdnsd-test-${{ matrix.compiler }}
           path: test/*
+  distcheck:
+    runs-on: ubuntu-latest
+    env:
+      MAKEFLAGS: -j3
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install tree doxygen libcmocka-dev
+      - uses: actions/checkout@v2
+      - name: Configure
+        run: |
+          ./autogen.sh
+          ./configure --prefix= --disable-silent-rules
+      - name: Build & Check
+        run: |
+          make distcheck
