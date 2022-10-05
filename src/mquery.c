@@ -205,13 +205,11 @@ static int usage(int code)
 int main(int argc, char *argv[])
 {
 	struct message m;
-	struct in_addr ip;
-	unsigned short port;
 	ssize_t bsize;
 	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
 	char default_iface[IFNAMSIZ] = { 0 };
-	struct sockaddr_in from, to;
+	struct sockaddr_storage from, to;
 	char *name = DISCO_NAME;
 	char *ifname = NULL;
 	int type = QTYPE_PTR;	/* 12 */
@@ -284,11 +282,11 @@ int main(int argc, char *argv[])
 		select(sd + 1, &fds, 0, 0, tv);
 
 		if (FD_ISSET(sd, &fds)) {
-			ssize = sizeof(struct sockaddr_in);
+			ssize = sizeof(from);
 			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				memset(&m, 0, sizeof(struct message));
 				if (message_parse(&m, buf) == 0)
-					mdnsd_in(d, &m, from.sin_addr, from.sin_port);
+					mdnsd_in(d, &m, &from);
 			}
 			if (bsize < 0 && errno != EAGAIN) {
 				printf("Failed reading from socket %d: %s\n", errno, strerror(errno));
@@ -296,17 +294,17 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		while (mdnsd_out(d, &m, &ip, &port)) {
+		memset(&to, 0, sizeof(to));
+		to.ss_family = AF_INET;
+		while (mdnsd_out(d, &m, &to) > 0) {
 			int len = message_packet_len(&m);
 
-			memset(&to, 0, sizeof(to));
-			to.sin_family = AF_INET;
-			to.sin_port = port;
-			to.sin_addr = ip;
 			if (sendto(sd, message_packet(&m), len, 0, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len) {
 				printf("Failed writing to socket: %s\n", strerror(errno));
 				return 1;
 			}
+			memset(&to, 0, sizeof(to));
+			to.ss_family = AF_INET;
 		}
 
 		if (wait && (time(NULL) - start >= wait))
