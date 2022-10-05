@@ -1476,9 +1476,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 		rc = message_parse(&m, buf);
 		if (rc)
 			continue;
-		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
-		if (rc)
-			continue;
+		mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
 	}
 
 	if (bsize < 0 && errno != EAGAIN)
