@@ -1187,8 +1187,10 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct sockaddr_storage *to)
 
 		/* Ask questions first, track nextbest time */
 		for (q = d->qlist; q != 0; q = q->list) {
-			if (q->nexttry > 0 && q->nexttry <= (unsigned long)d->now.tv_sec && q->tries < 3)
+			if (q->nexttry > 0 && q->nexttry <= (unsigned long)d->now.tv_sec && q->tries < 3) {
+				INFO("Send query for: Name: %s, Type: %d", q->name, q->type);
 				message_qd(m, q->name, q->type, d->class);
+			}
 			else if (q->nexttry > 0 && (nextbest == 0 || q->nexttry < nextbest))
 				nextbest = q->nexttry;
 		}
