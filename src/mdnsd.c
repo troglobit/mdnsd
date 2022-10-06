@@ -214,12 +214,15 @@ static int multicast_socket(struct iface *iface, unsigned char ttl)
 	struct ip_mreqn imr = { .imr_ifindex = iface->ifindex };
 #else
 	struct ip_mreq imr;
+	struct in_addr ina = iface->inaddr;
 #endif
+	const int on = 1;
+	const int off = 0;
+
 	struct sockaddr_in sin;
 	socklen_t len;
 	int unicast_ttl = 255;
-	unsigned char on = 1;
-	int bufsiz, flag = 1;
+	int bufsiz;
 	int sd;
 
 	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -229,10 +232,10 @@ static int multicast_socket(struct iface *iface, unsigned char ttl)
 	}
 
 #ifdef SO_REUSEPORT
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
 		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
 #endif
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
 		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
 
 	/* Double the size of the receive buffer (getsockopt() returns the double) */
@@ -242,25 +245,20 @@ static int multicast_socket(struct iface *iface, unsigned char ttl)
 			INFO("Failed doubling the size of the receive buffer: %s", strerror(errno));
 	}
 
-	if (setsockopt(sd, IPPROTO_IP, IP_PKTINFO, &flag, sizeof(flag)))
-		WARN("Failed setting %s IP_PKTINFO: %s", iface->ifindex, strerror(errno));
-
 	/* Set interface for outbound multicast */
 #ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
 	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
-		WARN("Failed setting IP_MULTICAST_IF %d: %s", iface->ifindex, strerror(errno));
+		WARN("Failed setting IP_MULTICAST_IF to %d: %s", iface->ifindex, strerror(errno));
 #else
 	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina)))
-		WARN("Failed setting IP_MULTICAST_IF to %s: %s",
-		     inet_ntoa(ina), strerror(errno));
+		WARN("Failed setting IP_MULTICAST_IF to %s: %s", inet_ntoa(ina), strerror(errno));
 #endif
 
 	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &on, sizeof(on)))
-		WARN("Failed disabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
+		WARN("Failed enabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
 
-	flag = 0;
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_ALL, &flag, sizeof(flag)))
-		WARN("Failed disabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_ALL, &off, sizeof(off)))
+		WARN("Failed disabling IP_MULTICAST_ALL on %s: %s", iface->ifname, strerror(errno));
 
 	/*
 	 * All traffic on 224.0.0.* is link-local only, so the default
@@ -275,13 +273,14 @@ static int multicast_socket(struct iface *iface, unsigned char ttl)
 
 	/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
 	if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, &iface->ifname, strlen(iface->ifname)))
-		WARN("Failed setting SO_BINDTODEVICE: %s", strerror(errno));
+		WARN("Failed setting SO_BINDTODEVICE on %s: %s", iface->ifname, strerror(errno));
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(5353);
 	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
 		close(sd);
+		ERR("Failed binding socket to *:5353: %s", strerror(errno));
 		return -1;
 	}
 	INFO("Bound to *:5353 on iface %s", iface->ifname);
