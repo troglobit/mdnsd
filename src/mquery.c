@@ -187,7 +187,8 @@ static int msock(char *ifname)
 	struct ip_mreqn imrqn = { 0 };
 #endif
 	struct ip_mreq imrq = { 0 };
-	int sd, flag = 1;
+	const int on = 1;
+	int sd;
 	size_t len;
 	void *imr;
 
@@ -196,10 +197,10 @@ static int msock(char *ifname)
 		return 0;
 
 #ifdef SO_REUSEPORT
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
 		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
 #endif
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
 		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
 
 #ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
@@ -239,6 +240,7 @@ static int msock(char *ifname)
 	sin.sin_port = htons(5353);
 	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
 		close(sd);
+		ERR("Failed binding socket to *:5353: %s", strerror(errno));
 		return 0;
 	}
 
