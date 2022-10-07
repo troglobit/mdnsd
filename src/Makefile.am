@@ -9,5 +9,5 @@ bin_PROGRAMS            = mquery
 mdnsd_SOURCES           = mdnsd.c mdnsd.h addr.c conf.c queue.h mcsock.c mcsock.h
 mdnsd_LDADD             = ../libmdnsd/libmdnsd.la $(LIBS) $(LIBOBJS)
 
-mquery_SOURCES          = mquery.c
+mquery_SOURCES          = mquery.c mcsock.c mcsock.h
 mquery_LDADD            = ../libmdnsd/libmdnsd.la $(LIBS) $(LIBOBJS)
