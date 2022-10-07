@@ -42,6 +42,7 @@
 #include <unistd.h>
 
 #include "config.h"
+#include "mcsock.h"
 #include "mdnsd.h"
 
 #define SYS_INTERVAL 10		/* System inteface poll interval */
@@ -56,8 +57,19 @@ int   background  = 1;
 int   logging     = 1;
 int   ttl         = 255;
 
-static int multicast_socket(struct iface *iface, unsigned char ttl);
 
+/*
+ * Create a multicast socket and bind it to the given interface.
+ * Conclude by joining 224.0.0.251:5353 to hear others.
+ */
+static int multicast_socket(struct iface *iface, unsigned char ttl)
+{
+	struct ifnfo ifa;
+	memcpy(ifa.ifname, iface->ifname, sizeof(ifa.ifname));
+	ifa.ifindex = iface->ifindex;
+	ifa.inaddr = iface->inaddr;
+	return mdns_socket(&ifa, ttl);
+}
 
 void mdnsd_conflict(char *name, int type, void *arg)
 {
@@ -204,104 +216,6 @@ static void sig_init(void)
 	signal(SIGTERM, done);
 }
 
-/*
- * Create a multicast socket and bind it to the given interface.
- * Conclude by joining 224.0.0.251:5353 to hear others.
- */
-static int multicast_socket(struct iface *iface, unsigned char ttl)
-{
-#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
-	struct ip_mreqn imr = { .imr_ifindex = iface->ifindex };
-#else
-	struct ip_mreq imr;
-#endif
-	struct sockaddr_in sin;
-	socklen_t len;
-	int unicast_ttl = 255;
-	unsigned char on = 1;
-	int bufsiz, flag = 1;
-	int sd;
-
-	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-	if (sd < 0) {
-		ERR("Failed creating UDP socket: %s", strerror(errno));
-		return -1;
-	}
-
-#ifdef SO_REUSEPORT
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
-		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
-#endif
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
-		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
-
-	/* Double the size of the receive buffer (getsockopt() returns the double) */
-	len = sizeof(bufsiz);
-	if (!getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, &len)) {
-		if (setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &bufsiz, sizeof(bufsiz)))
-			INFO("Failed doubling the size of the receive buffer: %s", strerror(errno));
-	}
-
-	if (setsockopt(sd, IPPROTO_IP, IP_PKTINFO, &flag, sizeof(flag)))
-		WARN("Failed setting %s IP_PKTINFO: %s", iface->ifindex, strerror(errno));
-
-	/* Set interface for outbound multicast */
-#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
-		WARN("Failed setting IP_MULTICAST_IF %d: %s", iface->ifindex, strerror(errno));
-#else
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &ina, sizeof(ina)))
-		WARN("Failed setting IP_MULTICAST_IF to %s: %s",
-		     inet_ntoa(ina), strerror(errno));
-#endif
-
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &on, sizeof(on)))
-		WARN("Failed disabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
-
-	flag = 0;
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_ALL, &flag, sizeof(flag)))
-		WARN("Failed disabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
-
-	/*
-	 * All traffic on 224.0.0.* is link-local only, so the default
-	 * TTL is set to 1.  Some users may however want to route mDNS.
-	 */
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)))
-		WARN("Failed setting IP_MULTICAST_TTL to %d: %s", ttl, strerror(errno));
-
-	/* mDNS also supports unicast, so we need a relevant TTL there too */
-	if (setsockopt(sd, IPPROTO_IP, IP_TTL, &unicast_ttl, sizeof(unicast_ttl)))
-		WARN("Failed setting IP_TTL to %d: %s", unicast_ttl, strerror(errno));
-
-	/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
-	if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, &iface->ifname, strlen(iface->ifname)))
-		WARN("Failed setting SO_BINDTODEVICE: %s", strerror(errno));
-
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(5353);
-	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
-		close(sd);
-		return -1;
-	}
-	INFO("Bound to *:5353 on iface %s", iface->ifname);
-
-	/*
-	 * Join mDNS link-local group on the given interface, that way
-	 * we can receive multicast without a proper net route (default
-	 * route or a 224.0.0.0/24 net route).
-	 */
-	imr.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
-	imr.imr_ifindex   = iface->ifindex;
-#else
-	imr.imr_interface = iface->inaddr;
-#endif
-	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr)))
-		WARN("Failed joining mDNS group 224.0.0.251: %s", strerror(errno));
-
-	return sd;
-}
 
 static int usage(int code)
 {

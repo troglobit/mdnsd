@@ -27,8 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -43,6 +41,9 @@
 #include <unistd.h>
 
 #include <libmdnsd/mdnsd.h>
+#include "config.h"
+#include "mcsock.h"
+
 
 char *prognm = "mquery";
 mdns_daemon_t *d;
@@ -182,68 +183,17 @@ static int ans(mdns_answer_t *a, void *arg)
 /* Create multicast 224.0.0.251:5353 socket */
 static int msock(char *ifname)
 {
-	struct sockaddr_in sin;
-#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
-	struct ip_mreqn imrqn = { 0 };
-#endif
-	struct ip_mreq imrq = { 0 };
-	int sd, flag = 1;
-	size_t len;
-	void *imr;
+	struct ifnfo ifa = { 0 };
 
-	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-	if (sd < 0)
-		return 0;
-
-#ifdef SO_REUSEPORT
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
-		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
-#endif
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
-		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
-
-#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
 	if (ifname) {
-		/* Only join group on the given interface */
-		imrqn.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-		imrqn.imr_ifindex = if_nametoindex(ifname);
-		if (!imrqn.imr_ifindex)
-			goto fallback;
-
-		imr = &imrqn;
-		len = sizeof(imrqn);
-
-		/* Set interface for outbound multicast */
-		if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, imr, len))
-			WARN("Failed setting IP_MULTICAST_IF %d: %s", imrqn.imr_ifindex, strerror(errno));
-
-		/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
-		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, ifname, strlen(ifname)))
-			WARN("Failed setting SO_BINDTODEVICE: %s", strerror(errno));
-	} else
-#endif
-	{
-	fallback:
-		imrq.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-		imrq.imr_interface.s_addr = htonl(INADDR_ANY);
-		imr = &imrq;
-		len = sizeof(imrq);
+		memcpy(ifa.ifname, ifname, sizeof(ifa.ifname));
+		ifa.ifindex = if_nametoindex(ifname);
+		return mdns_socket(&ifa, 0);
 	}
 
-	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, imr, len))
-		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
-
-	/* Filter inbound traffic from anyone (ANY) to port 5353 */
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(5353);
-	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
-		close(sd);
-		return 0;
-	}
-
-	return sd;
+	return mdns_socket(NULL, 0);
 }
+
 
 static int usage(int code)
 {
