@@ -68,7 +68,7 @@ static int multicast_socket(struct iface *iface, unsigned char ttl)
 	memcpy(ifa.ifname, iface->ifname, sizeof(ifa.ifname));
 	ifa.ifindex = iface->ifindex;
 	ifa.inaddr = iface->inaddr;
-	return mdns_socket(&ifa, ttl);
+	return mdns_ipv4_socket(&ifa, ttl);
 }
 
 void mdnsd_conflict(char *name, int type, void *arg)

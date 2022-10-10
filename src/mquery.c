@@ -188,10 +188,10 @@ static int msock(char *ifname)
 	if (ifname) {
 		memcpy(ifa.ifname, ifname, sizeof(ifa.ifname));
 		ifa.ifindex = if_nametoindex(ifname);
-		return mdns_socket(&ifa, 0);
+		return mdns_ipv4_socket(&ifa, 0);
 	}
 
-	return mdns_socket(NULL, 0);
+	return mdns_ipv4_socket(NULL, 0);
 }
 
 
