@@ -126,6 +126,7 @@ stop_collect()
 topo_basic()
 {
 	local sllip
+	local to
 
 	touch "$server" "$client"
 
@@ -165,12 +166,24 @@ topo_basic()
 	if [ -n "$sllip" ] ; then client_addr_ll6=$sllip ; fi
 
 
+	# Wait *dad_transmits +1 seconds for DAD to finish and link local address become valid
+	to=$(nsenter --net="$client" -- cat /proc/sys/net/ipv6/conf/eth0/dad_transmits)
+	while [ $to -gt -1 ] ; do
+		nsenter --net="$client" -- ip -6 addr show dev eth0 | grep -q tentative || break
+		: $((to -= 1))
+		sleep 1
+	done
+
+
 	echo "$server" >> "$DIR/mounts"
 	echo "$client" >> "$DIR/mounts"
 
 
 	print "Verifying IPv4 connectivity ..."
 	nsenter --net="$client" -- ping -c1 "${server_addr}" || FAIL "No IPv4 connectivity"
+
+	print "Verifying IPv6 connectivity ..."
+	nsenter --net="$client" -- ping6 -c 1 ${server_addr_ll6} || FAIL "No IPv6 connectivity"
 }
 
 topo_teardown()
