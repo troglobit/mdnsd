@@ -151,11 +151,13 @@ topo_basic()
 	nsenter --net="$client" -- ip -br rout >> "$DIR/tmp"
 	awk '{print "     "$0}' "$DIR/tmp"
 
-	print "Verifying connectivity ..."
-	nsenter --net="$client" -- ping -c1 "${server_addr}" || FAIL "No connectivity"
 
 	echo "$server" >> "$DIR/mounts"
 	echo "$client" >> "$DIR/mounts"
+
+
+	print "Verifying IPv4 connectivity ..."
+	nsenter --net="$client" -- ping -c1 "${server_addr}" || FAIL "No IPv4 connectivity"
 }
 
 topo_teardown()
