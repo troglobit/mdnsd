@@ -132,10 +132,6 @@ topo_basic()
 	nsenter --net="$server" -- ip link set eth0 multicast on
 	nsenter --net="$server" -- ip addr add "${server_addr}"/24 dev eth0
 	nsenter --net="$server" -- ip route add default via "${server_addr}"
-	nsenter --net="$server" -- ip -br link  > "$DIR/tmp"
-	nsenter --net="$server" -- ip -br addr >> "$DIR/tmp"
-	nsenter --net="$server" -- ip -br rout >> "$DIR/tmp"
-	awk '{print "     "$0}' "$DIR/tmp"
 
 	unshare --net="$client" -- ip link set lo up
 	nsenter --net="$client" -- sleep 2 &
@@ -146,9 +142,18 @@ topo_basic()
 	nsenter --net="$client" -- ip link set eth0 multicast on
 	nsenter --net="$client" -- ip addr add "${client_addr}"/24 dev eth0
 	nsenter --net="$client" -- ip route add default via "${client_addr}"
+
+
+	nsenter --net="$server" -- ip -br link  > "$DIR/tmp"
+	nsenter --net="$server" -- ip -br addr >> "$DIR/tmp"
+	nsenter --net="$server" -- ip -br rout >> "$DIR/tmp"
+	echo "Server"
+	awk '{print "     "$0}' "$DIR/tmp"
+
 	nsenter --net="$client" -- ip -br link  > "$DIR/tmp"
 	nsenter --net="$client" -- ip -br addr >> "$DIR/tmp"
 	nsenter --net="$client" -- ip -br rout >> "$DIR/tmp"
+	echo "Client"
 	awk '{print "     "$0}' "$DIR/tmp"
 
 
