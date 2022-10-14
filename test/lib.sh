@@ -15,6 +15,8 @@ client="${DIR}/client"
 server="${DIR}/server"
 client_addr=192.168.42.101
 server_addr=192.168.42.1
+client_addr_ll6=
+server_addr_ll6=
 client_addr_6=2001:db8:0:f101::2a:65
 server_addr_6=2001:db8:0:f101::2a:1
 
@@ -123,6 +125,8 @@ stop_collect()
 # and one client (mquery)
 topo_basic()
 {
+	local sllip
+
 	touch "$server" "$client"
 
 	unshare --net="$server" -- ip link set lo up
@@ -149,12 +153,16 @@ topo_basic()
 	nsenter --net="$server" -- ip -br rout >> "$DIR/tmp"
 	echo "Server"
 	awk '{print "     "$0}' "$DIR/tmp"
+	sllip=$(grep -i "fe80" "$DIR/tmp" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
+	if [ -n "$sllip" ] ; then server_addr_ll6=$sllip ; fi
 
 	nsenter --net="$client" -- ip -br link  > "$DIR/tmp"
 	nsenter --net="$client" -- ip -br addr >> "$DIR/tmp"
 	nsenter --net="$client" -- ip -br rout >> "$DIR/tmp"
 	echo "Client"
 	awk '{print "     "$0}' "$DIR/tmp"
+	sllip=$(grep -i "fe80" "$DIR/tmp" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
+	if [ -n "$sllip" ] ; then client_addr_ll6=$sllip ; fi
 
 
 	echo "$server" >> "$DIR/mounts"
