@@ -47,6 +47,11 @@ if [ -f "$DIR/pcap" ] ; then
 	[ -n "$response" ] || FAIL "No mDNS goodbye packets found"
 	[ "${response}" = "0,0	${server_addr_6},${server_addr_6}" ] || FAIL "mDNS packets did not match goodbye packet requirements"
 
+else
+	echo "Unable to verify goodbye packets being sent"
+	if ! command -v tshark &>/dev/null ; then
+		echo "Program tshark is not installed. Cannot collect network packets."
+	fi
 fi
 
 print "Starting mquery to query for A records ..."

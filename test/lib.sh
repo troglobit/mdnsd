@@ -15,6 +15,8 @@ client="${DIR}/client"
 server="${DIR}/server"
 client_addr=192.168.42.101
 server_addr=192.168.42.1
+client_addr_ll6=
+server_addr_ll6=
 client_addr_6=2001:db8:0:f101::2a:65
 server_addr_6=2001:db8:0:f101::2a:1
 
@@ -123,6 +125,9 @@ stop_collect()
 # and one client (mquery)
 topo_basic()
 {
+	local sllip
+	local to
+
 	touch "$server" "$client"
 
 	unshare --net="$server" -- ip link set lo up
@@ -132,10 +137,6 @@ topo_basic()
 	nsenter --net="$server" -- ip link set eth0 multicast on
 	nsenter --net="$server" -- ip addr add "${server_addr}"/24 dev eth0
 	nsenter --net="$server" -- ip route add default via "${server_addr}"
-	nsenter --net="$server" -- ip -br link  > "$DIR/tmp"
-	nsenter --net="$server" -- ip -br addr >> "$DIR/tmp"
-	nsenter --net="$server" -- ip -br rout >> "$DIR/tmp"
-	awk '{print "     "$0}' "$DIR/tmp"
 
 	unshare --net="$client" -- ip link set lo up
 	nsenter --net="$client" -- sleep 2 &
@@ -146,16 +147,43 @@ topo_basic()
 	nsenter --net="$client" -- ip link set eth0 multicast on
 	nsenter --net="$client" -- ip addr add "${client_addr}"/24 dev eth0
 	nsenter --net="$client" -- ip route add default via "${client_addr}"
+
+
+	nsenter --net="$server" -- ip -br link  > "$DIR/tmp"
+	nsenter --net="$server" -- ip -br addr >> "$DIR/tmp"
+	nsenter --net="$server" -- ip -br rout >> "$DIR/tmp"
+	echo "Server"
+	awk '{print "     "$0}' "$DIR/tmp"
+	sllip=$(grep -i "fe80" "$DIR/tmp" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
+	if [ -n "$sllip" ] ; then server_addr_ll6=$sllip ; fi
+
 	nsenter --net="$client" -- ip -br link  > "$DIR/tmp"
 	nsenter --net="$client" -- ip -br addr >> "$DIR/tmp"
 	nsenter --net="$client" -- ip -br rout >> "$DIR/tmp"
+	echo "Client"
 	awk '{print "     "$0}' "$DIR/tmp"
+	sllip=$(grep -i "fe80" "$DIR/tmp" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
+	if [ -n "$sllip" ] ; then client_addr_ll6=$sllip ; fi
 
-	print "Verifying connectivity ..."
-	nsenter --net="$client" -- ping -c1 "${server_addr}" || FAIL "No connectivity"
+
+	# Wait *dad_transmits +1 seconds for DAD to finish and link local address become valid
+	to=$(nsenter --net="$client" -- cat /proc/sys/net/ipv6/conf/eth0/dad_transmits)
+	while [ $to -gt -1 ] ; do
+		nsenter --net="$client" -- ip -6 addr show dev eth0 | grep -q tentative || break
+		: $((to -= 1))
+		sleep 1
+	done
+
 
 	echo "$server" >> "$DIR/mounts"
 	echo "$client" >> "$DIR/mounts"
+
+
+	print "Verifying IPv4 connectivity ..."
+	nsenter --net="$client" -- ping -c1 "${server_addr}" || FAIL "No IPv4 connectivity"
+
+	print "Verifying IPv6 connectivity ..."
+	nsenter --net="$client" -- ping6 -c 1 ${server_addr_ll6} || FAIL "No IPv6 connectivity"
 }
 
 topo_teardown()
