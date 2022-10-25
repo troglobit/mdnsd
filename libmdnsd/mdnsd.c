@@ -30,6 +30,7 @@
 #include "mdnsd.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <errno.h>
 
@@ -184,32 +185,35 @@ static size_t _rr_len(mdns_answer_t *rr)
 }
 
 /* Compares new rdata with known a, painfully */
-static int _a_match(struct resource *r, mdns_answer_t *a)
+static bool _a_match(struct resource *r, mdns_answer_t *a)
 {
 	if (!a->name)
 		return 0;
 	if (strcmp(r->name, a->name) || r->type != a->type)
 		return 0;
 
-	if (r->type == QTYPE_SRV &&
-	    r->known.srv.name && a->rdname && !strcmp(r->known.srv.name, a->rdname) &&
-	    a->srv.port == r->known.srv.port &&
-	    a->srv.weight == r->known.srv.weight &&
-	    a->srv.priority == r->known.srv.priority)
-		return 1;
+	switch (r->type) {
+		case QTYPE_SRV:
+			return r->known.srv.name && a->rdname && strcmp(r->known.srv.name, a->rdname) == 0
+				&& a->srv.port == r->known.srv.port
+				&& a->srv.weight == r->known.srv.weight
+				&& a->srv.priority == r->known.srv.priority;
 
-	if ((r->type == QTYPE_PTR || r->type == QTYPE_NS || r->type == QTYPE_CNAME) &&
-	    !strcmp(a->rdname, r->known.ns.name))
-		return 1;
 
-	if (r->type == QTYPE_A || !memcmp(&r->known.a.ip, &a->ip, 4))
-		return 1;
+		case QTYPE_PTR:
+		case QTYPE_NS:
+		case QTYPE_CNAME:
+			return strcmp(a->rdname, r->known.ns.name) == 0;
 
-	if (r->type == QTYPE_AAAA || !memcmp(&r->known.aaaa.ip6, &a->ip6, 16))
-		return 1;
+		case QTYPE_A:
+			return memcmp(&r->known.a.ip, &a->ip, 4) == 0;
 
-	if (r->rdlength == a->rdlen && !memcmp(r->rdata, a->rdata, r->rdlength))
-		return 1;
+		case QTYPE_AAAA:
+			return memcmp(&r->known.aaaa.ip6, &a->ip6, 16) == 0;
+
+		default:
+			return r->rdlength == a->rdlen && memcmp(r->rdata, a->rdata, r->rdlength) == 0;
+	}
 
 	return 0;
 }
