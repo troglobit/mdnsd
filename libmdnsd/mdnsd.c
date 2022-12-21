@@ -1535,7 +1535,7 @@ int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
 	}
 
 	/* Service Enumeration/Discovery completed */
-	if (d->disco)
+	if (d && d->disco)
 		d->disco = 0;
 
 	return rc;
