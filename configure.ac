@@ -22,9 +22,6 @@ AM_PROG_AR
 LT_INIT
 PKG_PROG_PKG_CONFIG
 
-# XXX: maybe hide behind an --enable-tests
-PKG_CHECK_MODULES([cmocka], [cmocka >= 1.1.0])
- 
 # Check for usually missing API's, which we can replace
 AC_REPLACE_FUNCS([pidfile strlcpy utimensat])
 AC_CONFIG_LIBOBJ_DIR([lib])
@@ -35,6 +32,11 @@ AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], , ,
 ])
 
 # Options
+AC_ARG_ENABLE(tests,
+        [AS_HELP_STRING([--enable-tests], [Enable tests, requires cmocka library])],
+        [enable_tests="$enableval"],
+        [enable_tests="no"])
+
 AC_ARG_WITH([systemd],
 	[AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
 	[with_systemd=auto])
@@ -49,6 +51,10 @@ AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
 AS_IF([test "x$with_systemd" != "xno"],
 	[AC_SUBST([systemddir], [$with_systemd])])
 AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemd" != "xno"])
+
+AS_IF([test "x$enable_tests" = "xyes"], [
+	PKG_CHECK_MODULES([cmocka], [cmocka >= 1.1.0])])
+AM_CONDITIONAL([ENABLE_TESTS], [test "x$enable_tests" != "xno"])
 
 # Expand $sbindir early, into $SBINDIR, for systemd unit file
 # NOTE: This does *not* take prefix/exec_prefix override at "make
@@ -94,6 +100,7 @@ cat <<EOF
 
  Optional features:
   systemd............: $with_systemd
+  test suite.........: $enable_tests
 
 ------------- Compiler version --------------
 $($CC --version || true)

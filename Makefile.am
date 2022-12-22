@@ -1,12 +1,16 @@
 ACLOCAL_AMFLAGS         = -I m4
 
 nobase_include_HEADERS  = libmdnsd/mdnsd.h libmdnsd/1035.h libmdnsd/sdtxt.h libmdnsd/xht.h
-SUBDIRS                 = examples libmdnsd man src test
+SUBDIRS                 = examples libmdnsd man src
 doc_DATA                = README.md ChangeLog.md LICENSE
 EXTRA_DIST              = README.md ChangeLog.md LICENSE
 
 if HAVE_SYSTEMD
 systemd_DATA            = mdnsd.service
+endif
+
+if ENABLE_TESTS
+SUBDIRS                += test
 endif
 
 #
