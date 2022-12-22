@@ -1,12 +1,12 @@
 # Use v2.61 for backwards compat with Ubuntu 12.04 LTS
 AC_PREREQ([2.61])
-AC_INIT(mdnsd, 0.11, https://github.com/troglobit/mdnsd/issues)
+AC_INIT([mdnsd],[0.11],[https://github.com/troglobit/mdnsd/issues])
 AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign dist-xz])
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_SRCDIR(src/mdnsd.c)
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES([Makefile mdnsd.service
 		 examples/Makefile
 		 libmdnsd/Makefile
