@@ -7,11 +7,6 @@
 
 topo basic
 mdnsd
-
-print "Starting mquery to locate mdnsd ..."
-mquery >"$DIR/result" || FAIL "Not found"
-
-# shellcheck disable=SC2154
-grep -q "+ _ftp._tcp.local. ($server_addr)" "$DIR/result" || FAIL
+discover
 
 OK

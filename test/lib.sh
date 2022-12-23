@@ -87,6 +87,15 @@ mquery()
 	nsenter --net="$client" -- "$bin" -i eth0 -w 2 "$@"
 }
 
+discover()
+{
+	print "Starting mquery to locate mdnsd ..."
+	mquery >"$DIR/result" || FAIL "Not found"
+
+	# shellcheck disable=SC2154
+	grep -q "+ _ftp._tcp.local. ($server_addr)" "$DIR/result" || FAIL
+}
+
 # Gather a pcap of the session
 # Example:
 #          collect eth0 -c10 'dst 224.0.0.251'
