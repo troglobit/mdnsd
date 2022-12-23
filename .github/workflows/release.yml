@@ -46,7 +46,7 @@ jobs:
       - name: Creating Makefiles ...
         run: |
           ./autogen.sh
-          ./configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
+          ./configure --prefix=/tmp --enable-tests --with-systemd=/tmp/lib/systemd/system
       - name: Build release ...
         run: |
           make release
