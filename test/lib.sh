@@ -54,8 +54,8 @@ mdnsd()
 	[ -x "$bin" ] || SKIP "Cannot find mdnsd"
 
 	print "Starting mdnsd ..."
-	nsenter --net="$server" -- "$bin" -H test -n "$SRC/examples" &
-	echo "$! mdnsd" >>"$DIR/pids"
+	nsenter --net="$server" -- "$bin" -H test -n "${SRC}/examples" &
+	echo "$! mdnsd" >>"${DIR}/pids"
 	sleep 1
 }
 
@@ -184,10 +184,8 @@ topo_basic()
 		sleep 1
 	done
 
-
 	echo "$server" >> "$DIR/mounts"
 	echo "$client" >> "$DIR/mounts"
-
 
 	print "Verifying IPv4 connectivity ..."
 	nsenter --net="$client" -- ping -c1 "${server_addr}" || FAIL "No IPv4 connectivity"
