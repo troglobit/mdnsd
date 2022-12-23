@@ -157,23 +157,20 @@ topo_basic()
 	nsenter --net="$client" -- ip addr add "${client_addr}"/24 dev eth0
 	nsenter --net="$client" -- ip route add default via "${client_addr}"
 
-
 	nsenter --net="$server" -- ip -br link  > "$DIR/tmp"
 	nsenter --net="$server" -- ip -br addr >> "$DIR/tmp"
 	nsenter --net="$server" -- ip -br rout >> "$DIR/tmp"
 	echo "Server"
 	awk '{print "     "$0}' "$DIR/tmp"
-	sllip=$(grep -i "fe80" "$DIR/tmp" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
+	sllip=$(grep "eth0" "$DIR/tmp" | grep -i "fe80" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
 	if [ -n "$sllip" ] ; then server_addr_ll6=$sllip ; fi
-
 	nsenter --net="$client" -- ip -br link  > "$DIR/tmp"
 	nsenter --net="$client" -- ip -br addr >> "$DIR/tmp"
 	nsenter --net="$client" -- ip -br rout >> "$DIR/tmp"
 	echo "Client"
 	awk '{print "     "$0}' "$DIR/tmp"
-	sllip=$(grep -i "fe80" "$DIR/tmp" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
+	sllip=$(grep "eth0" "$DIR/tmp" | grep -i "fe80" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
 	if [ -n "$sllip" ] ; then client_addr_ll6=$sllip ; fi
-
 
 	# Wait *dad_transmits +1 seconds for DAD to finish and link local address become valid
 	to=$(nsenter --net="$client" -- cat /proc/sys/net/ipv6/conf/eth0/dad_transmits)
