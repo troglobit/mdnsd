@@ -52,9 +52,12 @@ AS_IF([test "x$with_systemd" != "xno"],
 	[AC_SUBST([systemddir], [$with_systemd])])
 AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemd" != "xno"])
 
-AS_IF([test "x$enable_tests" = "xyes"], [
-	PKG_CHECK_MODULES([cmocka], [cmocka >= 1.1.0])])
+PKG_CHECK_EXISTS([cmocka >= 1.1.0], [cmocka_avail=yes], [cmocka_avail=no])
+AS_IF([test "x$enable_tests" = "xyes" -a "x$cmocka_avail" = "xyes"], [
+	PKG_CHECK_MODULES([cmocka], [cmocka >= 1.1.0])
+	unit_tests=yes], [unit_tests=no])
 AM_CONDITIONAL([ENABLE_TESTS], [test "x$enable_tests" != "xno"])
+AM_CONDITIONAL([ENABLE_UNIT_TESTS], [test "x$cmocka_avail" != "xno"])
 
 # Expand $sbindir early, into $SBINDIR, for systemd unit file
 # NOTE: This does *not* take prefix/exec_prefix override at "make
@@ -97,10 +100,12 @@ cat <<EOF
   PID file...........: $RUNSTATEDIR/mdnsd.pid
   mDNS-SD .service in: $SYSCONFDIR/mdns.d/*.service
   C Compiler.........: $CC $CFLAGS $CPPFLAGS $LDFLAGS $LIBS
+  cmocka available...: $cmocka_avail
 
  Optional features:
   systemd............: $with_systemd
   test suite.........: $enable_tests
+  unit tests.........: $unit_tests
 
 ------------- Compiler version --------------
 $($CC --version || true)
