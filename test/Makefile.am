@@ -1,4 +1,4 @@
-EXTRA_DIST         = lib.sh discover.sh iprecords.sh
+EXTRA_DIST         = lib.sh discover.sh iprecords.sh lostif.sh
 CLEANFILES         = *~ *.trs *.log
 if ENABLE_UNIT_TESTS
 SUBDIRS            = src
@@ -10,3 +10,4 @@ TEST_EXTENSIONS    = .sh
 
 TESTS              = discover.sh
 TESTS             += iprecords.sh
+TESTS             += lostif.sh

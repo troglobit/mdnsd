@@ -140,6 +140,10 @@ topo_basic()
 	touch "$server" "$client"
 
 	unshare --net="$server" -- ip link set lo up
+	unshare --net="$server" -- ip link add dummy1 type dummy
+	nsenter --net="$server" -- ip link set dummy1 up
+	nsenter --net="$server" -- ip link set dummy1 multicast on
+	nsenter --net="$server" -- ip addr add 10.10.0.1/24 dev dummy1
 	nsenter --net="$server" -- ip link add eth0 type veth peer tmp0
 	nsenter --net="$server" -- ip link set tmp0 netns $$
 	nsenter --net="$server" -- ip link set eth0 up
