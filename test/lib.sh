@@ -201,9 +201,13 @@ topo_teardown()
 		exit 1
 	fi
 
+	mdnsd_stop
+
 	# shellcheck disable=SC2162
 	if [ -f "${DIR}/pids" ]; then
-		while read pid prog; do kill "$pid" 2>/dev/null; done < "${DIR}/pids"
+		while read pid prog; do
+			kill -9 "$pid" 2>/dev/null
+		done < "${DIR}/pids"
 	fi
 
 	if [ -n "$KEEP_TEST_DATA" ]; then
@@ -212,7 +216,11 @@ topo_teardown()
 
 	# shellcheck disable=SC2162
 	if [ -f "${DIR}/mounts" ]; then
-		while read ln; do umount "$ln" 2>/dev/null; rm -f "$ln"; done < "${DIR}/mounts"
+		while read ln; do
+			echo "Unmounting $ln and removing ..."
+			umount "$ln"
+			rm -f "$ln"
+		done < "${DIR}/mounts"
 	fi
 
 # NOTE: Uncomment the following two lines for debugging tests
