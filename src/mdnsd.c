@@ -128,8 +128,10 @@ static void free_iface(struct iface *iface)
 {
 	mdnsd_shutdown(iface->mdns);
 	mdnsd_free(iface->mdns);
+	iface->mdns = NULL;
 	if (iface->sd >= 0)
 		close(iface->sd);
+	iface_free(iface);
 }
 
 static void setup_iface(struct iface *iface)
