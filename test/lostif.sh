@@ -10,12 +10,20 @@ topo basic
 mdnsd
 discover
 
-print "Deleting dummy1 interface ..."
+print "Deleting eth0 interface ..."
 # shellcheck disable=SC2154
-nsenter --net="$server" -- ip link del dummy1
+nsenter --net="$server" -- ip link del eth0
+sleep 5
 
-# Recheck period is 10 sec, retry test
+# Verify we don't segfault on loss of interface, issue #74
+pgrep mdnsd || FAIL
+
+print "Restoring eth0 ..."
+topo basic
 sleep 10
+
+print "Rechecking mDNS connectivity"
+pgrep mdnsd
 discover
 
 OK

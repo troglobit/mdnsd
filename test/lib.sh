@@ -138,13 +138,11 @@ topo_basic()
 	local sllip
 	local to
 
-	touch "$server" "$client"
+	if [ ! -e "$server" ]; then
+		touch "$server"
+		unshare --net="$server" -- ip link set lo up
+	fi
 
-	unshare --net="$server" -- ip link set lo up
-	unshare --net="$server" -- ip link add dummy1 type dummy
-	nsenter --net="$server" -- ip link set dummy1 up
-	nsenter --net="$server" -- ip link set dummy1 multicast on
-	nsenter --net="$server" -- ip addr add 10.10.0.1/24 dev dummy1
 	nsenter --net="$server" -- ip link add eth0 type veth peer tmp0
 	nsenter --net="$server" -- ip link set tmp0 netns $$
 	nsenter --net="$server" -- ip link set eth0 up
@@ -152,7 +150,11 @@ topo_basic()
 	nsenter --net="$server" -- ip addr add "${server_addr}"/24 dev eth0
 	nsenter --net="$server" -- ip route add default via "${server_addr}"
 
-	unshare --net="$client" -- ip link set lo up
+	if [ ! -e "$client" ]; then
+		touch "$client"
+		unshare --net="$client" -- ip link set lo up
+	fi
+
 	nsenter --net="$client" -- sleep 2 &
 	sleep 0.3
 	ip link set tmp0 netns $!
