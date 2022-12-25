@@ -50,11 +50,12 @@ OK()
 # prefer source tree build, fall back to check one level up
 mdnsd()
 {
+	ARGS=$@
 	bin="../src/mdnsd"
 	[ -x "$bin" ] || SKIP "Cannot find mdnsd"
 
 	print "Starting mdnsd ..."
-	nsenter --net="$server" -- "$bin" -H test -n "${SRC}/examples" &
+	nsenter --net="$server" -- "$bin" -H test -n "${SRC}/examples" $ARGS &
 	echo "$! mdnsd" >>"${DIR}/pids"
 	sleep 1
 }
