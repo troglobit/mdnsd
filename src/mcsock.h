@@ -41,12 +41,22 @@ struct ifnfo {
 };
 
 /**
- * Create multicast socket for mDNS.
+ * Create IPv4 multicast socket for mDNS.
  *
  * @param iface  Specify if socket should be bound to specific interface
  * @param ttl    Multicast TTL, 0 for default (1)
  * @return socket file descriptor or <0 in case or error
  */
-int mdns_socket(struct ifnfo *iface, unsigned char ttl);
+int mdns_ipv4_socket(struct ifnfo *iface, unsigned char ttl);
+
+
+/**
+ * Create IPv6 multicast socket for mDNS.
+ *
+ * @param iface  Specify if socket should be bound to specific interface
+ * @param ttl    Multicast TTL, 0 for default (1)
+ * @return socket file descriptor or <0 in case or error
+ */
+int mdns_ipv6_socket(struct ifnfo *iface, unsigned char ttl);
 
 #endif 	/* MDNSD_MCSOCK_H_ */

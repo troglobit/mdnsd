@@ -53,6 +53,17 @@
  * cached
 */
 
+/* Sockaddr structure with sin_addr and sin6_addr union, to save the
+   extra storage requirements of a sockaddr_storage in smaller systems. */
+struct sockaddr46 {
+	sa_family_t family;
+	in_port_t port;
+	union {
+		struct in_addr sin_addr;
+		struct in6_addr sin6_addr;
+	};
+};
+
 struct query {
 	char *name;
 	int type;
@@ -65,8 +76,7 @@ struct query {
 
 struct unicast {
 	int id;
-	struct in_addr to;
-	unsigned short port;
+	struct sockaddr46 to;
 	mdns_record_t *r;
 	struct unicast *next;
 };
@@ -324,7 +334,7 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* Create generic unicast response struct */
-static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr to, unsigned short port)
+static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, const struct sockaddr46 *to)
 {
 	struct unicast *u;
 
@@ -334,8 +344,7 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr t
 
 	u->r = r;
 	u->id = id;
-	u->to = to;
-	u->port = port;
+	u->to = *to;
 	u->next = d->uanswers;
 	d->uanswers = u;
 }
@@ -505,7 +514,7 @@ static void _gc(mdns_daemon_t *d)
 	d->expireall = (unsigned long)(d->now.tv_sec + GC);
 }
 
-static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
+static int _cache(mdns_daemon_t *d, struct resource *r, const struct sockaddr46 *ips)
 {
 	unsigned long int ttl;
 	struct cached *c = 0;
@@ -591,7 +600,11 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 	case QTYPE_CNAME:
 	case QTYPE_PTR:
 		c->rr.rdname = strdup(r->known.ns.name);
-		c->rr.ip = ip;
+		if (ips->family == AF_INET) {
+			c->rr.ip = ips->sin_addr;
+		} else {
+			c->rr.ip6 = ips->sin6_addr;
+		}
 		break;
 
 	case QTYPE_SRV:
@@ -859,15 +872,29 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 	d->received_callback_data = data;
 }
 
-int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned short port)
+int mdnsd_in(mdns_daemon_t *d, struct message *m, const struct sockaddr_storage *ss_from)
 {
 	mdns_record_t *r = NULL;
+	struct sockaddr46 from = { 0 };
 	int i, j;
 
 	if (d->shutdown)
 		return 1;
 
 	gettimeofday(&d->now, 0);
+
+	if (ss_from->ss_family == AF_INET) {
+		from.family = AF_INET;
+		from.port = ((struct sockaddr_in*)ss_from)->sin_port;
+		from.sin_addr = ((struct sockaddr_in*)ss_from)->sin_addr;
+	} else if (ss_from->ss_family == AF_INET6) {
+		from.family = AF_INET6;
+		from.port = ((struct sockaddr_in6*)ss_from)->sin6_port;
+		from.sin6_addr = ((struct sockaddr_in6*)ss_from)->sin6_addr;
+	} else {
+		WARN("Unsupported protocol family in incoming packet: %d", ss_from->ss_family);
+		return -1;
+	}
 
 	if (m->header.qr == 0) {
 		/* Process each query */
@@ -940,8 +967,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			}
 
 			/* Send the matching unicast reply */
-			if (!has_conflict && port != 5353)
-				_u_push(d, r_start, m->id, ip, port);
+			if (!has_conflict && ntohs(from.port) != 5353)
+				_u_push(d, r_start, m->id, &from);
 		}
 
 		return 0;
@@ -962,7 +989,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		r = _r_next(d, NULL, m->an[i].name, m->an[i].type);
 		if (r && r->unique && r->modified && _a_match(&m->an[i], &r->rr)) {
 			/* double check, is this actually from us, looped back? */
-			if (ip.s_addr == d->addr.s_addr)
+			if ((from.family == AF_INET && from.sin_addr.s_addr == d->addr.s_addr) ||
+				(from.family == AF_INET6 && IN6_ARE_ADDR_EQUAL(&(from.sin6_addr), &(d->addr_v6))) )
 				continue;
 			_conflict(d, r);
 		}
@@ -970,7 +998,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		if (d->received_callback)
 			d->received_callback(&m->an[i], d->received_callback_data);
 
-		if (_cache(d, &m->an[i], ip) != 0) {
+		if (_cache(d, &m->an[i], &from) != 0) {
 			ERR("Failed caching answer, possibly too long packet, skipping.");
 			continue;
 		}
@@ -979,7 +1007,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 	return 0;
 }
 
-int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port)
+int mdnsd_out(mdns_daemon_t *d, struct message *m, struct sockaddr_storage *to)
 {
 	mdns_record_t *r;
 	int ret = 0;
@@ -988,28 +1016,56 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 	memset(m, 0, sizeof(struct message));
 
 	/* Defaults, multicast */
-	*port = htons(5353);
-	ip->s_addr = inet_addr("224.0.0.251");
+	if (to->ss_family == AF_INET) {
+		((struct sockaddr_in*)to)->sin_port = htons(5353);
+		inet_pton(AF_INET, "224.0.0.251", &(((struct sockaddr_in*)to)->sin_addr));
+	} else if (to->ss_family == AF_INET6) {
+		((struct sockaddr_in6*)to)->sin6_port = htons(5353);
+		inet_pton(AF_INET6, "FF02::FB", &(((struct sockaddr_in6*)to)->sin6_addr));
+	} else {
+		WARN("Unsupported outgoing protocol family requested: %d", to->ss_family);
+		return -1;
+	}
 	m->header.qr = 1;
 	m->header.aa = 1;
 
 	/* Send out individual unicast answers */
 	if (d->uanswers) {
 		struct unicast *u = d->uanswers;
+		struct unicast *prev = d->uanswers;
 
-		INFO("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
+		/* Find a unicast answer that matches the currently handled protocol. */
+		while (u && u->to.family != to->ss_family) {
+			prev = u;
+			u = u->next;
+		}
 
-		d->uanswers = u->next;
-		*port = htons(u->port);
-		*ip = u->to;
-		m->id = u->id;
-		message_qd(m, u->r->rr.name, u->r->rr.type, d->class);
-		message_an(m, u->r->rr.name, u->r->rr.type, d->class, u->r->rr.ttl);
-		u->r->last_sent = d->now;
-		_a_copy(m, &u->r->rr);
-		free(u);
+		if (u != NULL) {
+			INFO("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
 
-		return 1;
+			if (prev == d->uanswers) {
+				d->uanswers = u->next;
+			} else {
+				prev->next = u->next;
+			}
+			u->next = NULL;
+
+			if (to->ss_family == AF_INET) {
+				((struct sockaddr_in*)to)->sin_port = u->to.port;
+				((struct sockaddr_in*)to)->sin_addr = u->to.sin_addr;
+			} else {
+				((struct sockaddr_in6*)to)->sin6_port = u->to.port;
+				((struct sockaddr_in6*)to)->sin6_addr = u->to.sin6_addr;
+			}
+			m->id = u->id;
+			message_qd(m, u->r->rr.name, u->r->rr.type, d->class);
+			message_an(m, u->r->rr.name, u->r->rr.type, d->class, u->r->rr.ttl);
+			u->r->last_sent = d->now;
+			_a_copy(m, &u->r->rr);
+			free(u);
+
+			return 1;
+		}
 	}
 
 	/* Accumulate any immediate responses */
@@ -1135,8 +1191,10 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 
 		/* Ask questions first, track nextbest time */
 		for (q = d->qlist; q != 0; q = q->list) {
-			if (q->nexttry > 0 && q->nexttry <= (unsigned long)d->now.tv_sec && q->tries < 3)
+			if (q->nexttry > 0 && q->nexttry <= (unsigned long)d->now.tv_sec && q->tries < 3) {
+				INFO("Send query for: Name: %s, Type: %d", q->name, q->type);
 				message_qd(m, q->name, q->type, d->class);
+			}
 			else if (q->nexttry > 0 && (nextbest == 0 || q->nexttry < nextbest))
 				nextbest = q->nexttry;
 		}
@@ -1464,8 +1522,8 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
 static int process_in(mdns_daemon_t *d, int sd)
 {
 	static unsigned char buf[MAX_PACKET_LEN + 1];
-	struct sockaddr_in from;
-	socklen_t ssize = sizeof(struct sockaddr_in);
+	struct sockaddr_storage from;
+	socklen_t ssize = sizeof(struct sockaddr_storage);
 	ssize_t bsize;
 
 	memset(buf, 0, sizeof(buf));
@@ -1480,9 +1538,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 		rc = message_parse(&m, buf);
 		if (rc)
 			continue;
-		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
-		if (rc)
-			continue;
+		mdnsd_in(d, &m, &from);
 	}
 
 	if (bsize < 0 && errno != EAGAIN)
@@ -1493,25 +1549,25 @@ static int process_in(mdns_daemon_t *d, int sd)
 
 static int process_out(mdns_daemon_t *d, int sd)
 {
-	unsigned short int port;
-	struct sockaddr_in to;
-	struct in_addr ip;
+	struct sockaddr_storage to = { 0 };
+	socklen_t ssize = sizeof(struct sockaddr_storage);
 	struct message m;
 
-	while (mdnsd_out(d, &m, &ip, &port)) {
+	if (getsockname(sd, (struct sockaddr*)&to, &ssize) != 0) {
+		WARN("Unable to determine address family of socket %d: %s", sd, strerror(errno));
+		return 1;
+	}
+
+	DBG("Processing %s (%d) socket %d, ssize %d", to.ss_family == AF_INET ? "IPv4" : "IPv6", to.ss_family, sd, ssize);
+	while (mdnsd_out(d, &m, &to) > 0) {
 		unsigned char *buf;
 		ssize_t len;
-
-		memset(&to, 0, sizeof(to));
-		to.sin_family = AF_INET;
-		to.sin_port = port;
-		to.sin_addr = ip;
 
 		len = message_packet_len(&m);
 		buf = message_packet(&m);
 		mdnsd_log_hex("Send Data:", buf, len);
 
-		if (sendto(sd, buf, len, MSG_DONTWAIT, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len)
+		if (sendto(sd, buf, len, MSG_DONTWAIT, (struct sockaddr *)&to, ssize) != len)
 			return 2;
 	}
 

@@ -153,13 +153,20 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 /**
  * Oncoming message from host (to be cached/processed)
  */
-int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned short port);
+int mdnsd_in(mdns_daemon_t *d, struct message *m, const struct sockaddr_storage *from);
 
 /**
- * Outgoing messge to be delivered to host, returns >0 if one was
- * returned and m/ip/port set
+ * Outgoing message passed to the host for delivery to destination.
+ *
+ * @param[out]    m  Message filled in to be sent by teh host
+ * @param[in,out] to The sockaddr_storage needs to have the family member set to
+ *                   the protocol family over which the message should be sent.
+ *                   When processing a IPv4 socket it must be set to AF_INET and
+ *                   when processing a IPv6 socket it must be set to AF_INET6.
+ *                   The function fills in the destination port and IP address.
+ * @return >0 if a message was returned and m/ip/port set, <0 in case of error
  */
-int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port);
+int mdnsd_out(mdns_daemon_t *d, struct message *m, struct sockaddr_storage *to);
 
 /**
  * returns the max wait-time until mdnsd_out() needs to be called again 
