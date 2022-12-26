@@ -4,6 +4,31 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v0.12][UNRELEASED]
+----------------------
+
+IPv6 support, including a lot of fixes and cleanup again from the team
+at [devolo AG](https://www.devolo.com).
+
+### Changes
+- libmdnsd, mquery, and mdnsd: add support for IPv6 AAAA records,
+  including display in mquery, by Florian Zschocke, devolo AG
+- mdnsd: add `-H hostname` support, for testing purposes mainly
+- mquery: add `-l debug` support
+- mquery: Display every answer we get when in `mdnsd-scan` mode
+- Initial support for test framework, including unit testing w/ cmocka
+
+### Fixes
+- Fix #49: various typos in log messages
+- Fix #52: double free, introduced in v0.11
+- Fix #55: mDNS conflict check, fixed by Florian Zschocke, devolo AG
+- Fix #56: parsing of A record from packet must maintain network byte
+  order, found and fixed by Florian Zschocke, devolo AG
+- Fix #65: libmdnsd: Make SPRIME actually a prime number, found and
+  fixed by Florian Zschocke, devolo AG
+- Fix #74: fix segfault when mdnsd interface is removed
+
+
 [v0.11][] - 2022-01-09
 ----------------------
 
@@ -124,7 +149,7 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.10...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.11...HEAD
 [v0.11]: https://github.com/troglobit/mdnsd/compare/v0.10...v0.11
 [v0.10]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
 [v0.9]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
