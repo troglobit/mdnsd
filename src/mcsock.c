@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -74,8 +75,9 @@ static int mc_socket(struct ifnfo *iface, unsigned char ttl)
 #endif
 
 	const int on = 1;
+#ifdef IP_MULTICAST_ALL
 	const int off = 0;
-
+#endif
 	struct sockaddr_in sin;
 	socklen_t len;
 	int unicast_ttl = 255;
@@ -106,8 +108,10 @@ static int mc_socket(struct ifnfo *iface, unsigned char ttl)
 	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &on, sizeof(on)))
 		WARN("Failed enabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
 
+#ifdef IP_MULTICAST_ALL
 	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_ALL, &off, sizeof(off)))
 		WARN("Failed disabling IP_MULTICAST_ALL on %s: %s", iface->ifname, strerror(errno));
+#endif
 
 	/*
 	 * All traffic on mDNS is link-local only, so the default
@@ -135,10 +139,11 @@ static int mc_socket(struct ifnfo *iface, unsigned char ttl)
 		if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &(iface->inaddr), sizeof(struct in_addr)))
 			WARN("Failed setting IP_MULTICAST_IF to %s: %s", inet_ntoa(iface->inaddr), strerror(errno));
 #endif
-
+#ifdef HAVE_SO_BINDTODEVICE
 		/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
 		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, &iface->ifname, strlen(iface->ifname)))
 			INFO("Failed setting SO_BINDTODEVICE on %s: %s", iface->ifname, strerror(errno));
+#endif
 	}
 
 	/*

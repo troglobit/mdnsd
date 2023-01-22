@@ -221,11 +221,17 @@ static void sig_init(void)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hnsv] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]\n"
+	printf("Usage: %s [-hnsv] "
+#ifdef HAVE_SO_BINDTODEVICE
+	       "[-i IFACE] "
+#endif
+	       "[-l LEVEL] [-t TTL] [PATH]\n"
 	       "\n"
 	       "Options:\n"
 	       "    -h        This help text\n"
+#ifdef HAVE_SO_BINDTODEVICE
 	       "    -i IFACE  Interface to announce services on, and get address from\n"
+#endif
 	       "    -l LEVEL  Set log level: none, err, notice (default), info, debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
 	       "    -s        Use syslog even if running in foreground\n"
@@ -262,7 +268,11 @@ int main(int argc, char *argv[])
 	int c, rc;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "H:hi:l:nst:v?")) != EOF) {
+	while ((c = getopt(argc, argv, "H:h"
+#ifdef HAVE_SO_BINDTODEVICE
+			   "i:"
+#endif
+			   "l:nst:v?")) != EOF) {
 		switch (c) {
 		case 'H':
 			hostnm = optarg;
@@ -272,9 +282,11 @@ int main(int argc, char *argv[])
 		case '?':
 			return usage(0);
 
+#ifdef HAVE_SO_BINDTODEVICE
 		case 'i':
 			ifname = optarg;
 			break;
+#endif
 
 		case 'l':
 			if (-1 == mdnsd_log_level(optarg))

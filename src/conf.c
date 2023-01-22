@@ -28,6 +28,7 @@
 
 #include <errno.h>
 #include <glob.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -252,7 +253,7 @@ static int load(struct iface *iface, char *path, char *hostname)
 
 int conf_init(struct iface *iface, char *path, char *hostnm)
 {
-	char hostname[HOST_NAME_MAX];
+	char hostname[_POSIX_HOST_NAME_MAX];
 	int hostid = iface->hostid;
 	struct stat st;
 	int rc = 0;

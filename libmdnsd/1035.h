@@ -37,7 +37,24 @@
 #ifndef MDNS_1035_H_
 #define MDNS_1035_H_
 
+#include "config.h"
 #include <arpa/inet.h>
+#ifdef HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+
+/*
+ * At least FreeBSD, OpenBSD and NexentaCore do not define the
+ * s6_addr32, s6_addr8, and s6_addr16 for user land.
+ */
+#if !defined s6_addr32 && defined __sun__
+# define s6_addr32 _S6_un._S6_u32
+#elif !defined s6_addr32 && ( defined __OpenBSD__ || defined __FreeBSD__ )
+# define s6_addr32 __u6_addr.__u6_addr32
+#endif  /* !defined s6_addr32 */
 
 /* Should be reasonably large, for UDP */
 #define MAX_PACKET_LEN 65535

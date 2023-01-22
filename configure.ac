@@ -16,6 +16,9 @@ AC_CONFIG_FILES([Makefile mdnsd.service
 		 test/src/Makefile])
 AC_CONFIG_MACRO_DIR([m4])
 
+# Define necessary build flags
+AC_USE_SYSTEM_EXTENSIONS
+
 AC_PROG_CC
 AC_PROG_INSTALL
 AM_PROG_AR
@@ -26,10 +29,20 @@ PKG_PROG_PKG_CONFIG
 AC_REPLACE_FUNCS([pidfile strlcpy utimensat])
 AC_CONFIG_LIBOBJ_DIR([lib])
 
-AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], , ,
-[
-#include <netinet/in.h>
+AC_CHECK_HEADERS([net/if.h sys/param.h sys/socket.h netinet/in.h])
+AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], [], [], [
+        #ifdef HAVE_NETINET_IN_H
+        # include <netinet/in.h>
+        #endif
 ])
+
+AC_MSG_CHECKING(for SO_BINDTODEVICE in net/if.h)
+AC_TRY_COMPILE([#include <net/if.h>], [int i = SO_BINDTODEVICE;],
+	ac_cv_have_so_bindtodevice=yes, ac_cv_have_so_bindtodevice=no)
+AS_IF([test "x$ac_cv_have_so_bindtodevice" = "xyes"],[
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_SO_BINDTODEVICE, 1, [Whether our sockets support SO_BINDTODEVICE])],[
+	AC_MSG_RESULT(no)])
 
 # Options
 AC_ARG_ENABLE(tests,

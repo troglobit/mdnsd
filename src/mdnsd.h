@@ -33,6 +33,7 @@
 #include "config.h"
 
 #include <net/if.h>		/* IFNAMSIZ */
+#include <netinet/in.h>
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
 

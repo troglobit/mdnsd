@@ -27,6 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -198,7 +199,11 @@ static int msock(char *ifname)
 static int usage(int code)
 {
 	/* mquery -t 12 _http._tcp.local. */
-	printf("usage: mquery [-hsv] [-i IFNAME] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
+	printf("usage: mquery [-hsv] "
+#ifdef HAVE_SO_BINDTODEVICE
+	       "[-i IFNAME] "
+#endif
+	       "[-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
 	return code;
 }
 
@@ -220,15 +225,21 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	int sd, c;
 
-	while ((c = getopt(argc, argv, "h?i:l:st:vw:")) != EOF) {
+	while ((c = getopt(argc, argv, "h?"
+#ifdef HAVE_SO_BINDTODEVICE
+			   "i:"
+#endif
+			   "l:st:vw:")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
 			return usage(0);
 
+#ifdef HAVE_SO_BINDTODEVICE
 		case 'i':
 			ifname = optarg;
 			break;
+#endif
 
 		case 'l':
 			if (-1 == mdnsd_log_level(optarg))
