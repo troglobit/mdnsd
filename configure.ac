@@ -37,8 +37,11 @@ AC_CHECK_MEMBERS([struct ip_mreqn.imr_ifindex], [], [], [
 ])
 
 AC_MSG_CHECKING(for SO_BINDTODEVICE in net/if.h)
-AC_TRY_COMPILE([#include <net/if.h>], [int i = SO_BINDTODEVICE;],
-	ac_cv_have_so_bindtodevice=yes, ac_cv_have_so_bindtodevice=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
+	#include <net/if.h>
+], [
+	int i = SO_BINDTODEVICE;
+])],[ac_cv_have_so_bindtodevice=yes], [ac_cv_have_so_bindtodevice=no])
 AS_IF([test "x$ac_cv_have_so_bindtodevice" = "xyes"],[
 	AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_SO_BINDTODEVICE, 1, [Whether our sockets support SO_BINDTODEVICE])],[
