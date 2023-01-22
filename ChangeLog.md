@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v0.12][UNRELEASED]
+[v0.12][] - 2023-01-22
 ----------------------
 
 IPv6 support, including a lot of fixes and cleanup again from the team
@@ -17,8 +17,17 @@ at [devolo AG](https://www.devolo.com).
 - mquery: add `-l debug` support
 - mquery: Display every answer we get when in `mdnsd-scan` mode
 - Initial support for test framework, including unit testing w/ cmocka
+- Add support for disabling installation of man pages
+- Add support for building without `mquery`
 
 ### Fixes
+- Fix #11: port to other UNIX systems, currently tested on the following
+  operating systems, except Linux, should also work on later versions:
+  - FreeBSD 13
+  - NetBSD 9.1
+  - OpenBSD 6.8
+  - DragonFly BSD 5.8
+  - SunOS solaris 5.11 omnios-r151034
 - Fix #49: various typos in log messages
 - Fix #52: double free, introduced in v0.11
 - Fix #55: mDNS conflict check, fixed by Florian Zschocke, devolo AG
@@ -149,7 +158,8 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.11...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.12...HEAD
+[v0.12]: https://github.com/troglobit/mdnsd/compare/v0.11...v0.12
 [v0.11]: https://github.com/troglobit/mdnsd/compare/v0.10...v0.11
 [v0.10]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
 [v0.9]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
