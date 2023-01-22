@@ -44,7 +44,7 @@
 #ifndef INTERNAL_NOPRI		/* Illumos/SmartOS/Bionic */
 #define INTERNAL_NOPRI 0x10
 
-typedef struct _code {
+struct {
 	char *c_name;
 	int   c_val;
 } prioritynames[] =
