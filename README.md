@@ -96,8 +96,8 @@ Build & Install
 ---------------
 
 This project is built for and developed on GNU/Linux systems, but should
-work on any UNIX like system.  Use the standard GNU configure script to
-create a Makefile for your system and then call make.
+work on any UNIX[^1] like system.  Use the standard GNU configure script
+to create a Makefile for your system and then call make.
 
     ./configure
     make all
@@ -119,6 +119,9 @@ may need to update the cache:
 
 If you don't get any output from the above command, the ld.so.conf needs
 updating, or you may not be using the GNU C library.
+
+[^1]: Builds and runs fine on: FreeBSD, NetBSD, OpenBSD, DragonFly BSD,
+    and Illumos/SmartOS.
 
 
 Origin & References
