@@ -41,6 +41,30 @@
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 #endif
 
+#ifndef INTERNAL_NOPRI		/* Illumos/SmartOS/Bionic */
+#define INTERNAL_NOPRI 0x10
+
+typedef struct _code {
+	char *c_name;
+	int   c_val;
+} prioritynames[] =
+  {
+    { "alert",   LOG_ALERT },
+    { "crit",    LOG_CRIT },
+    { "debug",   LOG_DEBUG },
+    { "emerg",   LOG_EMERG },
+    { "error",   LOG_ERR },
+    { "err",     LOG_ERR },
+    { "info",    LOG_INFO },
+    { "none",    INTERNAL_NOPRI },
+    { "notice",  LOG_NOTICE },
+    { "panic",   LOG_EMERG },
+    { "warning", LOG_WARNING },
+    { "warn",    LOG_WARNING },
+    { NULL, -1 }
+  };
+#endif
+
 static int do_syslog = 0;
 static int loglevel  = LOG_NOTICE;
 
