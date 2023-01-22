@@ -41,6 +41,10 @@ AC_ARG_WITH([systemd],
 	[AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
 	[with_systemd=auto])
 
+AC_ARG_WITH(mquery,
+     AS_HELP_STRING([--without-mquery], [Build without mdns-scan like mquery tool]),
+     [mquery=$withval], [mquery='yes'])
+
 # Check where to install the systemd .service file
 AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
 	def_systemd=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)
@@ -51,6 +55,9 @@ AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
 AS_IF([test "x$with_systemd" != "xno"],
 	[AC_SUBST([systemddir], [$with_systemd])])
 AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemd" != "xno"])
+
+AS_IF([test "x$mquery" != "xno"], with_mquery="yes", with_mquery="no")
+AM_CONDITIONAL([ENABLE_MQUERY], [test "x$with_mquery" != "xno"])
 
 PKG_CHECK_EXISTS([cmocka >= 1.1.0], [cmocka_avail=yes], [cmocka_avail=no])
 AS_IF([test "x$enable_tests" = "xyes" -a "x$cmocka_avail" = "xyes"], [
@@ -103,6 +110,7 @@ cat <<EOF
   cmocka available...: $cmocka_avail
 
  Optional features:
+  mquery.............: $with_mquery
   systemd............: $with_systemd
   test suite.........: $enable_tests
   unit tests.........: $unit_tests
