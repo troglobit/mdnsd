@@ -37,6 +37,10 @@ AC_ARG_ENABLE(tests,
         [enable_tests="$enableval"],
         [enable_tests="no"])
 
+AC_ARG_ENABLE(doc,
+        AS_HELP_STRING([--disable-doc], [Disable installing documentation]),,
+	[enable_doc=yes])
+
 AC_ARG_WITH([systemd],
 	[AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
 	[with_systemd=auto])
@@ -44,6 +48,8 @@ AC_ARG_WITH([systemd],
 AC_ARG_WITH(mquery,
      AS_HELP_STRING([--without-mquery], [Build without mdns-scan like mquery tool]),
      [mquery=$withval], [mquery='yes'])
+
+AM_CONDITIONAL(DOC, [test "x$enable_doc" = "xyes"])
 
 # Check where to install the systemd .service file
 AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
@@ -110,6 +116,7 @@ cat <<EOF
   cmocka available...: $cmocka_avail
 
  Optional features:
+  documentations.....: $enable_doc
   mquery.............: $with_mquery
   systemd............: $with_systemd
   test suite.........: $enable_tests
