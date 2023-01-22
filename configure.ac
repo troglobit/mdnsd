@@ -47,6 +47,9 @@ AS_IF([test "x$ac_cv_have_so_bindtodevice" = "xyes"],[
 	AC_DEFINE(HAVE_SO_BINDTODEVICE, 1, [Whether our sockets support SO_BINDTODEVICE])],[
 	AC_MSG_RESULT(no)])
 
+# Solaris/Illumos has networking functions in a separate library
+AC_CHECK_LIB(socket, bind)
+
 # Options
 AC_ARG_ENABLE(tests,
         [AS_HELP_STRING([--enable-tests], [Enable tests, requires cmocka library])],
