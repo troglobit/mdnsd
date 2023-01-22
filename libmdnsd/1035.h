@@ -52,7 +52,7 @@
  */
 #if !defined s6_addr32 && defined __sun__
 # define s6_addr32 _S6_un._S6_u32
-#elif !defined s6_addr32 && ( defined __OpenBSD__ || defined __FreeBSD__ )
+#elif !defined s6_addr32 && ( defined __OpenBSD__ || defined __FreeBSD__ || defined __NetBSD__ )
 # define s6_addr32 __u6_addr.__u6_addr32
 #endif  /* !defined s6_addr32 */
 
