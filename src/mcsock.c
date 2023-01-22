@@ -73,7 +73,7 @@ static int mc_socket(struct ifnfo *iface, unsigned char ttl)
 	struct ip_mreq imr = { 0 };
 	imr.imr_interface.s_addr = htonl(INADDR_ANY);
 #endif
-
+	const unsigned char ena = 1;
 	const int on = 1;
 #ifdef IP_MULTICAST_ALL
 	const int off = 0;
@@ -105,7 +105,7 @@ static int mc_socket(struct ifnfo *iface, unsigned char ttl)
 			INFO("Failed doubling the size of the receive buffer: %s", strerror(errno));
 	}
 
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &on, sizeof(on)))
+	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &ena, sizeof(ena)))
 		WARN("Failed enabling IP_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
 
 #ifdef IP_MULTICAST_ALL
