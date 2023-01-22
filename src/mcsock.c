@@ -27,6 +27,7 @@
  */
 
 #include "config.h"
+#include <sys/types.h>		/* needed for u_int on DragonFly BSD */
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
