@@ -1,5 +1,5 @@
 AUTOMAKE_OPTIONS        = subdir-objects
-AM_CFLAGS               = -std=gnu99 -W -Wall -Wextra -Wno-unused-parameter
+AM_CFLAGS               = -std=gnu99 -W -Wall -Wextra
 AM_CPPFLAGS             = -D_GNU_SOURCE -D_BSD_SOURCE -D_DEFAULT_SOURCE
 AM_CPPFLAGS            += -I$(top_srcdir) -D_PIDFILEDIR=\"@runstatedir@\"
 

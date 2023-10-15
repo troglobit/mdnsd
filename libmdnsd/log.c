@@ -36,6 +36,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include "mdnsd.h"
 
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -100,7 +101,7 @@ void mdnsd_log_open(const char *ident)
 	do_syslog = 1;
 }
 
-void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len)
+void mdnsd_log_hex(const char *msg, unsigned char *buffer, ssize_t len)
 {
 	char ascii[17];
 	int i;

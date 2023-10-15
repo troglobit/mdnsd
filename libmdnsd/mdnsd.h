@@ -91,7 +91,7 @@ void mdnsd_log_time(struct timeval *tv, char *buf, size_t len);
 /**
  * HEX dump a buffer to log
  */
-void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len);
+void mdnsd_log_hex(const char *msg, unsigned char *buffer, ssize_t len);
 
 /**
  * Log to syslog or stdio
