@@ -45,17 +45,17 @@
 #include "mcsock.h"
 #include "mdnsd.h"
 
-#define SYS_INTERVAL 10		/* System inteface poll interval */
+#define SYS_INTERVAL 10		/* System interface poll interval */
 
-volatile sig_atomic_t running = 1;
-volatile sig_atomic_t reload = 0;
-char *prognm      = PACKAGE_NAME;
+static volatile sig_atomic_t running = 1;
+static volatile sig_atomic_t reload = 0;
+static const char *prognm      = PACKAGE_NAME;
 char *hostnm      = NULL;
-char *ifname      = NULL;
-char *path        = NULL;
-int   background  = 1;
-int   logging     = 1;
-int   ttl         = 255;
+static char *ifname      = NULL;
+static const char *path        = NULL;
+static int   background  = 1;
+static int   logging     = 1;
+static int   ttl         = 255;
 
 
 /*
@@ -82,7 +82,7 @@ void mdnsd_conflict(char *name, int type, void *arg)
 	}
 }
 
-static void record_received(const struct resource *r, void *data)
+static void record_received(const struct resource *r, void *data __attribute__((unused)))
 {
 	char ipinput[INET6_ADDRSTRLEN];
 
@@ -200,12 +200,12 @@ static void sys_init(void)
 		setup_iface(iface);
 }
 
-static void done(int signo)
+static void done(int signo __attribute__((unused)))
 {
 	running = 0;
 }
 
-static void reconf(int signo)
+static void reconf(int signo __attribute__((unused)))
 {
 	reload = 1;
 }

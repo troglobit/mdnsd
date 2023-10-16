@@ -46,9 +46,8 @@
 #include "mcsock.h"
 
 
-char *prognm = "mquery";
-mdns_daemon_t *d;
-int simple;
+static mdns_daemon_t *d;
+static int simple;
 
 
 #ifndef HAVE_STRLCPY
@@ -70,7 +69,7 @@ static char *getifname(char *ifname, size_t len)
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		int rc, flags, cnt, use, metric, mtu, win, irtt;
 
-		rc = sscanf(buf, "%16s %X %X %X %d %d %d %X %d %d %d\n",
+		rc = sscanf(buf, "%16s %X %X %d %d %d %d %X %d %d %d\n",
 			   name, &dest, &gw, &flags, &cnt, &use, &metric,
 			   &mask, &mtu, &win, &irtt);
 
@@ -217,7 +216,7 @@ int main(int argc, char *argv[])
 	unsigned char buf[MAX_PACKET_LEN];
 	char default_iface[IFNAMSIZ] = { 0 };
 	struct sockaddr_in from, to;
-	char *name = DISCO_NAME;
+	const char *name = DISCO_NAME;
 	char *ifname = NULL;
 	int type = QTYPE_PTR;	/* 12 */
 	time_t start;

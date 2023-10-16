@@ -68,7 +68,7 @@ static char *chomp(char *str)
 	return str;
 }
 
-static int match(char *key, char *token)
+static int match(const char *key, const char *token)
 {
 	return !strcmp(key, token);
 }
@@ -113,7 +113,7 @@ static void read_line(char *line, struct conf_srec *srec)
     }
 }
 
-static int parse(char *fn, struct conf_srec *srec)
+static int parse(const char *fn, struct conf_srec *srec)
 {
 	FILE *fp;
 	char line[256];
@@ -132,7 +132,7 @@ static int parse(char *fn, struct conf_srec *srec)
 }
 
 /* Create a new record, or update an existing one */
-mdns_record_t *record(struct iface *iface, int shared, char *host,
+static mdns_record_t *record(struct iface *iface, int shared, char *host,
 		      const char *name, unsigned short type, unsigned long ttl)
 {
 	mdns_daemon_t *d = iface->mdns;
@@ -172,7 +172,7 @@ mdns_record_t *record(struct iface *iface, int shared, char *host,
 	return r;
 }
 
-static int load(struct iface *iface, char *path, char *hostname)
+static int load(struct iface *iface, const char *path, const char *hostname)
 {
 	mdns_daemon_t *d = iface->mdns;
 	struct conf_srec srec;
@@ -251,7 +251,7 @@ static int load(struct iface *iface, char *path, char *hostname)
 	return 0;
 }
 
-int conf_init(struct iface *iface, char *path, char *hostnm)
+int conf_init(struct iface *iface, const char *path, const char *hostnm)
 {
 	char hostname[_POSIX_HOST_NAME_MAX];
 	int hostid = iface->hostid;
