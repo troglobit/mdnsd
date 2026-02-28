@@ -127,6 +127,9 @@ static void record_received(const struct resource *r, void *data __attribute__((
 static void free_iface(struct iface *iface)
 {
 	mdnsd_shutdown(iface->mdns);
+	/* Flush goodbye packets (TTL=0) out on the wire before freeing */
+	if (iface->sd >= 0)
+		mdnsd_step(iface->mdns, iface->sd, false, true, NULL);
 	mdnsd_free(iface->mdns);
 	iface->mdns = NULL;
 	if (iface->sd >= 0)
