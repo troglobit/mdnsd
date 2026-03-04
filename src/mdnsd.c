@@ -44,8 +44,9 @@
 #include "config.h"
 #include "mcsock.h"
 #include "mdnsd.h"
+#include "netlink.h"
 
-#define SYS_INTERVAL 10		/* System interface poll interval */
+#define SYS_INTERVAL 10		/* System interface poll interval, safety net */
 
 static volatile sig_atomic_t running = 1;
 static volatile sig_atomic_t reload = 0;
@@ -270,6 +271,7 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	int timeout = 0;
 	int c, rc;
+	int nl_sd = -1;
 
 	prognm = progname(argv[0]);
 	while ((c = getopt(argc, argv, "H:h"
@@ -342,11 +344,17 @@ int main(int argc, char *argv[])
 	sig_init();
 	sys_init();
 	pidfile(PACKAGE_NAME);
+	nl_sd = netlink_init();
 
 	while (running) {
 		int nfds = 0;
 
 		FD_ZERO(&fds);
+		if (nl_sd >= 0) {
+			FD_SET(nl_sd, &fds);
+			if (nl_sd > nfds)
+				nfds = nl_sd;
+		}
 		for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
 			if (iface->sd < 0 || iface->unused)
 				continue;
@@ -375,6 +383,11 @@ int main(int argc, char *argv[])
 			}
 
 			continue;
+		}
+
+		if (nl_sd >= 0 && FD_ISSET(nl_sd, &fds)) {
+			if (netlink_read(nl_sd) > 0)
+				sys_init();
 		}
 
 		if (sys_timeout(&timeout))
@@ -408,6 +421,7 @@ int main(int argc, char *argv[])
 	for (iface = iface_iterator(1); iface; iface = iface_iterator(0))
 		free_iface(iface);
 	iface_exit();
+	netlink_exit(nl_sd);
 
 	return 0;
 }

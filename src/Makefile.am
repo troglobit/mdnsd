@@ -8,7 +8,7 @@ if ENABLE_MQUERY
 bin_PROGRAMS            = mquery
 endif
 
-mdnsd_SOURCES           = mdnsd.c mdnsd.h addr.c conf.c queue.h mcsock.c mcsock.h
+mdnsd_SOURCES           = mdnsd.c mdnsd.h addr.c conf.c queue.h mcsock.c mcsock.h netlink.c netlink.h
 mdnsd_LDADD             = ../libmdnsd/libmdnsd.la $(LIBS) $(LIBOBJS)
 
 mquery_SOURCES          = mquery.c mcsock.c mcsock.h
