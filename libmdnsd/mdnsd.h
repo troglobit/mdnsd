@@ -162,7 +162,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port);
 
 /**
- * returns the max wait-time until mdnsd_out() needs to be called again 
+ * returns the max wait-time until mdnsd_out() needs to be called again
  */
 struct timeval *mdnsd_sleep(mdns_daemon_t *d);
 
@@ -216,7 +216,7 @@ const mdns_answer_t *mdnsd_record_data(const mdns_record_t *r);
 mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
 
 
-/** 
+/**
  * Create a new shared record
  */
 mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl);
@@ -262,4 +262,27 @@ int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOu
  * Returns none
  */
 void records_clear(mdns_daemon_t *d);
+
+/**
+ * Multi-address support: set all IPv4 addresses for a given host name.
+ * Adds missing A records and removes stale ones.
+ * Returns 0 on success.
+ */
+int mdnsd_set_addresses_for_host(mdns_daemon_t *d, const char *host,
+								 const struct in_addr *addrs, size_t count);
+
+/**
+ * Multi-address support: set all IPv6 addresses for a given host name.
+ * Adds missing AAAA records and removes stale ones.
+ * Returns 0 on success.
+ */
+int mdnsd_set_ipv6_addresses_for_host(mdns_daemon_t *d, const char *host,
+									  const struct in6_addr *addrs, size_t count);
+
+/**
+ * Automatic interface discovery: update all published host A/AAAA records
+ * to match all addresses currently assigned to the given interface.
+ * Returns 0 on success.
+ */
+int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname);
 #endif	/* LIB_MDNSD_H_ */

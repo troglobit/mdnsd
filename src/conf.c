@@ -207,19 +207,12 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 	r = record(iface, 0, NULL, hlocal, QTYPE_SRV, 120);
 	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
 
-	/* If an IPv4 address is already set, add an A record for it. */
-	struct in_addr ipv4addr = mdnsd_get_address(d);
-	if (ipv4addr.s_addr != 0) {
-		r = record(iface, 0, NULL, nlocal, QTYPE_A, 120);
-		mdnsd_set_ip(d, r, ipv4addr);
-	}
+	/* Ensure A/AAAA records exist; addresses populated from interface */
+	r = record(iface, 0, NULL, nlocal, QTYPE_A, 120);
+	r = record(iface, 0, NULL, nlocal, QTYPE_AAAA, 120);
 
-	/* If an IPv6 address is already set, add an AAAA record for it. */
-	struct in6_addr ipv6addr = mdnsd_get_ipv6_address(d);
-	if (!IN6_IS_ADDR_UNSPECIFIED(&ipv6addr)) {
-		r = record(iface, 0, NULL, nlocal, QTYPE_AAAA, 120);
-		mdnsd_set_ipv6(d, r, ipv6addr);
-	}
+	/* Publish all v4/v6 addresses for this interface and host */
+	mdnsd_set_interface_addresses(d, iface->ifname);
 
 	if (srec.cname)
 		record(iface, 1, srec.cname, nlocal, QTYPE_CNAME, 120);

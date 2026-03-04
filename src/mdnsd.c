@@ -150,9 +150,6 @@ static void setup_iface(struct iface *iface)
 			ERR("Failed creating mDNS context for interface %s: %s", iface->ifname, strerror(errno));
 			exit(1);
 		}
-
-		mdnsd_set_address(iface->mdns, iface->inaddr);
-		mdnsd_set_ipv6_address(iface->mdns, iface->in6addr);
 		mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
 	}
 
@@ -164,8 +161,9 @@ static void setup_iface(struct iface *iface)
 		}
 	}
 
-	mdnsd_set_address(iface->mdns, iface->inaddr);
-	mdnsd_set_ipv6_address(iface->mdns, iface->in6addr);
+	/* Update all A/AAAA records to reflect all addresses on this interface */
+	/* NOTE this does not appear to be necessary. On startup, no records exist until load() is called, see conf.c */
+	// mdnsd_set_interface_addresses(iface->mdns, iface->ifname);
 
 	records_clear(iface->mdns);
 	conf_init(iface, path, hostnm);

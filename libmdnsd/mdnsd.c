@@ -34,6 +34,7 @@
 #include <time.h>
 #include <errno.h>
 #include <ifaddrs.h>
+#include <arpa/inet.h>
 
 #define SPRIME 109		/* Size of query/publish hashes */
 #define LPRIME 1009		/* Size of cache hash */
@@ -944,7 +945,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			if (!r)
 				continue;
 
-			/* Service enumeration/discovery prepeare to send all matching records */
+			/* Service enumeration/discovery prepare to send all matching records */
 			if (!strcmp(m->qd[i].name, DISCO_NAME)) {
 				d->disco = 1;
 				while (r) {
@@ -1531,6 +1532,160 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
 	r->rr.srv.weight = weight;
 	r->rr.srv.port = port;
 	mdnsd_set_host(d, r, name);
+}
+
+/* Internal helper: update set of addresses for given host & type (A/AAAA) */
+static int _update_addresses_for_host(mdns_daemon_t *d, const char *host, unsigned short type, const void *addrs, size_t count)
+{
+	mdns_record_t *r;
+	mdns_record_t *cur;
+	unsigned long ttl = 120; /* default TTL if none exists */
+	char buf6[INET6_ADDRSTRLEN];
+
+	if (!d || !host)
+		return -1;
+
+	/* Determine TTL from any existing record of this type */
+	r = mdnsd_find(d, host, type);
+	if (r) {
+		const mdns_answer_t *data = mdnsd_record_data(r);
+		if (data && data->ttl)
+			ttl = data->ttl;
+	}
+
+	/* For each desired address, check if there's a matching existing record */
+	for (size_t i = 0; i < count; i++) {
+		bool found = false;
+		cur = mdnsd_get_published(d, host);
+		while (cur) {
+			const mdns_answer_t *data = mdnsd_record_data(cur);
+			if (data->type == type && strcmp(data->name, host) == 0) {
+				if (type == QTYPE_A) {
+					const struct in_addr *a = (const struct in_addr *)addrs;
+					if (data->ip.s_addr == a[i].s_addr) {
+						found = true;
+						INFO("Found A record for %s addr %s", host, inet_ntoa(a[i]));
+						break;
+					}
+				} else if (type == QTYPE_AAAA) {
+					const struct in6_addr *a6 = (const struct in6_addr *)addrs;
+					if (memcmp(&data->ip6, &a6[i], sizeof(struct in6_addr)) == 0) {
+						found = true;
+						INFO("Found AAAA record for %s addr %s", host, inet_ntop(AF_INET6, &a6[i], buf6, sizeof(buf6)));
+						break;
+					}
+				}
+			}
+			cur = mdnsd_record_next(cur);
+		}
+		if (!found) {
+			/* Create new record for this address */
+			mdns_record_t *nr = mdnsd_shared(d, host, type, ttl);
+			if (!nr)
+				continue;
+			if (type == QTYPE_A) {
+				const struct in_addr *a = (const struct in_addr *)addrs;
+				mdnsd_set_ip(d, nr, a[i]);
+				INFO("Created A record for %s addr %s", host, inet_ntoa(a[i]));
+			} else {
+				const struct in6_addr *a6 = (const struct in6_addr *)addrs;
+				mdnsd_set_ipv6(d, nr, a6[i]);
+				INFO("Created AAAA record for %s addr %s", host, inet_ntop(AF_INET6, &a6[i], buf6, sizeof(buf6)));
+			}
+		}
+	}
+
+	/* Remove stale records (present but not in desired set) */
+	cur = mdnsd_get_published(d, host);
+	while (cur) {
+		mdns_record_t *next = mdnsd_record_next(cur);
+		const mdns_answer_t *data = mdnsd_record_data(cur);
+		if (data->type == type && strcmp(data->name, host) == 0) {
+			bool still_present = false;
+			for (size_t i = 0; i < count; i++) {
+				if (type == QTYPE_A) {
+					const struct in_addr *a = (const struct in_addr *)addrs;
+					if (data->ip.s_addr == a[i].s_addr) { still_present = true; break; }
+				} else {
+					const struct in6_addr *a6 = (const struct in6_addr *)addrs;
+					if (memcmp(&data->ip6, &a6[i], sizeof(struct in6_addr)) == 0) { still_present = true; break; }
+				}
+			}
+			if (!still_present)
+				mdnsd_done(d, cur);
+		}
+		cur = next;
+	}
+
+	return 0;
+}
+
+int mdnsd_set_addresses_for_host(mdns_daemon_t *d, const char *host, const struct in_addr *addrs, size_t count)
+{
+	return _update_addresses_for_host(d, host, QTYPE_A, addrs, count);
+}
+
+int mdnsd_set_ipv6_addresses_for_host(mdns_daemon_t *d, const char *host, const struct in6_addr *addrs, size_t count)
+{
+	return _update_addresses_for_host(d, host, QTYPE_AAAA, addrs, count);
+}
+
+int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname)
+{
+	struct ifaddrs *ifa = NULL;
+	struct ifaddrs *it;
+	struct in_addr *v4 = NULL; size_t v4c = 0;
+	struct in6_addr *v6 = NULL; size_t v6c = 0;
+	char buf[INET_ADDRSTRLEN];
+	char buf6[INET6_ADDRSTRLEN];
+
+	if (getifaddrs(&ifa) != 0)
+		return -1;
+
+	/* Collect all v4/v6 addresses for the interface */
+	for (it = ifa; it; it = it->ifa_next) {
+		if (!it->ifa_addr || !it->ifa_name || strcmp(it->ifa_name, ifname))
+			continue;
+		if (it->ifa_addr->sa_family == AF_INET) {
+			v4 = realloc(v4, (v4c + 1) * sizeof(*v4));
+			if (v4) {
+				struct sockaddr_in *sin = (struct sockaddr_in *)it->ifa_addr;
+				v4[v4c++] = sin->sin_addr;
+				if(inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf)))
+						INFO("Adding address %s for interface %s", buf, ifname);
+			}
+		} else if (it->ifa_addr->sa_family == AF_INET6) {
+			v6 = realloc(v6, (v6c + 1) * sizeof(*v6));
+			if (v6) {
+				struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)it->ifa_addr;
+				v6[v6c++] = sin6->sin6_addr;
+				if (inet_ntop(AF_INET6, &sin6->sin6_addr, buf6, sizeof(buf6)))
+						INFO("Adding address %s for interface %s", buf6, ifname);
+			}
+		}
+	}
+	freeifaddrs(ifa);
+
+	/* Find all host names currently published as A/AAAA and update each */
+	for (size_t idx = 0; idx < SPRIME; idx++) {
+		mdns_record_t *cur = d->published[idx];
+		while (cur) {
+			const mdns_answer_t *data = mdnsd_record_data(cur);
+			if (data->type == QTYPE_A || data->type == QTYPE_AAAA) {
+				INFO("Updating addresses for host %s type %d", data->name, data->type);
+				const char *host = data->name;
+				if (v4c)
+					mdnsd_set_addresses_for_host(d, host, v4, v4c);
+				if (v6c)
+					mdnsd_set_ipv6_addresses_for_host(d, host, v6, v6c);
+			}
+			cur = mdnsd_record_next(cur);
+		}
+	}
+
+	free(v4);
+	free(v6);
+	return 0;
 }
 
 static int process_in(mdns_daemon_t *d, int sd)
