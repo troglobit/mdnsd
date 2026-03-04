@@ -42,12 +42,80 @@
 #include <unistd.h>
 
 #include <libmdnsd/mdnsd.h>
+#include <libmdnsd/sdtxt.h>
 #include "config.h"
 #include "mcsock.h"
 
 
 static mdns_daemon_t *d;
 static int simple;
+static int devmode;
+static int terminate_mode;
+static char *detail;	/* hostname filter for -d */
+
+struct instance {
+	char iname[256];	/* e.g. "MySwitch._http._tcp.local." */
+	char hostname[256];	/* from SRV, e.g. "myswitch.local." */
+	int  port;		/* from SRV */
+	char product[64];	/* from TXT product= */
+	char version[64];	/* from TXT version= */
+	struct instance *next;
+};
+
+struct device {
+	char hostname[256];
+	char addrs[8][INET6_ADDRSTRLEN];
+	int  naddrs;
+	struct device *next;
+};
+
+static struct instance *instances;
+static struct device   *devices;
+
+static struct instance *find_or_create_instance(const char *name)
+{
+	struct instance *inst;
+
+	for (inst = instances; inst; inst = inst->next)
+		if (!strcmp(inst->iname, name))
+			return inst;
+
+	inst = calloc(1, sizeof(*inst));
+	if (inst) {
+		strlcpy(inst->iname, name, sizeof(inst->iname));
+		inst->next = instances;
+		instances = inst;
+	}
+	return inst;
+}
+
+static struct device *find_or_create_device(const char *hostname)
+{
+	struct device *dev;
+
+	for (dev = devices; dev; dev = dev->next)
+		if (!strcmp(dev->hostname, hostname))
+			return dev;
+
+	dev = calloc(1, sizeof(*dev));
+	if (dev) {
+		strlcpy(dev->hostname, hostname, sizeof(dev->hostname));
+		dev->next = devices;
+		devices = dev;
+	}
+	return dev;
+}
+
+static void device_add_addr(struct device *dev, const char *addr)
+{
+	int i;
+
+	for (i = 0; i < dev->naddrs; i++)
+		if (!strcmp(dev->addrs[i], addr))
+			return;
+	if (dev->naddrs < (int)(sizeof(dev->addrs) / sizeof(dev->addrs[0])))
+		strlcpy(dev->addrs[dev->naddrs++], addr, INET6_ADDRSTRLEN);
+}
 
 
 #ifndef HAVE_STRLCPY
@@ -180,6 +248,225 @@ static int ans(mdns_answer_t *a, void *arg)
 	return 0;
 }
 
+static int ans_dev(mdns_answer_t *a, void *arg)
+{
+	char ipstr[INET6_ADDRSTRLEN];
+	struct instance *inst;
+	struct device *dev;
+	xht_t *txt;
+	char *val;
+
+	if (a->ttl == 0)
+		return 0;
+
+	switch (a->type) {
+	case QTYPE_PTR:
+		if (!a->rdname || !a->rdname[0])
+			break;
+		if (!arg)
+			/* DISCO_NAME PTR → service types */
+			mdnsd_query(d, a->rdname, QTYPE_PTR, ans_dev, a->rdname);
+		else {
+			/* service type PTR → instance names */
+			find_or_create_instance(a->rdname);
+			mdnsd_query(d, a->rdname, QTYPE_SRV, ans_dev, NULL);
+			mdnsd_query(d, a->rdname, QTYPE_TXT, ans_dev, NULL);
+		}
+		break;
+
+	case QTYPE_SRV:
+		if (!a->rdname || !a->rdname[0])
+			break;
+		inst = find_or_create_instance(a->name);
+		if (!inst->hostname[0]) {
+			strlcpy(inst->hostname, a->rdname, sizeof(inst->hostname));
+			inst->port = a->srv.port;
+			mdnsd_query(d, a->rdname, QTYPE_A,    ans_dev, NULL);
+			mdnsd_query(d, a->rdname, QTYPE_AAAA, ans_dev, NULL);
+		}
+		break;
+
+	case QTYPE_TXT:
+		if (!a->rdlen || !a->rdata)
+			break;
+		inst = find_or_create_instance(a->name);
+		txt  = txt2sd(a->rdata, a->rdlen);
+		if (txt) {
+			val = xht_get(txt, "product");
+			if (val && !inst->product[0])
+				strlcpy(inst->product, val, sizeof(inst->product));
+			val = xht_get(txt, "version");
+			if (val && !inst->version[0])
+				strlcpy(inst->version, val, sizeof(inst->version));
+			xht_free(txt);
+		}
+		break;
+
+	case QTYPE_A:
+		inet_ntop(AF_INET, &a->ip, ipstr, sizeof(ipstr));
+		dev = find_or_create_device(a->name);
+		device_add_addr(dev, ipstr);
+		break;
+
+	case QTYPE_AAAA:
+		inet_ntop(AF_INET6, &a->ip6, ipstr, sizeof(ipstr));
+		dev = find_or_create_device(a->name);
+		device_add_addr(dev, ipstr);
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+/* Strip trailing dot: "myswitch.local." → "myswitch.local" */
+static char *shortname(const char *hostname, char *buf, size_t len)
+{
+	size_t n;
+
+	strlcpy(buf, hostname, len);
+	n = strlen(buf);
+	if (n > 0 && buf[n - 1] == '.')
+		buf[n - 1] = 0;
+	return buf;
+}
+
+static int matches_detail(struct device *dev)
+{
+	char fqdn[256], bare[256], *p;
+
+	if (!detail)
+		return 1;
+
+	shortname(dev->hostname, fqdn, sizeof(fqdn));	/* "myswitch.local"  */
+	strlcpy(bare, fqdn, sizeof(bare));
+	p = strchr(bare, '.');
+	if (p)
+		*p = 0;					/* "myswitch"        */
+
+	return !strcmp(detail, fqdn)			/* myswitch.local    */
+	    || !strcmp(detail, dev->hostname)		/* myswitch.local.   */
+	    || !strcmp(detail, bare);			/* myswitch          */
+}
+
+static void print_devices(void)
+{
+	struct device *dev;
+	struct instance *inst;
+	int i, name_w = 4, addr_w = 7, prod_w = 7;
+
+	/* First pass: compute column widths from actual data */
+	for (dev = devices; dev; dev = dev->next) {
+		char name[256];
+		int n;
+
+		if (!matches_detail(dev))
+			continue;
+
+		shortname(dev->hostname, name, sizeof(name));
+		n = (int)strlen(name);
+		if (n > name_w)
+			name_w = n;
+
+		for (i = 0; i < dev->naddrs; i++) {
+			n = (int)strlen(dev->addrs[i]);
+			if (n > addr_w)
+				addr_w = n;
+		}
+
+		for (inst = instances; inst; inst = inst->next) {
+			if (strcmp(inst->hostname, dev->hostname) || !inst->product[0])
+				continue;
+			n = (int)strlen(inst->product);
+			if (n > prod_w)
+				prod_w = n;
+		}
+	}
+	name_w += 2;
+	addr_w += 2;
+
+	/* Inverse-video header */
+	printf("\033[7m%-*s %-*s %-*s\033[0m\n",
+	       name_w, "NAME", addr_w, "ADDRESS", prod_w, "PRODUCT");
+
+	/* Data rows: one address per line, continuation lines indent only */
+	for (dev = devices; dev; dev = dev->next) {
+		char name[256], product[64] = "";
+
+		if (!matches_detail(dev))
+			continue;
+
+		shortname(dev->hostname, name, sizeof(name));
+
+		for (inst = instances; inst; inst = inst->next) {
+			if (!strcmp(inst->hostname, dev->hostname) && inst->product[0]) {
+				strlcpy(product, inst->product, sizeof(product));
+				break;
+			}
+		}
+
+		/* First line: name, first address (or blank), product */
+		printf("%-*s %-*s %s\n",
+		       name_w, name,
+		       addr_w, dev->naddrs ? dev->addrs[0] : "",
+		       product);
+
+		/* Continuation lines: blank name field, remaining addresses */
+		for (i = 1; i < dev->naddrs; i++)
+			printf("%-*s %s\n", name_w, "", dev->addrs[i]);
+	}
+}
+
+static void print_device_detail(void)
+{
+	struct device *dev;
+	struct instance *inst;
+	int i, first = 1;
+
+	for (dev = devices; dev; dev = dev->next) {
+		if (!matches_detail(dev))
+			continue;
+
+		if (!first)
+			printf("\n");
+		first = 0;
+
+		char fqdn[256];
+		printf("Device:  %s\n", shortname(dev->hostname, fqdn, sizeof(fqdn)));
+		for (i = 0; i < dev->naddrs; i++)
+			printf("Address: %s\n", dev->addrs[i]);
+
+		printf("Services:\n");
+		for (inst = instances; inst; inst = inst->next) {
+			char svc[256];
+			char *p;
+
+			if (strcmp(inst->hostname, dev->hostname))
+				continue;
+
+			/* "MySwitch._http._tcp.local." → "_http._tcp" */
+			p = strchr(inst->iname, '.');
+			strlcpy(svc, p ? p + 1 : inst->iname, sizeof(svc));
+			/* strip domain: find dot after _proto label */
+			p = strchr(svc, '.');
+			if (p) {
+				p = strchr(p + 1, '.');
+				if (p)
+					*p = 0;
+			}
+
+			printf("  %-24s port %-6d", svc, inst->port);
+			if (inst->product[0])
+				printf(" product=%s", inst->product);
+			if (inst->version[0])
+				printf(" version=%s", inst->version);
+			printf("\n");
+		}
+	}
+}
+
 /* Create multicast 224.0.0.251:5353 socket */
 static int msock(char *ifname)
 {
@@ -197,12 +484,12 @@ static int msock(char *ifname)
 
 static int usage(int code)
 {
-	/* mquery -t 12 _http._tcp.local. */
-	printf("usage: mquery [-hsv] "
+	/* mquery -D -T    mquery -t 12 _http._tcp.local. */
+	printf("usage: mquery [-hDsTv] "
 #ifdef HAVE_SO_BINDTODEVICE
 	       "[-i IFNAME] "
 #endif
-	       "[-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
+	       "[-d HOST] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
 	return code;
 }
 
@@ -224,15 +511,28 @@ int main(int argc, char *argv[])
 	fd_set fds;
 	int sd, c;
 
-	while ((c = getopt(argc, argv, "h?"
+	while ((c = getopt(argc, argv, "h?DT"
 #ifdef HAVE_SO_BINDTODEVICE
 			   "i:"
 #endif
-			   "l:st:vw:")) != EOF) {
+			   "d:l:st:vw:")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
 			return usage(0);
+
+		case 'D':
+			devmode = 1;
+			break;
+
+		case 'T':
+			terminate_mode = 1;
+			break;
+
+		case 'd':
+			detail  = optarg;
+			devmode = 1;
+			break;
 
 #ifdef HAVE_SO_BINDTODEVICE
 		case 'i':
@@ -282,12 +582,24 @@ int main(int argc, char *argv[])
 	if (!d)
 		return 1;
 
-	printf("Querying for %s type %d ... press Ctrl-C to stop\n", name, type);
 	start = time(NULL);
-	mdnsd_query(d, name, type, ans, NULL);
+	if (devmode) {
+		if (!terminate_mode)
+			printf("Scanning for devices ... press Ctrl-C to stop\n");
+		mdnsd_query(d, DISCO_NAME, QTYPE_PTR, ans_dev, NULL);
+	} else {
+		printf("Querying for %s type %d ... press Ctrl-C to stop\n", name, type);
+		mdnsd_query(d, name, type, ans, NULL);
+	}
 
+	time_t last_rx = 0;
 	while (1) {
+		struct timeval one_sec = { 1, 0 };
 		struct timeval *tv = mdnsd_sleep(d);
+
+		/* When terminating, cap select() so we check the quiet timeout often */
+		if (terminate_mode && (!tv || tv->tv_sec >= 1))
+			tv = &one_sec;
 
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
@@ -296,6 +608,7 @@ int main(int argc, char *argv[])
 		if (FD_ISSET(sd, &fds)) {
 			ssize = sizeof(struct sockaddr_in);
 			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+				last_rx = time(NULL);
 				memset(&m, 0, sizeof(struct message));
 				if (message_parse(&m, buf) == 0)
 					mdnsd_in(d, &m, from.sin_addr, from.sin_port);
@@ -319,12 +632,32 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		if (terminate_mode && last_rx && (time(NULL) - last_rx >= 2))
+			break;
 		if (wait && (time(NULL) - start >= wait))
 			break;
 	}
 
 	mdnsd_shutdown(d);
 	mdnsd_free(d);
+
+	if (devmode) {
+		if (detail)
+			print_device_detail();
+		else
+			print_devices();
+
+		while (instances) {
+			struct instance *next = instances->next;
+			free(instances);
+			instances = next;
+		}
+		while (devices) {
+			struct device *next = devices->next;
+			free(devices);
+			devices = next;
+		}
+	}
 
 	return 0;
 }

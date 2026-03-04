@@ -31,8 +31,9 @@
 .Nd small query tool for multicast DNS
 .Sh SYNOPSIS
 .Nm mquery
-.Op Fl hsv
+.Op Fl hDsTv
 .Op Fl i Ar IFACE
+.Op Fl d Ar HOST
 .Op Fl t Ar TYPE
 .Op Fl w Ar SEC
 .Op Ar NAME
@@ -59,6 +60,34 @@ as follows:
 .Bl -tag
 .It Fl h
 Print a bare bones help message and exits.
+.It Fl D
+Scan all services and present a deduplicated device table with name,
+address, and product columns.
+Use with
+.Fl T
+to exit automatically, or with
+.Fl w Ar SEC
+to set a fixed collection window.
+.It Fl T
+Terminate automatically after the network has been quiet for two seconds.
+Intended for use with
+.Fl D
+or
+.Fl d ,
+analogous to
+.Xr avahi-browse 1 Ns 's
+.Fl t
+option.
+.It Fl d Ar HOST
+Like
+.Fl D ,
+but filter results to
+.Ar HOST
+and show a detailed per-service breakdown instead of the summary table.
+.Ar HOST
+may be given with or without the
+.Cm .local.
+suffix.
 .It Fl i Ar IFACE
 Interface to run query on, by default the system default interface is
 used, derived from the routing table.
