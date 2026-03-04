@@ -33,6 +33,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <errno.h>
+#include <ifaddrs.h>
 
 #define SPRIME 109		/* Size of query/publish hashes */
 #define LPRIME 1009		/* Size of cache hash */
@@ -40,6 +41,9 @@
 #define GC 86400                /* Brute force garbage cleanup
 				 * frequency, rarely needed (daily
 				 * default) */
+
+/* Interval for refreshing cached local interface addresses (seconds) */
+#define LOCAL_ADDR_REFRESH_INTERVAL 5
 
 /**
  * Messy, but it's the best/simplest balance I can find at the moment
@@ -100,6 +104,10 @@ struct mdns_daemon {
 
 	struct in_addr addr;
 	struct in6_addr addr_v6;
+
+	/* Cached local interface snapshot to avoid getifaddrs() per packet */
+	struct ifaddrs *local_ifaddrs;
+	time_t local_addrs_refreshed;
 
 	mdnsd_record_received_callback received_callback;
 	void *received_callback_data;
@@ -675,6 +683,49 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 	return ret;
 }
 
+/* Refresh cached local IPv4 addresses if needed (every ~5s) */
+static void _refresh_local_ipv4(mdns_daemon_t *d, bool force)
+{
+	struct ifaddrs *ifa = NULL;
+
+	/* Refresh at most every 5 seconds */
+	if (d->local_addrs_refreshed && (d->now.tv_sec - d->local_addrs_refreshed) < LOCAL_ADDR_REFRESH_INTERVAL && !force)
+		return;
+
+	if (getifaddrs(&ifa) != 0)
+		return;
+
+	/* Swap in the latest snapshot */
+	if (d->local_ifaddrs)
+		freeifaddrs(d->local_ifaddrs);
+	d->local_ifaddrs = ifa;
+	d->local_addrs_refreshed = d->now.tv_sec ? d->now.tv_sec : time(NULL);
+}
+
+/* Check if an IPv4 address belongs to this host (any interface) */
+static bool _is_local_ipv4(mdns_daemon_t *d, struct in_addr ip)
+{
+	struct ifaddrs *it;
+
+	/* Always consider the primary configured address as local */
+	if (ip.s_addr == d->addr.s_addr)
+		return true;
+
+	_refresh_local_ipv4(d, false);
+
+	for (it = d->local_ifaddrs; it; it = it->ifa_next) {
+		struct sockaddr_in *sin;
+		if (!it->ifa_addr)
+			continue;
+		if (it->ifa_addr->sa_family != AF_INET)
+			continue;
+		sin = (struct sockaddr_in *)it->ifa_addr;
+		if (sin->sin_addr.s_addr == ip.s_addr)
+			return true;
+	}
+
+	return false;
+}
 
 mdns_daemon_t *mdnsd_new(int class, int frame)
 {
@@ -689,6 +740,8 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	d->class = class;
 	d->frame = frame;
 	d->received_callback = NULL;
+	d->local_ifaddrs = NULL;
+	d->local_addrs_refreshed = 0;
 
 	return d;
 }
@@ -849,6 +902,9 @@ void mdnsd_free(mdns_daemon_t *d)
 		u = next;
 	}
 
+	if (d->local_ifaddrs)
+		freeifaddrs(d->local_ifaddrs);
+
 	free(d);
 }
 
@@ -863,11 +919,16 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 {
 	mdns_record_t *r = NULL;
 	int i, j;
+	bool did_addr_refresh = false;
 
 	if (d->shutdown)
 		return 1;
 
 	gettimeofday(&d->now, 0);
+
+	/* Ignore packets originated from any of our local IPv4 addresses */
+	if (_is_local_ipv4(d, ip))
+		return 0;
 
 	if (m->header.qr == 0) {
 		/* Process each query */
@@ -883,7 +944,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			if (!r)
 				continue;
 
-			/* Service enumeratio/discovery prepeare to send all matching records */
+			/* Service enumeration/discovery prepeare to send all matching records */
 			if (!strcmp(m->qd[i].name, DISCO_NAME)) {
 				d->disco = 1;
 				while (r) {
@@ -911,6 +972,13 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 
 						/* This answer isn't ours, conflict! */
 						if (!_a_match(&m->an[j], &r->rr)) {
+							/* Before flagging conflict, force a local address refresh and re-check */
+							if (!did_addr_refresh) {
+								did_addr_refresh = true;
+								_refresh_local_ipv4(d, true);
+							}
+							if (_is_local_ipv4(d, ip))
+								continue;
 							_conflict(d, r);
 							has_conflict = true;
 							break;
@@ -962,7 +1030,11 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		r = _r_next(d, NULL, m->an[i].name, m->an[i].type);
 		if (r && r->unique && r->modified && _a_match(&m->an[i], &r->rr)) {
 			/* double check, is this actually from us, looped back? */
-			if (ip.s_addr == d->addr.s_addr)
+			if (!did_addr_refresh) {
+				did_addr_refresh = true;
+				_refresh_local_ipv4(d, true);
+			}
+			if (_is_local_ipv4(d, ip))
 				continue;
 			_conflict(d, r);
 		}
