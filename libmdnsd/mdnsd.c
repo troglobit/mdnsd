@@ -650,6 +650,20 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 /* Copy the data bits only */
 static void _a_copy(struct message *m, mdns_answer_t *a)
 {
+	/*
+	 * Re-encode name rdata from rdname so compression is computed for
+	 * this packet.  The raw cached rdata holds pointers into the packet
+	 * it arrived in and cannot be replayed verbatim.  See issue #79.
+	 */
+	if (a->type == QTYPE_SRV) {
+		message_rdata_srv(m, a->srv.priority, a->srv.weight, a->srv.port, a->rdname);
+		return;
+	}
+	if (a->rdname) {
+		message_rdata_name(m, a->rdname);
+		return;
+	}
+
 	if (a->rdata) {
 		message_rdata_raw(m, a->rdata, a->rdlen);
 		return;
@@ -659,10 +673,6 @@ static void _a_copy(struct message *m, mdns_answer_t *a)
 		message_rdata_ipv4(m, a->ip);
 	else if (!IN6_IS_ADDR_UNSPECIFIED(&(a->ip6)))
 		message_rdata_ipv6(m, a->ip6);
-	if (a->type == QTYPE_SRV)
-		message_rdata_srv(m, a->srv.priority, a->srv.weight, a->srv.port, a->rdname);
-	else if (a->rdname)
-		message_rdata_name(m, a->rdname);
 }
 
 /* Copy a published record into an outgoing message */

@@ -23,9 +23,10 @@ TESTS             += iprecords.sh
 TESTS             += lostif.sh
 
 if ENABLE_UNIT_TESTS
-check_PROGRAMS     = xht addr
+check_PROGRAMS     = xht addr answer
 TESTS             += xht
 TESTS             += addr
+TESTS             += answer
 
 xht_SOURCES        = xht.c
 xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
@@ -35,4 +36,11 @@ addr_LDADD         = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS) ../src/ad
 # Link libmdnsd statically so --wrap intercepts the getifaddrs() call
 # inside the library too, not just the copy in ../src/addr.o.
 addr_LDFLAGS       = -static -Wl,--wrap=getifaddrs -Wl,--wrap=freeifaddrs
+
+# answer_test.c #includes mdnsd.c to reach the static _a_copy(), so it
+# compiles the library sources here rather than linking libmdnsd.la.
+answer_SOURCES     = answer_test.c ../libmdnsd/1035.c ../libmdnsd/xht.c \
+                     ../libmdnsd/sdtxt.c ../libmdnsd/log.c
+answer_CPPFLAGS    = $(AM_CPPFLAGS)
+answer_LDADD       = $(cmocka_LIBS) $(LIBOBJS)
 endif
