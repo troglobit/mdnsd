@@ -1,6 +1,6 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
-[![License svg][]][License] [![Repology svg][]][Repology] [![GitHub svg][]][GitHub] [![Coverity svg][]][Coverity]
+[![License svg][]][License] [![Release svg][]][Release] [![Repology svg][]][Repology] [![GitHub svg][]][GitHub] [![Coverity svg][]][Coverity]
 
 - [About](#about)
 - [Usage](#usage)
@@ -143,6 +143,8 @@ long haul under the name `mdnsd`.
 [API.md]:       https://github.com/troglobit/mdnsd/blob/master/API.md
 [License]:      https://en.wikipedia.org/wiki/BSD_licenses
 [License svg]:  https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
+[Release]:      https://github.com/troglobit/mdnsd/releases
+[Release svg]:  https://img.shields.io/github/v/release/troglobit/mdnsd
 [Repology]:     https://repology.org/project/mdnsd/versions
 [Repology svg]: https://repology.org/badge/tiny-repos/mdnsd.svg
 [GitHub]:       https://github.com/troglobit/mdnsd/actions/workflows/build.yml/
