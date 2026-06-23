@@ -1706,10 +1706,9 @@ int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname)
 
 	for (size_t i = 0; i < hostc; i++) {
 		INFO("Updating addresses for host %s", hosts[i]);
-		if (v4c)
-			mdnsd_set_addresses_for_host(d, hosts[i], v4, v4c);
-		if (v6c)
-			mdnsd_set_ipv6_addresses_for_host(d, hosts[i], v6, v6c);
+		/* A count of 0 is intentional: it withdraws that whole family. */
+		mdnsd_set_addresses_for_host(d, hosts[i], v4, v4c);
+		mdnsd_set_ipv6_addresses_for_host(d, hosts[i], v6, v6c);
 		free(hosts[i]);
 	}
 	free(hosts);

@@ -165,11 +165,10 @@ static void setup_iface(struct iface *iface)
 		}
 	}
 
-	/* Update all A/AAAA records to reflect all addresses on this interface */
-	/* NOTE this does not appear to be necessary. On startup, no records exist until load() is called, see conf.c */
-	// mdnsd_set_interface_addresses(iface->mdns, iface->ifname);
-
-	records_clear(iface->mdns);
+	/*
+	 * Reconfigure in place: conf_init() reuses records and the reconcile
+	 * sends goodbyes for removed addresses.  Only SIGHUP does a full clear.
+	 */
 	conf_init(iface, path, hostnm);
 
 	iface->changed = 0;

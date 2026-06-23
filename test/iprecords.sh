@@ -35,18 +35,22 @@ grep -q "AAAA test.local. .* $server_addr_6" "$DIR/result" || FAIL
 
 
 print "Removing all IPv6 addresses from topology while mdnsd is running..."
-nsenter --net="$server" -- ip -6 addr flush dev eth0
+# Start capturing before the flush: mdnsd reacts to the netlink event
+# almost immediately, so a collector started afterwards misses the goodbye.
 collect
-print "Waiting 15 seconds for mdnsd to catch up..."
-sleep 15
+nsenter --net="$server" -- ip -6 addr flush dev eth0
+print "Waiting for mdnsd to send goodbye ..."
+# With netlink the goodbye is near-instant; wait past the 10s address
+# poll so the test still passes where netlink is unavailable.
+sleep 12
 stop_collect
 
-# Check that Goodbye packets (TTL == 0) were sent
+# A goodbye (TTL 0) for the removed global address must be sent.  The
+# host may advertise several addresses (e.g. link-local + global), so
+# match the global goodbye specifically rather than the whole packet.
 if [ -f "$DIR/pcap" ] ; then
-	response=$(tshark -r "$DIR/pcap" -Y mdns -T fields -e dns.resp.ttl -e dns.aaaa 2>&1 | grep -v "root")
-	[ -n "$response" ] || FAIL "No mDNS goodbye packets found"
-	[ "${response}" = "0,0	${server_addr_6},${server_addr_6}" ] || FAIL "mDNS packets did not match goodbye packet requirements"
-
+	tshark -r "$DIR/pcap" -Y "mdns && dns.resp.ttl == 0 && dns.aaaa == ${server_addr_6}" 2>/dev/null \
+		| grep -q . || FAIL "No goodbye (TTL 0) sent for ${server_addr_6}"
 else
 	echo "Unable to verify goodbye packets being sent"
 	if ! command -v tshark &>/dev/null ; then
