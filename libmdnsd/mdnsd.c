@@ -546,12 +546,15 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 	 */
 	ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 
-	/* If entry already exists, only udpate TTL value */
+	/*
+	 * If this record is already cached, just refresh its TTL.  Match on
+	 * the rdata, not only name+type: a host can have several A/AAAA
+	 * records (e.g. a link-local and a global address), each its own entry.
+	 */
 	c = NULL;
 	while ((c = _c_next(d, c, r->name, r->type))) {
-		if (r->type == QTYPE_PTR && strcmp(c->rr.rdname, r->known.ns.name)) {
+		if (!_a_match(r, &c->rr))
 			continue;
-		}
 		c->rr.ttl = ttl;
 		return 0;
 	}
