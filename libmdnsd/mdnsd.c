@@ -349,6 +349,27 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr t
 	d->uanswers = u;
 }
 
+/* Drop any pending unicast answers referring to r, which is being freed */
+static void _u_remove(mdns_daemon_t *d, mdns_record_t *r)
+{
+	struct unicast *u = d->uanswers, *prev = NULL;
+
+	while (u) {
+		struct unicast *next = u->next;
+
+		if (u->r == r) {
+			if (prev)
+				prev->next = next;
+			else
+				d->uanswers = next;
+			free(u);
+		} else {
+			prev = u;
+		}
+		u = next;
+	}
+}
+
 static void _q_reset(mdns_daemon_t *d, struct query *q)
 {
 	struct cached *cur = 0;
@@ -453,6 +474,9 @@ static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 		if (cur)
 			cur->next = r->next;
 	}
+
+	/* A queued unicast answer may still point at r; drop it first. */
+	_u_remove(d, r);
 
 	_free_record(r);
 }

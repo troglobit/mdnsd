@@ -4,6 +4,8 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <arpa/inet.h>
+#include <string.h>
 
 
 #include "src/mdnsd.h"
@@ -546,6 +548,49 @@ static void test_set_interface_addresses_no_uaf(__attribute__((__unused__)) void
 
 
 
+/*
+ * Regression test for issue #84: removing a record while a unicast answer
+ * is still queued for it must not leave a dangling pointer in the uanswers
+ * list (use-after-free in mdnsd_out).
+ */
+static void test_unicast_answer_no_uaf(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	struct message q, in, out;
+	struct in_addr ip, from, oip;
+	mdns_record_t *r;
+	unsigned short oport;
+
+	assert_non_null(d);
+
+	r = mdnsd_unique(d, "test.local.", QTYPE_A, 120, NULL, NULL);
+	inet_pton(AF_INET, "192.168.0.1", &ip);
+	mdnsd_set_ip(d, r, ip);
+
+	/* A query from a non-5353 port queues a unicast answer holding r. */
+	memset(&q, 0, sizeof(q));
+	message_qd(&q, "test.local.", QTYPE_A, QCLASS_IN);
+	memset(&in, 0, sizeof(in));
+	assert_int_equal(0, message_parse(&in, message_packet(&q)));
+	inet_pton(AF_INET, "192.168.0.2", &from);
+	/* mdnsd_in() checks the source against the local addresses once. */
+	will_return(__wrap_getifaddrs, NULL);
+	will_return(__wrap_getifaddrs, 0);
+	mdnsd_in(d, &in, from, 5354);
+
+	/* Remove r while its unicast answer is still queued, then flush. */
+	mdnsd_done(d, r);
+
+	memset(&out, 0, sizeof(out));
+	mdnsd_out(d, &out, &oip, &oport);
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
+
+
+
 static int teardown(__attribute__((__unused__)) void **state)
 {
 	iface_exit();
@@ -571,6 +616,7 @@ int main(void)
 		cmocka_unit_test_teardown(test_iface_init_one_ifc_ipv4_ll_global_ipv6, teardown),
 
 		cmocka_unit_test(test_set_interface_addresses_no_uaf),
+		cmocka_unit_test(test_unicast_answer_no_uaf),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
