@@ -485,6 +485,67 @@ static void test_iface_init_two_ifc_ipv4_ll_global_ipv6_ipv4_ipv6(__attribute__(
 
 
 
+/*
+ * Regression test for issue #92: reconciling interface addresses must not
+ * use-after-free while walking the published records.  Publish two unique
+ * A records (probing, so a stale one is freed on removal), then reconcile
+ * against an interface exposing only one of them plus a v6 address.
+ */
+static void test_set_interface_addresses_no_uaf(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	struct ifaddrs addrs[] = {
+		{
+			addrs + 1,
+			"eth0", IFF_UP | IFF_MULTICAST,
+			(struct sockaddr *)&ipv4_10_0_20_1, (struct sockaddr *)&ipv4_255_255_255_0, NULL, NULL
+		},
+		{
+			NULL,
+			"eth0", IFF_UP | IFF_MULTICAST,
+			(struct sockaddr *)&ipv6_global, (struct sockaddr *)&ipv6_FF, NULL, NULL
+		}
+	};
+	struct in_addr ip;
+	mdns_record_t *r;
+	int a = 0, aaaa = 0;
+
+	assert_non_null(d);
+
+	r = mdnsd_unique(d, "unittest.local.", QTYPE_A, 120, NULL, NULL);
+	ip.s_addr = ipv4_10_0_20_1.sin_addr.s_addr;
+	mdnsd_set_ip(d, r, ip);
+
+	r = mdnsd_unique(d, "unittest.local.", QTYPE_A, 120, NULL, NULL);
+	ip.s_addr = ipv4_192_168_2_100.sin_addr.s_addr;
+	mdnsd_set_ip(d, r, ip);
+
+	will_return(__wrap_getifaddrs, addrs);
+	will_return(__wrap_getifaddrs, 0);
+
+	assert_int_equal(0, mdnsd_set_interface_addresses(d, "eth0"));
+
+	/* Stale 192.168.2.100 removed, 10.0.20.1 kept, global AAAA added. */
+	for (r = mdnsd_get_published(d, "unittest.local."); r; r = mdnsd_record_next(r)) {
+		const mdns_answer_t *data = mdnsd_record_data(r);
+		if (data->type == QTYPE_A) {
+			a++;
+			assert_int_equal(ipv4_10_0_20_1.sin_addr.s_addr, data->ip.s_addr);
+		} else if (data->type == QTYPE_AAAA) {
+			aaaa++;
+			assert_true(IN6_ARE_ADDR_EQUAL(&ipv6_global.sin6_addr, &data->ip6));
+		}
+	}
+	assert_int_equal(1, a);
+	assert_int_equal(1, aaaa);
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
+
+
+
 static int teardown(__attribute__((__unused__)) void **state)
 {
 	iface_exit();
@@ -508,6 +569,8 @@ int main(void)
 		cmocka_unit_test_teardown(test_iface_init_one_ifc_global_UL_SL_LL_ipv6, teardown),
 
 		cmocka_unit_test_teardown(test_iface_init_one_ifc_ipv4_ll_global_ipv6, teardown),
+
+		cmocka_unit_test(test_set_interface_addresses_no_uaf),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

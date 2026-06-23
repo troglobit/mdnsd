@@ -1666,22 +1666,50 @@ int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname)
 	}
 	freeifaddrs(ifa);
 
-	/* Find all host names currently published as A/AAAA and update each */
+	/*
+	 * Reconcile per host name, not per record pointer: the calls below
+	 * free stale records, which would dangle a record iterator.  See #92.
+	 */
+	char **hosts = NULL;
+	size_t hostc = 0;
+
 	for (size_t idx = 0; idx < SPRIME; idx++) {
-		mdns_record_t *cur = d->published[idx];
-		while (cur) {
+		for (mdns_record_t *cur = d->published[idx]; cur; cur = mdnsd_record_next(cur)) {
 			const mdns_answer_t *data = mdnsd_record_data(cur);
-			if (data->type == QTYPE_A || data->type == QTYPE_AAAA) {
-				INFO("Updating addresses for host %s type %d", data->name, data->type);
-				const char *host = data->name;
-				if (v4c)
-					mdnsd_set_addresses_for_host(d, host, v4, v4c);
-				if (v6c)
-					mdnsd_set_ipv6_addresses_for_host(d, host, v6, v6c);
+			bool seen = false;
+			char **tmp;
+
+			if (data->type != QTYPE_A && data->type != QTYPE_AAAA)
+				continue;
+
+			for (size_t i = 0; i < hostc; i++) {
+				if (!strcmp(hosts[i], data->name)) {
+					seen = true;
+					break;
+				}
 			}
-			cur = mdnsd_record_next(cur);
+			if (seen)
+				continue;
+
+			tmp = realloc(hosts, (hostc + 1) * sizeof(*hosts));
+			if (!tmp)
+				continue;
+			hosts = tmp;
+			hosts[hostc] = strdup(data->name);
+			if (hosts[hostc])
+				hostc++;
 		}
 	}
+
+	for (size_t i = 0; i < hostc; i++) {
+		INFO("Updating addresses for host %s", hosts[i]);
+		if (v4c)
+			mdnsd_set_addresses_for_host(d, hosts[i], v4, v4c);
+		if (v6c)
+			mdnsd_set_ipv6_addresses_for_host(d, hosts[i], v6, v6c);
+		free(hosts[i]);
+	}
+	free(hosts);
 
 	free(v4);
 	free(v6);

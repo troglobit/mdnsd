@@ -55,6 +55,31 @@ jobs:
         with:
           name: mdnsd-test-${{ matrix.compiler }}
           path: test/*
+  asan:
+    # Run the cmocka unit tests under AddressSanitizer; this is where the
+    # heap-use-after-free from issue #92 would resurface.  The unit tests
+    # mock getifaddrs() and run directly (no namespace), so the run is
+    # deterministic.  The shell tests are not run here -- the daemon's
+    # leak-on-exit under a signal would make the run flaky.
+    name: asan
+    runs-on: ubuntu-latest
+    env:
+      MAKEFLAGS: -j3
+      CC: clang
+      CFLAGS: -fsanitize=address -g -O1
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install clang libcmocka-dev
+      - uses: actions/checkout@v6
+      - name: Configure
+        run: |
+          ./autogen.sh
+          ./configure --prefix= --enable-tests
+      - name: Build and unit test under AddressSanitizer
+        run: |
+          make check TESTS="xht addr" || (cat test/test-suite.log; false)
   distcheck:
     runs-on: ubuntu-latest
     env:

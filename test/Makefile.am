@@ -32,5 +32,7 @@ xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
 
 addr_SOURCES       = addr_test.c
 addr_LDADD         = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS) ../src/addr.o
-addr_LDFLAGS       = -Wl,--wrap=getifaddrs -Wl,--wrap=freeifaddrs
+# Link libmdnsd statically so --wrap intercepts the getifaddrs() call
+# inside the library too, not just the copy in ../src/addr.o.
+addr_LDFLAGS       = -static -Wl,--wrap=getifaddrs -Wl,--wrap=freeifaddrs
 endif
