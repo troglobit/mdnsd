@@ -675,8 +675,93 @@ static void _a_copy(struct message *m, mdns_answer_t *a)
 		message_rdata_ipv6(m, a->ip6);
 }
 
+/*
+ * RFC 6763 §12: when answering a PTR or SRV query, add the related SRV,
+ * TXT and address records to the additional section so a client need not
+ * query again.  See issue #76.  Records answered this round are tracked so
+ * we never repeat one of them as an additional record.
+ */
+#define ADDITIONAL_MAX 64
+struct answered {
+	mdns_record_t *rec[ADDITIONAL_MAX];
+	int n;
+};
+
+static void _answered_add(struct answered *a, mdns_record_t *r)
+{
+	if (a->n < ADDITIONAL_MAX)
+		a->rec[a->n++] = r;
+}
+
+static int _answered(const struct answered *a, const mdns_record_t *r)
+{
+	int i;
+
+	for (i = 0; i < a->n; i++) {
+		if (a->rec[i] == r)
+			return 1;
+	}
+
+	return 0;
+}
+
+/* Append one additional record, unless already in the packet or out of room */
+static void _ar(mdns_daemon_t *d, struct message *m, mdns_record_t *r, struct answered *seen)
+{
+	if (_answered(seen, r))
+		return;
+	if (message_packet_len(m) + (int)_rr_len(&r->rr) >= d->frame)
+		return;
+
+	message_ar(m, r->rr.name, r->rr.type, d->class + (r->unique ? 32768 : 0), r->rr.ttl);
+	_a_copy(m, &r->rr);
+	_answered_add(seen, r);
+}
+
+/* Append the A/AAAA records for host to the additional section */
+static void _ar_addr(mdns_daemon_t *d, struct message *m, char *host, struct answered *seen)
+{
+	mdns_record_t *r;
+
+	if (!host)
+		return;
+
+	for (r = mdnsd_get_published(d, host); r; r = r->next) {
+		if (strcmp(r->rr.name, host))
+			continue;
+		if (r->rr.type == QTYPE_A || r->rr.type == QTYPE_AAAA)
+			_ar(d, m, r, seen);
+	}
+}
+
+/* RFC 6763 §12 additional records for an answered PTR or SRV record */
+static void _additional(mdns_daemon_t *d, struct message *m, mdns_record_t *ans, struct answered *seen)
+{
+	mdns_record_t *r;
+
+	if (ans->rr.type == QTYPE_SRV) {
+		_ar_addr(d, m, ans->rr.rdname, seen);
+		return;
+	}
+
+	if (ans->rr.type != QTYPE_PTR || !ans->rr.rdname || !strcmp(ans->rr.name, DISCO_NAME))
+		return;
+
+	for (r = mdnsd_get_published(d, ans->rr.rdname); r; r = r->next) {
+		if (strcmp(r->rr.name, ans->rr.rdname))
+			continue;
+
+		if (r->rr.type == QTYPE_SRV) {
+			_ar(d, m, r, seen);
+			_ar_addr(d, m, r->rr.rdname, seen);
+		} else if (r->rr.type == QTYPE_TXT) {
+			_ar(d, m, r, seen);
+		}
+	}
+}
+
 /* Copy a published record into an outgoing message */
-static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
+static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list, struct answered *seen)
 {
 	mdns_record_t *r;
 	int ret = 0;
@@ -715,6 +800,8 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 			 */
 			_r_remove_lists(d, r, list);
 			_r_done(d, r);
+		} else {
+			_answered_add(seen, r);
 		}
 	}
 
@@ -1092,6 +1179,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port)
 {
 	mdns_record_t *r;
+	struct answered seen = { 0 };
 	int ret = 0;
 
 	gettimeofday(&d->now, 0);
@@ -1117,6 +1205,10 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		message_an(m, u->r->rr.name, u->r->rr.type, d->class, u->r->rr.ttl);
 		u->r->last_sent = d->now;
 		_a_copy(m, &u->r->rr);
+
+		/* RFC 6763 §12 additional records for the unicast answer */
+		_answered_add(&seen, u->r);
+		_additional(d, m, u->r, &seen);
 		free(u);
 
 		return 1;
@@ -1124,7 +1216,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 
 	/* Accumulate any immediate responses */
 	if (d->a_now)
-		ret += _r_out(d, m, &d->a_now);
+		ret += _r_out(d, m, &d->a_now, &seen);
 
 	/* Check if it's time to send the publish retries (unlink if done) */
 	if (!d->probing && d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
@@ -1151,6 +1243,8 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 				message_an(m, cur->rr.name, cur->rr.type, d->class, cur->rr.ttl);
 			_a_copy(m, &cur->rr);
 			cur->last_sent = d->now;
+			if (cur->rr.ttl != 0)
+				_answered_add(&seen, cur);
 
 			if (cur->rr.ttl != 0 && cur->tries < 4) {
 				last = cur;
@@ -1180,7 +1274,11 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 
 	/* Check if a_pause is ready */
 	if (d->a_pause && _tvdiff(d->now, d->pause) <= 0)
-		ret += _r_out(d, m, &d->a_pause);
+		ret += _r_out(d, m, &d->a_pause, &seen);
+
+	/* RFC 6763 §12: expand the answers, not the additionals _ar() appends */
+	for (int i = 0, n = seen.n; i < n; i++)
+		_additional(d, m, seen.rec[i], &seen);
 
 	/* Now process questions */
 	if (ret)

@@ -68,11 +68,138 @@ static void test_known_answer_srv_compression(__attribute__((__unused__)) void *
 	assert_int_equal(a.srv.port, check.an[0].known.srv.port);
 }
 
+/*
+ * Feature test for issue #76 (RFC 6763 §12): a PTR query response must
+ * carry the instance's SRV and TXT, plus the SRV target's A/AAAA, in the
+ * additional section.
+ */
+static void test_additional_records_for_ptr(__attribute__((__unused__)) void **state)
+{
+	char *type = "_qotd._tcp.local.";
+	char *inst = "qotd._qotd._tcp.local.";
+	char *host = "qotd-host.local.";
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	struct answered seen = { 0 };
+	struct message m, resp;
+	struct in_addr ip;
+	struct in6_addr ip6;
+	mdns_record_t *ptr, *r;
+	int i, srv = 0, txt = 0, a = 0, aaaa = 0;
+
+	assert_non_null(d);
+
+	/* Publish a full service: PTR -> SRV/TXT (instance) -> A/AAAA (host) */
+	ptr = mdnsd_shared(d, type, QTYPE_PTR, 120);
+	mdnsd_set_host(d, ptr, inst);
+	r = mdnsd_shared(d, inst, QTYPE_SRV, 120);
+	mdnsd_set_srv(d, r, 0, 0, 9, host);
+	r = mdnsd_shared(d, inst, QTYPE_TXT, 4500);
+	mdnsd_set_raw(d, r, "\011txtvers=1", 10);
+	r = mdnsd_shared(d, host, QTYPE_A, 120);
+	inet_pton(AF_INET, "192.168.0.1", &ip);
+	mdnsd_set_ip(d, r, ip);
+	r = mdnsd_shared(d, host, QTYPE_AAAA, 120);
+	inet_pton(AF_INET6, "fe80::1", &ip6);
+	mdnsd_set_ipv6(d, r, ip6);
+
+	/* Emit the PTR as an answer, then append §12 additional records the
+	 * way mdnsd_out() does, and re-parse to check the result. */
+	memset(&m, 0, sizeof(m));
+	message_an(&m, ptr->rr.name, QTYPE_PTR, QCLASS_IN, ptr->rr.ttl);
+	_a_copy(&m, &ptr->rr);
+	_answered_add(&seen, ptr);
+	_additional(d, &m, ptr, &seen);
+
+	memset(&resp, 0, sizeof(resp));
+	assert_int_equal(0, message_parse(&resp, message_packet(&m)));
+
+	assert_int_equal(1, resp.ancount);
+	assert_int_equal(QTYPE_PTR, resp.an[0].type);
+	assert_int_equal(4, resp.arcount);	/* SRV + TXT + A + AAAA, no repeats */
+
+	for (i = 0; i < resp.arcount; i++) {
+		switch (resp.ar[i].type) {
+		case QTYPE_SRV:  srv++;  break;
+		case QTYPE_TXT:  txt++;  break;
+		case QTYPE_A:    a++;    break;
+		case QTYPE_AAAA: aaaa++; break;
+		}
+	}
+	assert_int_equal(1, srv);
+	assert_int_equal(1, txt);
+	assert_int_equal(1, a);
+	assert_int_equal(1, aaaa);
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
+/*
+ * Two instances of one service type that share a target host must not
+ * repeat that host's address record in the additional section.
+ */
+static void test_additional_records_dedup(__attribute__((__unused__)) void **state)
+{
+	char *type = "_http._tcp.local.";
+	char *i1   = "i1._http._tcp.local.";
+	char *i2   = "i2._http._tcp.local.";
+	char *host = "shared.local.";
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	struct answered seen = { 0 };
+	struct message m, resp;
+	struct in_addr ip;
+	mdns_record_t *ptr1, *ptr2, *r;
+	int i, a = 0, srv = 0;
+
+	assert_non_null(d);
+
+	ptr1 = mdnsd_shared(d, type, QTYPE_PTR, 120);
+	mdnsd_set_host(d, ptr1, i1);
+	ptr2 = mdnsd_shared(d, type, QTYPE_PTR, 120);
+	mdnsd_set_host(d, ptr2, i2);
+	r = mdnsd_shared(d, i1, QTYPE_SRV, 120);
+	mdnsd_set_srv(d, r, 0, 0, 80, host);
+	r = mdnsd_shared(d, i2, QTYPE_SRV, 120);
+	mdnsd_set_srv(d, r, 0, 0, 81, host);
+	r = mdnsd_shared(d, host, QTYPE_A, 120);
+	inet_pton(AF_INET, "192.168.0.1", &ip);
+	mdnsd_set_ip(d, r, ip);
+
+	/* Both PTRs are answers; expand each like mdnsd_out()'s final pass. */
+	memset(&m, 0, sizeof(m));
+	message_an(&m, ptr1->rr.name, QTYPE_PTR, QCLASS_IN, ptr1->rr.ttl);
+	_a_copy(&m, &ptr1->rr);
+	message_an(&m, ptr2->rr.name, QTYPE_PTR, QCLASS_IN, ptr2->rr.ttl);
+	_a_copy(&m, &ptr2->rr);
+	_answered_add(&seen, ptr1);
+	_answered_add(&seen, ptr2);
+	_additional(d, &m, ptr1, &seen);
+	_additional(d, &m, ptr2, &seen);
+
+	memset(&resp, 0, sizeof(resp));
+	assert_int_equal(0, message_parse(&resp, message_packet(&m)));
+	assert_int_equal(3, resp.arcount);	/* two SRV + one shared A */
+
+	for (i = 0; i < resp.arcount; i++) {
+		switch (resp.ar[i].type) {
+		case QTYPE_A:   a++;   break;
+		case QTYPE_SRV: srv++; break;
+		}
+	}
+	assert_int_equal(2, srv);	/* one SRV per instance */
+	assert_int_equal(1, a);		/* shared host's A only once */
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_known_answer_ptr_compression),
 		cmocka_unit_test(test_known_answer_srv_compression),
+		cmocka_unit_test(test_additional_records_for_ptr),
+		cmocka_unit_test(test_additional_records_dedup),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
