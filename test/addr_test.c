@@ -6,7 +6,7 @@
 #include <netdb.h>
 
 
-#include "../../src/mdnsd.h"
+#include "src/mdnsd.h"
 
 
 /*

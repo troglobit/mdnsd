@@ -12,8 +12,7 @@ AC_CONFIG_FILES([Makefile mdnsd.service
 		 libmdnsd/Makefile
 		 man/Makefile
 		 src/Makefile
-		 test/Makefile
-		 test/src/Makefile])
+		 test/Makefile])
 AC_CONFIG_MACRO_DIR([m4])
 
 # Define necessary build flags
