@@ -111,11 +111,14 @@ xht_t *txt2sd(unsigned char *txt, int len)
 		memcpy(key, txt + 1, *txt);
 		key[*txt] = 0;
 
+		/* RFC 6763 §6.4: keep a bare key (no '=') as a boolean
+		 * attribute with an empty value rather than drop it (#58) */
 		val = strchr(key, '=');
-		if (val) {
+		if (val)
 			*val++ = 0;
-			xht_store(h, key, (int)strlen(key), val, (int)strlen(val));
-		}
+		else
+			val = "";
+		xht_store(h, key, (int)strlen(key), val, (int)strlen(val));
 	}
 
 	return h;
