@@ -57,7 +57,9 @@ See the file [API.md][] for pointers on how to use the mDNS library.
 
 This section provides a couple of service record examples.  The syntax
 of the files is fairly free form.  Optional directives: `name`, `txt`,
-`target`, and `cname`.
+`target`, and `cname`.  See the **mdnsd.service(5)** manual for the full
+file format; in particular `target` sets the host the service's `SRV`
+record points to, while the service `PTR` always points to the instance.
 
 > **Note:** you need at least one service record for `mdnsd` to respond
 > to queries from, e.g., `mdns-scan`.

@@ -69,8 +69,14 @@ users by discovery agents.
 .It Cm txt Ar STRING
 Text records are free-form strings that are included in service
 announcements.  Useful for announcing meta data about your service.
-.It Cm target Ar URL
-URL to announce as canonical for this service.
+.It Cm target Ar HOST
+Host name to announce as the target of the service's
+.Sy SRV
+record, i.e., the host the service runs on.  Defaults to
+.Ar name Ns .local .
+Per RFC 6763 the service
+.Sy PTR
+always points to the service instance, never to this host.
 .It Cm cname Ar URL
 A
 .Cm cname

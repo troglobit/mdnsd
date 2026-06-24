@@ -97,6 +97,18 @@ discover()
 	grep -q "+ _ftp._tcp.local. ($server_addr)" "$DIR/result" || FAIL
 }
 
+browse()
+{
+	print "Browsing _ftp._tcp.local. for its service instance ..."
+	mquery -t 12 _ftp._tcp.local. >"$DIR/result" || FAIL "Query failed"
+
+	# RFC 6763 §4.1: the service PTR must resolve to the instance name,
+	# so a browser can follow it to the SRV/TXT records.  See #80.
+	# shellcheck disable=SC2154
+	grep -q "+ Troglobit FTP Server._ftp._tcp.local. ($server_addr)" \
+		"$DIR/result" || FAIL "Service PTR does not point to the instance name"
+}
+
 # Gather a pcap of the session
 # Example:
 #          collect eth0 -c10 'dst 224.0.0.251'

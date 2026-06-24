@@ -198,18 +198,21 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 	snprintf(nlocal, sizeof(nlocal), "%s.local.", srec.name);
 	snprintf(tlocal, sizeof(tlocal), "%s.local.", srec.type);
 	if (!srec.target)
-		srec.target = strdup(hlocal);
+		srec.target = strdup(nlocal);
 
 	/* Announce that we have a $type service */
 	record(iface, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
-	record(iface, 1, srec.target, tlocal, QTYPE_PTR, 120);
+
+	/* RFC 6763 §4.1: the service PTR points at the instance name; the
+	 * SRV under that instance names the target host (issue #80) */
+	record(iface, 1, hlocal, tlocal, QTYPE_PTR, 120);
 
 	r = record(iface, 0, NULL, hlocal, QTYPE_SRV, 120);
-	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
+	mdnsd_set_srv(d, r, 0, 0, srec.port, srec.target);
 
 	/* Ensure A/AAAA records exist; addresses populated from interface */
-	r = record(iface, 0, NULL, nlocal, QTYPE_A, 120);
-	r = record(iface, 0, NULL, nlocal, QTYPE_AAAA, 120);
+	r = record(iface, 0, NULL, srec.target, QTYPE_A, 120);
+	r = record(iface, 0, NULL, srec.target, QTYPE_AAAA, 120);
 
 	/* Publish all v4/v6 addresses for this interface and host */
 	mdnsd_set_interface_addresses(d, iface->ifname);
