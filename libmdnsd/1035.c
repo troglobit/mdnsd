@@ -169,6 +169,12 @@ static int _lmatch(const struct message *m, const char *l1, const char *l2)
 	/* Compare all label characters */
 	if (*l1 != *l2)
 		return 0;
+
+	/* Both at the root label, names matched; stop before stepping
+	 * past it, or the checks below read out of bounds (issue #37) */
+	if (*l1 == 0)
+		return 1;
+
 	for (len = 1; len <= *l1; len++) {
 		if (l1[len] != l2[len])
 			return 0;

@@ -23,10 +23,11 @@ TESTS             += iprecords.sh
 TESTS             += lostif.sh
 
 if ENABLE_UNIT_TESTS
-check_PROGRAMS     = xht addr answer
+check_PROGRAMS     = xht addr answer label
 TESTS             += xht
 TESTS             += addr
 TESTS             += answer
+TESTS             += label
 
 xht_SOURCES        = xht.c
 xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
@@ -43,4 +44,10 @@ answer_SOURCES     = answer_test.c ../libmdnsd/1035.c ../libmdnsd/xht.c \
                      ../libmdnsd/sdtxt.c ../libmdnsd/log.c
 answer_CPPFLAGS    = $(AM_CPPFLAGS)
 answer_LDADD       = $(cmocka_LIBS) $(LIBOBJS)
+
+# label_test.c #includes 1035.c to reach the static _lmatch(); the codec
+# is self-contained, so no extra library sources are needed.
+label_SOURCES      = label_test.c
+label_CPPFLAGS     = $(AM_CPPFLAGS)
+label_LDADD        = $(cmocka_LIBS) $(LIBOBJS)
 endif
