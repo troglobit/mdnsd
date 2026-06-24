@@ -131,6 +131,14 @@ static int parse(const char *fn, struct conf_srec *srec)
 	return 0;
 }
 
+/* Copy a user-supplied host name into buf as a rooted FQDN */
+static void fqdn(char *buf, size_t len, const char *name)
+{
+	size_t n = strlen(name);
+
+	snprintf(buf, len, "%s%s", name, n && name[n - 1] == '.' ? "" : ".");
+}
+
 /* Create a new record, or update an existing one */
 static mdns_record_t *record(struct iface *iface, int shared, char *host,
 		      const char *name, unsigned short type, unsigned long ttl)
@@ -180,7 +188,7 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 	mdns_record_t *r;
 	size_t i;
 	xht_t *h;
-	char hlocal[256], nlocal[256], tlocal[256];
+	char hlocal[256], tlocal[256], tgtlocal[256], clocal[256];
 	int len = 0;
 
 	memset(&srec, 0, sizeof(srec));
@@ -195,10 +203,14 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 		srec.type = strdup("_http._tcp");
 
 	snprintf(hlocal, sizeof(hlocal), "%s.%s.local.", srec.name, srec.type);
-	snprintf(nlocal, sizeof(nlocal), "%s.local.", srec.name);
 	snprintf(tlocal, sizeof(tlocal), "%s.local.", srec.type);
-	if (!srec.target)
-		srec.target = strdup(nlocal);
+
+	/* SRV target host: a service may override it, else all services on
+	 * this host share the one host name (issue #80) */
+	if (srec.target)
+		fqdn(tgtlocal, sizeof(tgtlocal), srec.target);
+	else
+		snprintf(tgtlocal, sizeof(tgtlocal), "%s.local.", hostname);
 
 	/* Announce that we have a $type service */
 	record(iface, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
@@ -208,17 +220,20 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 	record(iface, 1, hlocal, tlocal, QTYPE_PTR, 120);
 
 	r = record(iface, 0, NULL, hlocal, QTYPE_SRV, 120);
-	mdnsd_set_srv(d, r, 0, 0, srec.port, srec.target);
+	mdnsd_set_srv(d, r, 0, 0, srec.port, tgtlocal);
 
 	/* Ensure A/AAAA records exist; addresses populated from interface */
-	r = record(iface, 0, NULL, srec.target, QTYPE_A, 120);
-	r = record(iface, 0, NULL, srec.target, QTYPE_AAAA, 120);
+	r = record(iface, 0, NULL, tgtlocal, QTYPE_A, 120);
+	r = record(iface, 0, NULL, tgtlocal, QTYPE_AAAA, 120);
 
 	/* Publish all v4/v6 addresses for this interface and host */
 	mdnsd_set_interface_addresses(d, iface->ifname);
 
-	if (srec.cname)
-		record(iface, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
+	/* A cname aliases the host, so it resolves to the host's addresses */
+	if (srec.cname) {
+		fqdn(clocal, sizeof(clocal), srec.cname);
+		record(iface, 1, tgtlocal, clocal, QTYPE_CNAME, 120);
+	}
 	r = record(iface, 0, NULL, hlocal, QTYPE_TXT, 4500);
 
 	h = xht_new(11);

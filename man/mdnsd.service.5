@@ -72,19 +72,22 @@ announcements.  Useful for announcing meta data about your service.
 .It Cm target Ar HOST
 Host name to announce as the target of the service's
 .Sy SRV
-record, i.e., the host the service runs on.  Defaults to
-.Ar name Ns .local .
+record, i.e., the host the service runs on.  Defaults to the daemon's
+own host name,
+.Ar hostname Ns .local ,
+shared by all of its services.
 Per RFC 6763 the service
 .Sy PTR
 always points to the service instance, never to this host.
-.It Cm cname Ar URL
-A
-.Cm cname
-is an alias that can be announced for unique service reqords.  E.g., if
-only one HTTP service is available on the LAN it can be reached through
-the full name, or using the
-.Cm cname
-alias.
+.It Cm cname Ar HOST
+Announce an alias
+.Pq Sy CNAME
+for the host, e.g.,
+.Ar home.local ,
+so the service can also be reached under a short, friendly name.  The
+alias resolves to the same address as the
+.Cm target
+host.
 .El
 .Sh EXAMPLES
 This section has some examples of mDNS service definitions.
@@ -102,7 +105,6 @@ type _ftp._tcp
 port 21
 txt server=uftpd
 txt version=2.6
-target ftp.luthien.local
 .Ed
 .Ss HTTP
 .Bd -unfilled -offset indent

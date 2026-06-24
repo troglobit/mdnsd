@@ -72,7 +72,6 @@ _FTP service example:_
     port 21
     txt server=uftpd
     txt version=2.6
-    target ftp.luthien.local
     cname ftp.local
 
 _HTTP service example:_
@@ -83,7 +82,6 @@ _HTTP service example:_
     port 80
     txt server=merecat
     txt version=2.31
-    target www.luthien.local
     cname home.local
 
 _SSH service example:_

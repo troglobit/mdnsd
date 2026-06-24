@@ -107,6 +107,15 @@ browse()
 	# shellcheck disable=SC2154
 	grep -q "+ Troglobit FTP Server._ftp._tcp.local. ($server_addr)" \
 		"$DIR/result" || FAIL "Service PTR does not point to the instance name"
+
+	print "Resolving the instance SRV to its target host ..."
+	mquery -s -t 33 "Troglobit FTP Server._ftp._tcp.local." >"$DIR/srv" \
+		|| FAIL "SRV query failed"
+
+	# The SRV target is the daemon's host name (mdnsd -H test), shared by
+	# all of its services, not a per-service name.
+	grep -q "to test.local.:21" "$DIR/srv" \
+		|| FAIL "SRV target is not the shared host name"
 }
 
 # Gather a pcap of the session
