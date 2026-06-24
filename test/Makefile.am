@@ -23,11 +23,12 @@ TESTS             += iprecords.sh
 TESTS             += lostif.sh
 
 if ENABLE_UNIT_TESTS
-check_PROGRAMS     = xht addr answer label
+check_PROGRAMS     = xht addr answer label sdtxt
 TESTS             += xht
 TESTS             += addr
 TESTS             += answer
 TESTS             += label
+TESTS             += sdtxt
 
 xht_SOURCES        = xht.c
 xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
@@ -50,4 +51,8 @@ answer_LDADD       = $(cmocka_LIBS) $(LIBOBJS)
 label_SOURCES      = label_test.c
 label_CPPFLAGS     = $(AM_CPPFLAGS)
 label_LDADD        = $(cmocka_LIBS) $(LIBOBJS)
+
+# sd2txt()/txt2sd() are public, so this one links the library normally.
+sdtxt_SOURCES      = sdtxt_test.c
+sdtxt_LDADD        = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
 endif

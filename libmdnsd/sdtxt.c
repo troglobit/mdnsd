@@ -102,7 +102,7 @@ xht_t *txt2sd(unsigned char *txt, int len)
 	h = xht_new(23);
 
 	/* Loop through data breaking out each block, storing into hashtable */
-	for (; *txt <= len && len > 0; len -= *txt, txt += *txt + 1) {
+	for (; len > 0 && *txt < len; len -= *txt + 1, txt += *txt + 1) {
 		char key[256], *val;
 
 		if (*txt == 0)

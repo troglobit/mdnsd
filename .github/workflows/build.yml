@@ -79,7 +79,7 @@ jobs:
           ./configure --prefix= --enable-tests
       - name: Build and unit test under AddressSanitizer
         run: |
-          make check TESTS="xht addr answer label" || (cat test/test-suite.log; false)
+          make check TESTS="xht addr answer label sdtxt" || (cat test/test-suite.log; false)
   distcheck:
     runs-on: ubuntu-latest
     env:
