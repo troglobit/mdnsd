@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "1035.h"
 #include <string.h>
 #include <stdio.h>
@@ -100,7 +101,7 @@ static int _label(struct message *m, unsigned char **bufp, char **namep)
 
 
 	/* Sanity check */
-	if (m->_len > (int)sizeof(m->_packet))
+	if (m->_len >= (int)sizeof(m->_packet))
 		return 1;
 
 	/* Set namep to the end of the block */
@@ -119,8 +120,10 @@ static int _label(struct message *m, unsigned char **bufp, char **namep)
 			prevOffset = offset;
 		}
 
-		/* Make sure we're not over the limits */
-		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) >= MAX_PACKET_LEN)
+		/* Make sure we're not over the limits, and that the source
+		 * label stays within the packet buffer */
+		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) >= MAX_PACKET_LEN ||
+		    (label + 1 + *label) - (char *)m->_buf > MAX_PACKET_LEN)
 			return 1;
 
 		/* Copy chars for this label */
@@ -169,6 +172,12 @@ static int _lmatch(const struct message *m, const char *l1, const char *l2)
 	/* Compare all label characters */
 	if (*l1 != *l2)
 		return 0;
+
+	/* Both at the root label, names matched; stop before stepping
+	 * past it, or the checks below read out of bounds (issue #37) */
+	if (*l1 == 0)
+		return 1;
+
 	for (len = 1; len <= *l1; len++) {
 		if (l1[len] != l2[len])
 			return 0;
@@ -285,12 +294,23 @@ static int _rrparse(struct message *m, struct resource *rr, int count, unsigned 
 		/* Parse commonly known ones */
 		switch (rr[i].type) {
 		case QTYPE_A:
-			if (m->_len + 16 > MAX_PACKET_LEN)
+			if (m->_len + INET_ADDRSTRLEN > MAX_PACKET_LEN)
 				return 1;
 			rr[i].known.a.name = (char *)m->_packet + m->_len;
-			m->_len += 16;
-			sprintf(rr[i].known.a.name, "%d.%d.%d.%d", (*bufp)[0], (*bufp)[1], (*bufp)[2], (*bufp)[3]);
-			rr[i].known.a.ip.s_addr = net2long(bufp);
+			m->_len += INET_ADDRSTRLEN;
+			inet_ntop(AF_INET, *bufp, rr[i].known.a.name, INET_ADDRSTRLEN);
+			memcpy(&(rr[i].known.a.ip.s_addr), *bufp, sizeof(rr[i].known.a.ip.s_addr));
+			*bufp += sizeof(rr[i].known.a.ip.s_addr);
+			break;
+
+		case QTYPE_AAAA:
+			if (m->_len + INET6_ADDRSTRLEN > MAX_PACKET_LEN)
+				return 1;
+			rr[i].known.aaaa.name = (char *)m->_packet + m->_len;
+			m->_len += INET6_ADDRSTRLEN;
+			inet_ntop(AF_INET6, *bufp, rr[i].known.aaaa.name, INET6_ADDRSTRLEN);
+			memcpy(rr[i].known.aaaa.ip6.s6_addr, *bufp, sizeof(rr[i].known.aaaa.ip6.s6_addr));
+			*bufp += sizeof(rr[i].known.aaaa.ip6.s6_addr);
 			break;
 
 		case QTYPE_NS:
@@ -443,10 +463,24 @@ void message_ar(struct message *m, char *name, unsigned short int type, unsigned
 	_rrappend(m, name, type, class, ttl);
 }
 
-void message_rdata_long(struct message *m, struct in_addr l)
+void message_rdata_long(struct message *m, unsigned long l)
 {
 	short2net(4, &(m->_buf));
-	long2net(l.s_addr, &(m->_buf));
+	long2net(l, &(m->_buf));
+}
+
+void message_rdata_ipv4(struct message *m, struct in_addr a)
+{
+	short2net(4, &(m->_buf));
+	memcpy(m->_buf, &a.s_addr, 4);
+	m->_buf += 4;
+}
+
+void message_rdata_ipv6(struct message *m, struct in6_addr a6)
+{
+	short2net(16, &(m->_buf));
+	memcpy(m->_buf, a6.s6_addr, 16);
+	m->_buf += 16;
 }
 
 void message_rdata_name(struct message *m, char *name)

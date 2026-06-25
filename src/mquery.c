@@ -43,10 +43,79 @@
 #include <unistd.h>
 
 #include <libmdnsd/mdnsd.h>
+#include <libmdnsd/sdtxt.h>
+#include "mcsock.h"
 
-char *prognm = "mquery";
-mdns_daemon_t *d;
-int simple;
+
+static mdns_daemon_t *d;
+static int simple;
+static int devmode;
+static int terminate_mode;
+static char *detail;	/* hostname filter for -d */
+
+struct instance {
+	char iname[256];	/* e.g. "MySwitch._http._tcp.local." */
+	char hostname[256];	/* from SRV, e.g. "myswitch.local." */
+	int  port;		/* from SRV */
+	char product[64];	/* from TXT product= */
+	char version[64];	/* from TXT version= */
+	struct instance *next;
+};
+
+struct device {
+	char hostname[256];
+	char addrs[8][INET6_ADDRSTRLEN];
+	int  naddrs;
+	struct device *next;
+};
+
+static struct instance *instances;
+static struct device   *devices;
+
+static struct instance *find_or_create_instance(const char *name)
+{
+	struct instance *inst;
+
+	for (inst = instances; inst; inst = inst->next)
+		if (!strcmp(inst->iname, name))
+			return inst;
+
+	inst = calloc(1, sizeof(*inst));
+	if (inst) {
+		strlcpy(inst->iname, name, sizeof(inst->iname));
+		inst->next = instances;
+		instances = inst;
+	}
+	return inst;
+}
+
+static struct device *find_or_create_device(const char *hostname)
+{
+	struct device *dev;
+
+	for (dev = devices; dev; dev = dev->next)
+		if (!strcmp(dev->hostname, hostname))
+			return dev;
+
+	dev = calloc(1, sizeof(*dev));
+	if (dev) {
+		strlcpy(dev->hostname, hostname, sizeof(dev->hostname));
+		dev->next = devices;
+		devices = dev;
+	}
+	return dev;
+}
+
+static void device_add_addr(struct device *dev, const char *addr)
+{
+	int i;
+
+	for (i = 0; i < dev->naddrs; i++)
+		if (!strcmp(dev->addrs[i], addr))
+			return;
+	if (dev->naddrs < (int)(sizeof(dev->addrs) / sizeof(dev->addrs[0])))
+		strlcpy(dev->addrs[dev->naddrs++], addr, INET6_ADDRSTRLEN);
+}
 
 
 #ifndef HAVE_STRLCPY
@@ -68,7 +137,7 @@ static char *getifname(char *ifname, size_t len)
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		int rc, flags, cnt, use, metric, mtu, win, irtt;
 
-		rc = sscanf(buf, "%16s %X %X %X %d %d %d %X %d %d %d\n",
+		rc = sscanf(buf, "%16s %X %X %d %d %d %d %X %d %d %d\n",
 			   name, &dest, &gw, &flags, &cnt, &use, &metric,
 			   &mask, &mtu, &win, &irtt);
 
@@ -112,6 +181,9 @@ static const char *type2str(int type)
 	case QTYPE_TXT:
 		return "TXT (16)";
 
+	case QTYPE_AAAA:
+		return "AAAA (28)";
+
 	case QTYPE_SRV:
 		return "SRV (33)";
 
@@ -130,6 +202,7 @@ static const char *type2str(int type)
 static int ans(mdns_answer_t *a, void *arg)
 {
 	int now;
+	char ipinput[INET6_ADDRSTRLEN];
 
 	if (a->ttl == 0)
 		now = 0;
@@ -142,20 +215,27 @@ static int ans(mdns_answer_t *a, void *arg)
 		if (a->type != QTYPE_PTR)
 			return 0;
 
-		if (!spec) {
-			mdnsd_query(d, a->rdname, a->type, ans, strdup(a->rdname));
-			return 0;
-		}
+		if (!spec)
+			mdnsd_query(d, a->rdname, a->type, ans, a->rdname);
 
-		printf("+ %s (%s)\n", a->rdname, inet_ntoa(a->ip));
-		free(spec);
-
+		/* The responder address may be v4 or v6 */
+		if (a->ip.s_addr)
+			inet_ntop(AF_INET, &a->ip, ipinput, sizeof(ipinput));
+		else
+			inet_ntop(AF_INET6, &a->ip6, ipinput, sizeof(ipinput));
+		printf("+ %s (%s)\n", a->rdname, ipinput);
 		return 0;
 	}
 
 	switch (a->type) {
 	case QTYPE_A:
-		printf("A %s for %d seconds to ip %s\n", a->name, now, inet_ntoa(a->ip));
+		inet_ntop(AF_INET, &(a->ip), ipinput, INET_ADDRSTRLEN);
+		printf("A %s for %d seconds to ip %s\n", a->name, now, ipinput);
+		break;
+
+	case QTYPE_AAAA:
+		inet_ntop(AF_INET6, &(a->ip6), ipinput, INET6_ADDRSTRLEN);
+		printf("AAAA %s for %d seconds to ip %s\n", a->name, now, ipinput);
 		break;
 
 	case QTYPE_PTR:
@@ -173,105 +253,318 @@ static int ans(mdns_answer_t *a, void *arg)
 	return 0;
 }
 
-/* Create multicast 224.0.0.251:5353 socket */
-static int msock(char *ifname)
+static int ans_dev(mdns_answer_t *a, void *arg)
 {
-	struct sockaddr_in sin;
-#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
-	struct ip_mreqn imrqn = { 0 };
-#endif
-	struct ip_mreq imrq = { 0 };
-	int sd, flag = 1;
-	size_t len;
-	void *imr;
+	char ipstr[INET6_ADDRSTRLEN];
+	struct instance *inst;
+	struct device *dev;
+	xht_t *txt;
+	char *val;
 
-	sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-	if (sd < 0)
+	if (a->ttl == 0)
 		return 0;
 
-#ifdef SO_REUSEPORT
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)))
-		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
-#endif
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)))
-		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
+	switch (a->type) {
+	case QTYPE_PTR:
+		if (!a->rdname || !a->rdname[0])
+			break;
+		if (!arg)
+			/* DISCO_NAME PTR → service types */
+			mdnsd_query(d, a->rdname, QTYPE_PTR, ans_dev, a->rdname);
+		else {
+			/* service type PTR → instance names */
+			find_or_create_instance(a->rdname);
+			mdnsd_query(d, a->rdname, QTYPE_SRV, ans_dev, NULL);
+			mdnsd_query(d, a->rdname, QTYPE_TXT, ans_dev, NULL);
+		}
+		break;
 
-#ifdef HAVE_STRUCT_IP_MREQN_IMR_IFINDEX
-	if (ifname) {
-		/* Only join group on the given interface */
-		imrqn.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-		imrqn.imr_ifindex = if_nametoindex(ifname);
-		if (!imrqn.imr_ifindex)
-			goto fallback;
+	case QTYPE_SRV:
+		if (!a->rdname || !a->rdname[0])
+			break;
+		inst = find_or_create_instance(a->name);
+		if (!inst->hostname[0]) {
+			strlcpy(inst->hostname, a->rdname, sizeof(inst->hostname));
+			inst->port = a->srv.port;
+			mdnsd_query(d, a->rdname, QTYPE_A,    ans_dev, NULL);
+			mdnsd_query(d, a->rdname, QTYPE_AAAA, ans_dev, NULL);
+		}
+		break;
 
-		imr = &imrqn;
-		len = sizeof(imrqn);
+	case QTYPE_TXT:
+		if (!a->rdlen || !a->rdata)
+			break;
+		inst = find_or_create_instance(a->name);
+		txt  = txt2sd(a->rdata, a->rdlen);
+		if (txt) {
+			val = xht_get(txt, "product");
+			if (val && !inst->product[0])
+				strlcpy(inst->product, val, sizeof(inst->product));
+			val = xht_get(txt, "version");
+			if (val && !inst->version[0])
+				strlcpy(inst->version, val, sizeof(inst->version));
+			xht_free(txt);
+		}
+		break;
 
-		/* Set interface for outbound multicast */
-		if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, imr, len))
-			WARN("Failed setting IP_MULTICAST_IF %d: %s", imrqn.imr_ifindex, strerror(errno));
+	case QTYPE_A:
+		inet_ntop(AF_INET, &a->ip, ipstr, sizeof(ipstr));
+		dev = find_or_create_device(a->name);
+		device_add_addr(dev, ipstr);
+		break;
 
-		/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
-		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, ifname, strlen(ifname)))
-			WARN("Failed setting SO_BINDTODEVICE: %s", strerror(errno));
-	} else
-#endif
-	{
-	fallback:
-		imrq.imr_multiaddr.s_addr = inet_addr("224.0.0.251");
-		imrq.imr_interface.s_addr = htonl(INADDR_ANY);
-		imr = &imrq;
-		len = sizeof(imrq);
+	case QTYPE_AAAA:
+		inet_ntop(AF_INET6, &a->ip6, ipstr, sizeof(ipstr));
+		dev = find_or_create_device(a->name);
+		device_add_addr(dev, ipstr);
+		break;
+
+	default:
+		break;
 	}
 
-	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, imr, len))
-		WARN("Failed joining mDMS group 224.0.0.251: %s", strerror(errno));
-
-	/* Filter inbound traffic from anyone (ANY) to port 5353 */
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(5353);
-	if (bind(sd, (struct sockaddr *)&sin, sizeof(sin))) {
-		close(sd);
-		return 0;
-	}
-
-	return sd;
+	return 0;
 }
+
+/* Strip trailing dot: "myswitch.local." → "myswitch.local" */
+static char *shortname(const char *hostname, char *buf, size_t len)
+{
+	size_t n;
+
+	strlcpy(buf, hostname, len);
+	n = strlen(buf);
+	if (n > 0 && buf[n - 1] == '.')
+		buf[n - 1] = 0;
+	return buf;
+}
+
+static int matches_detail(struct device *dev)
+{
+	char fqdn[256], bare[256], *p;
+
+	if (!detail)
+		return 1;
+
+	shortname(dev->hostname, fqdn, sizeof(fqdn));	/* "myswitch.local"  */
+	strlcpy(bare, fqdn, sizeof(bare));
+	p = strchr(bare, '.');
+	if (p)
+		*p = 0;					/* "myswitch"        */
+
+	return !strcmp(detail, fqdn)			/* myswitch.local    */
+	    || !strcmp(detail, dev->hostname)		/* myswitch.local.   */
+	    || !strcmp(detail, bare);			/* myswitch          */
+}
+
+static void print_devices(void)
+{
+	struct device *dev;
+	struct instance *inst;
+	int i, name_w = 4, addr_w = 7, prod_w = 7;
+
+	/* First pass: compute column widths from actual data */
+	for (dev = devices; dev; dev = dev->next) {
+		char name[256];
+		int n;
+
+		if (!matches_detail(dev))
+			continue;
+
+		shortname(dev->hostname, name, sizeof(name));
+		n = (int)strlen(name);
+		if (n > name_w)
+			name_w = n;
+
+		for (i = 0; i < dev->naddrs; i++) {
+			n = (int)strlen(dev->addrs[i]);
+			if (n > addr_w)
+				addr_w = n;
+		}
+
+		for (inst = instances; inst; inst = inst->next) {
+			if (strcmp(inst->hostname, dev->hostname) || !inst->product[0])
+				continue;
+			n = (int)strlen(inst->product);
+			if (n > prod_w)
+				prod_w = n;
+		}
+	}
+	name_w += 2;
+	addr_w += 2;
+
+	/* Inverse-video header */
+	printf("\033[7m%-*s %-*s %-*s\033[0m\n",
+	       name_w, "NAME", addr_w, "ADDRESS", prod_w, "PRODUCT");
+
+	/* Data rows: one address per line, continuation lines indent only */
+	for (dev = devices; dev; dev = dev->next) {
+		char name[256], product[64] = "";
+
+		if (!matches_detail(dev))
+			continue;
+
+		shortname(dev->hostname, name, sizeof(name));
+
+		for (inst = instances; inst; inst = inst->next) {
+			if (!strcmp(inst->hostname, dev->hostname) && inst->product[0]) {
+				strlcpy(product, inst->product, sizeof(product));
+				break;
+			}
+		}
+
+		/* First line: name, first address (or blank), product */
+		printf("%-*s %-*s %s\n",
+		       name_w, name,
+		       addr_w, dev->naddrs ? dev->addrs[0] : "",
+		       product);
+
+		/* Continuation lines: blank name field, remaining addresses */
+		for (i = 1; i < dev->naddrs; i++)
+			printf("%-*s %s\n", name_w, "", dev->addrs[i]);
+	}
+}
+
+static void print_device_detail(void)
+{
+	struct device *dev;
+	struct instance *inst;
+	int i, first = 1;
+
+	for (dev = devices; dev; dev = dev->next) {
+		if (!matches_detail(dev))
+			continue;
+
+		if (!first)
+			printf("\n");
+		first = 0;
+
+		char fqdn[256];
+		printf("Device:  %s\n", shortname(dev->hostname, fqdn, sizeof(fqdn)));
+		for (i = 0; i < dev->naddrs; i++)
+			printf("Address: %s\n", dev->addrs[i]);
+
+		printf("Services:\n");
+		for (inst = instances; inst; inst = inst->next) {
+			char svc[256];
+			char *p;
+
+			if (strcmp(inst->hostname, dev->hostname))
+				continue;
+
+			/* "MySwitch._http._tcp.local." → "_http._tcp" */
+			p = strchr(inst->iname, '.');
+			strlcpy(svc, p ? p + 1 : inst->iname, sizeof(svc));
+			/* strip domain: find dot after _proto label */
+			p = strchr(svc, '.');
+			if (p) {
+				p = strchr(p + 1, '.');
+				if (p)
+					*p = 0;
+			}
+
+			printf("  %-24s port %-6d", svc, inst->port);
+			if (inst->product[0])
+				printf(" product=%s", inst->product);
+			if (inst->version[0])
+				printf(" version=%s", inst->version);
+			printf("\n");
+		}
+	}
+}
+
+/* Create the mDNS multicast socket for the given address family */
+static int msock(char *ifname, sa_family_t family)
+{
+	struct ifnfo ifa = { 0 };
+
+	if (!ifname)
+		return -1;
+
+	strlcpy(ifa.ifname, ifname, sizeof(ifa.ifname));
+	ifa.ifindex = if_nametoindex(ifname);
+
+#ifdef ENABLE_IPV6
+	if (family == AF_INET6)
+		return mdns_socket6(&ifa, 0);
+#else
+	(void)family;
+#endif
+	return mdns_socket(&ifa, 0);
+}
+
 
 static int usage(int code)
 {
-	/* mquery -t 12 _http._tcp.local. */
-	printf("usage: mquery [-hsv] [-i IFNAME] [-t TYPE] [-w SEC] [NAME]\n");
+	/* mquery -D -T    mquery -t 12 _http._tcp.local. */
+	printf("usage: mquery [-hDsTv] "
+#ifdef ENABLE_IPV6
+	       "[-6] "
+#endif
+#ifdef HAVE_SO_BINDTODEVICE
+	       "[-i IFNAME] "
+#endif
+	       "[-d HOST] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
 	return code;
 }
 
 int main(int argc, char *argv[])
 {
 	struct message m;
-	struct in_addr ip;
-	unsigned short port;
 	ssize_t bsize;
 	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
-	char default_iface[IFNAMSIZ];
-	struct sockaddr_in from, to;
-	char *name = DISCO_NAME;
+	char default_iface[IFNAMSIZ] = { 0 };
+	inet_addr_t from, to;
+	const char *name = DISCO_NAME;
 	char *ifname = NULL;
+	sa_family_t family = AF_INET;
 	int type = QTYPE_PTR;	/* 12 */
 	time_t start;
 	int wait = 0;
 	fd_set fds;
 	int sd, c;
 
-	while ((c = getopt(argc, argv, "h?i:st:vw:")) != EOF) {
+	while ((c = getopt(argc, argv, "h?DT"
+#ifdef HAVE_SO_BINDTODEVICE
+			   "i:"
+#endif
+#ifdef ENABLE_IPV6
+			   "6"
+#endif
+			   "d:l:st:vw:")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
 			return usage(0);
 
+#ifdef ENABLE_IPV6
+		case '6':
+			family = AF_INET6;
+			break;
+#endif
+
+		case 'D':
+			devmode = 1;
+			break;
+
+		case 'T':
+			terminate_mode = 1;
+			break;
+
+		case 'd':
+			detail  = optarg;
+			devmode = 1;
+			break;
+
+#ifdef HAVE_SO_BINDTODEVICE
 		case 'i':
 			ifname = optarg;
+			break;
+#endif
+
+		case 'l':
+			if (-1 == mdnsd_log_level(optarg))
+				return usage(1);
 			break;
 
 		case 's':
@@ -301,7 +594,7 @@ int main(int argc, char *argv[])
 	if (!ifname)
 		ifname = getifname(default_iface, sizeof(default_iface));
 
-	sd = msock(ifname);
+	sd = msock(ifname, family);
 	if (sd == -1) {
 		printf("Failed creating multicast socket: %s\n", strerror(errno));
 		return 1;
@@ -310,26 +603,38 @@ int main(int argc, char *argv[])
 	d = mdnsd_new(1, 1000);
 	if (!d)
 		return 1;
+	mdnsd_set_family(d, family);
 
-	printf("Querying for %s type %d ... press Ctrl-C to stop\n", name, type);
 	start = time(NULL);
-	mdnsd_query(d, name, type, ans, NULL);
+	if (devmode) {
+		if (!terminate_mode)
+			printf("Scanning for devices ... press Ctrl-C to stop\n");
+		mdnsd_query(d, DISCO_NAME, QTYPE_PTR, ans_dev, NULL);
+	} else {
+		printf("Querying for %s type %d ... press Ctrl-C to stop\n", name, type);
+		mdnsd_query(d, name, type, ans, NULL);
+	}
 
+	time_t last_rx = 0;
 	while (1) {
-		struct timeval *tv;
+		struct timeval one_sec = { 1, 0 };
+		struct timeval *tv = mdnsd_sleep(d);
 
-		tv = mdnsd_sleep(d);
+		/* When terminating, cap select() so we check the quiet timeout often */
+		if (terminate_mode && (!tv || tv->tv_sec >= 1))
+			tv = &one_sec;
 
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
 		select(sd + 1, &fds, 0, 0, tv);
 
 		if (FD_ISSET(sd, &fds)) {
-			ssize = sizeof(struct sockaddr_in);
+			ssize = sizeof(from);
 			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+				last_rx = time(NULL);
 				memset(&m, 0, sizeof(struct message));
-				if (message_parse(&m, buf)==0)
-					mdnsd_in(d, &m, from.sin_addr, from.sin_port);
+				if (message_parse(&m, buf) == 0)
+					mdnsd_in(d, &m, &from);
 			}
 			if (bsize < 0 && errno != EAGAIN) {
 				printf("Failed reading from socket %d: %s\n", errno, strerror(errno));
@@ -337,24 +642,41 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		while (mdnsd_out(d, &m, &ip, &port)) {
-			memset(&to, 0, sizeof(to));
-			to.sin_family = AF_INET;
-			to.sin_port = port;
-			to.sin_addr = ip;
-			if (sendto(sd, message_packet(&m), message_packet_len(&m), 0, (struct sockaddr *)&to,
-				   sizeof(struct sockaddr_in)) != message_packet_len(&m)) {
+		while (mdnsd_out(d, &m, &to)) {
+			int len = message_packet_len(&m);
+
+			if (sendto(sd, message_packet(&m), len, 0, (struct sockaddr *)&to, inet_len(&to)) != len) {
 				printf("Failed writing to socket: %s\n", strerror(errno));
 				return 1;
 			}
 		}
 
+		if (terminate_mode && last_rx && (time(NULL) - last_rx >= 2))
+			break;
 		if (wait && (time(NULL) - start >= wait))
 			break;
 	}
 
 	mdnsd_shutdown(d);
 	mdnsd_free(d);
+
+	if (devmode) {
+		if (detail)
+			print_device_detail();
+		else
+			print_devices();
+
+		while (instances) {
+			struct instance *next = instances->next;
+			free(instances);
+			instances = next;
+		}
+		while (devices) {
+			struct device *next = devices->next;
+			free(devices);
+			devices = next;
+		}
+	}
 
 	return 0;
 }

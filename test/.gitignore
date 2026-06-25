@@ -1,0 +1,11 @@
+*~
+*.o
+*.log
+*.trs
+.deps
+.libs
+xht
+addr
+sdtxt
+label
+answer

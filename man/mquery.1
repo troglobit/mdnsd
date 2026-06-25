@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd Jan 4 2022
+.Dd Jun 25 2026
 .Dt MQUERY 1
 .Os
 .Sh NAME
@@ -31,8 +31,10 @@
 .Nd small query tool for multicast DNS
 .Sh SYNOPSIS
 .Nm mquery
-.Op Fl hsv
+.Op Fl hDsTv
+.Op Fl 6
 .Op Fl i Ar IFACE
+.Op Fl d Ar HOST
 .Op Fl t Ar TYPE
 .Op Fl w Ar SEC
 .Op Ar NAME
@@ -57,11 +59,43 @@ the initial query, by default
 This program follows the usual UNIX command line syntax. The options are
 as follows:
 .Bl -tag
+.It Fl 6
+Query over IPv6 (the ff02::fb group) instead of IPv4.
 .It Fl h
 Print a bare bones help message and exits.
+.It Fl D
+Scan all services and present a deduplicated device table with name,
+address, and product columns.
+Use with
+.Fl T
+to exit automatically, or with
+.Fl w Ar SEC
+to set a fixed collection window.
+.It Fl T
+Terminate automatically after the network has been quiet for two seconds.
+Intended for use with
+.Fl D
+or
+.Fl d ,
+analogous to
+.Xr avahi-browse 1 Ns 's
+.Fl t
+option.
+.It Fl d Ar HOST
+Like
+.Fl D ,
+but filter results to
+.Ar HOST
+and show a detailed per-service breakdown instead of the summary table.
+.Ar HOST
+may be given with or without the
+.Cm .local.
+suffix.
 .It Fl i Ar IFACE
 Interface to run query on, by default the system default interface is
 used, derived from the routing table.
+.Pp
+Only available on Linux.
 .It Fl s
 By default
 .Nm
@@ -73,16 +107,14 @@ query to the respondent.  This option skips that specific scan and runs
 in a simple mode.
 .It Fl t Ar TYPE
 Query type, default 12 (PTR).
-.It Fl h
-Print a help message and exit.
 .It Fl v
 Show program version.
 .It Fl w Ar SEC
 Delay (approximate) in seconds before automatically exiting.
 .El
 .Sh SEE ALSO
-.Xr mdns-scan 1
 .Xr mdnsd 8 ,
+.Xr mdns-scan 1
 .Sh AUTHORS
 This mDNS-SD implementation was created in 2003 by
 .An Jeremie Miller Aq jer@jabber.org .

@@ -27,18 +27,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "mdnsd.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <errno.h>
+#include <ifaddrs.h>
+#include <arpa/inet.h>
 
-#define SPRIME 108		/* Size of query/publish hashes */
+#define SPRIME 109		/* Size of query/publish hashes */
 #define LPRIME 1009		/* Size of cache hash */
 
 #define GC 86400                /* Brute force garbage cleanup
 				 * frequency, rarely needed (daily
 				 * default) */
+
+/* Interval for refreshing cached local interface addresses (seconds) */
+#define LOCAL_ADDR_REFRESH_INTERVAL 5
 
 /**
  * Messy, but it's the best/simplest balance I can find at the moment
@@ -64,8 +71,7 @@ struct query {
 
 struct unicast {
 	int id;
-	struct in_addr to;
-	unsigned short port;
+	inet_addr_t to;
 	mdns_record_t *r;
 	struct unicast *next;
 };
@@ -97,7 +103,13 @@ struct mdns_daemon {
 	struct unicast *uanswers;
 	struct query *queries[SPRIME], *qlist;
 
+	sa_family_t family;		/* transport: AF_INET or AF_INET6 */
 	struct in_addr addr;
+	struct in6_addr addr_v6;
+
+	/* Cached local interface snapshot to avoid getifaddrs() per packet */
+	struct ifaddrs *local_ifaddrs;
+	time_t local_addrs_refreshed;
 
 	mdnsd_record_received_callback received_callback;
 	void *received_callback_data;
@@ -174,6 +186,8 @@ static size_t _rr_len(mdns_answer_t *rr)
 		len += strlen(rr->rdname); /* worst case */
 	if (rr->ip.s_addr)
 		len += 4;
+	if (! IN6_IS_ADDR_UNSPECIFIED(&(rr->ip6)))
+		len += 16;
 	if (rr->type == QTYPE_PTR)
 		len += 6;	/* srv record stuff */
 
@@ -181,29 +195,35 @@ static size_t _rr_len(mdns_answer_t *rr)
 }
 
 /* Compares new rdata with known a, painfully */
-static int _a_match(struct resource *r, mdns_answer_t *a)
+static bool _a_match(struct resource *r, mdns_answer_t *a)
 {
 	if (!a->name)
 		return 0;
 	if (strcmp(r->name, a->name) || r->type != a->type)
 		return 0;
 
-	if (r->type == QTYPE_SRV &&
-	    r->known.srv.name && a->rdname && !strcmp(r->known.srv.name, a->rdname) &&
-	    a->srv.port == r->known.srv.port &&
-	    a->srv.weight == r->known.srv.weight &&
-	    a->srv.priority == r->known.srv.priority)
-		return 1;
+	switch (r->type) {
+		case QTYPE_SRV:
+			return r->known.srv.name && a->rdname && strcmp(r->known.srv.name, a->rdname) == 0
+				&& a->srv.port == r->known.srv.port
+				&& a->srv.weight == r->known.srv.weight
+				&& a->srv.priority == r->known.srv.priority;
 
-	if ((r->type == QTYPE_PTR || r->type == QTYPE_NS || r->type == QTYPE_CNAME) &&
-	    !strcmp(a->rdname, r->known.ns.name))
-		return 1;
 
-	if (r->type == QTYPE_A || !memcmp(&r->known.a.ip, &a->ip, 4))
-		return 1;
+		case QTYPE_PTR:
+		case QTYPE_NS:
+		case QTYPE_CNAME:
+			return strcmp(a->rdname, r->known.ns.name) == 0;
 
-	if (r->rdlength == a->rdlen && !memcmp(r->rdata, a->rdata, r->rdlength))
-		return 1;
+		case QTYPE_A:
+			return memcmp(&r->known.a.ip, &a->ip, 4) == 0;
+
+		case QTYPE_AAAA:
+			return memcmp(&r->known.aaaa.ip6, &a->ip6, 16) == 0;
+
+		default:
+			return r->rdlength == a->rdlen && memcmp(r->rdata, a->rdata, r->rdlength) == 0;
+	}
 
 	return 0;
 }
@@ -314,7 +334,7 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* Create generic unicast response struct */
-static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr to, unsigned short port)
+static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, const inet_addr_t *to)
 {
 	struct unicast *u;
 
@@ -324,10 +344,30 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr t
 
 	u->r = r;
 	u->id = id;
-	u->to = to;
-	u->port = port;
+	u->to = *to;
 	u->next = d->uanswers;
 	d->uanswers = u;
+}
+
+/* Drop any pending unicast answers referring to r, which is being freed */
+static void _u_remove(mdns_daemon_t *d, mdns_record_t *r)
+{
+	struct unicast *u = d->uanswers, *prev = NULL;
+
+	while (u) {
+		struct unicast *next = u->next;
+
+		if (u->r == r) {
+			if (prev)
+				prev->next = next;
+			else
+				d->uanswers = next;
+			free(u);
+		} else {
+			prev = u;
+		}
+		u = next;
+	}
 }
 
 static void _q_reset(mdns_daemon_t *d, struct query *q)
@@ -351,7 +391,7 @@ static void _q_done(mdns_daemon_t *d, struct query *q)
 {
 	struct cached *c = 0;
 	struct query *cur;
-	int i = _namehash(q->name) % LPRIME;
+	int i = _namehash(q->name) % SPRIME;
 
 	while ((c = _c_next(d, c, q->name, q->type)))
 		c->q = 0;
@@ -381,12 +421,18 @@ static void _free_cached(struct cached *c)
 	if (!c)
 		return;
 
-	if (c->rr.name)
+	if (c->rr.name) {
 		free(c->rr.name);
-	if (c->rr.rdata)
+		c->rr.name = NULL;
+	}
+	if (c->rr.rdata) {
 		free(c->rr.rdata);
-	if (c->rr.rdname)
+		c->rr.rdata = NULL;
+	}
+	if (c->rr.rdname) {
 		free(c->rr.rdname);
+		c->rr.rdname = NULL;
+	}
 	free(c);
 }
 
@@ -395,12 +441,18 @@ static void _free_record(mdns_record_t *r)
 	if (!r)
 		return;
 
-	if (r->rr.name)
-	    free(r->rr.name);
-	if (r->rr.rdata)
+	if (r->rr.name) {
+		free(r->rr.name);
+		r->rr.name = NULL;
+	}
+	if (r->rr.rdata) {
 		free(r->rr.rdata);
-	if (r->rr.rdname)
+		r->rr.rdata = NULL;
+	}
+	if (r->rr.rdname) {
 		free(r->rr.rdname);
+		r->rr.rdname = NULL;
+	}
 	free(r);
 }
 
@@ -422,6 +474,9 @@ static void _r_done(mdns_daemon_t *d, mdns_record_t *r)
 		if (cur)
 			cur->next = r->next;
 	}
+
+	/* A queued unicast answer may still point at r; drop it first. */
+	_u_remove(d, r);
 
 	_free_record(r);
 }
@@ -483,7 +538,7 @@ static void _gc(mdns_daemon_t *d)
 	d->expireall = (unsigned long)(d->now.tv_sec + GC);
 }
 
-static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
+static int _cache(mdns_daemon_t *d, struct resource *r, const inet_addr_t *from)
 {
 	unsigned long int ttl;
 	struct cached *c = 0;
@@ -515,12 +570,15 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 	 */
 	ttl = (unsigned long)d->now.tv_sec + (r->ttl / 2) + 8;
 
-	/* If entry already exists, only udpate TTL value */
+	/*
+	 * If this record is already cached, just refresh its TTL.  Match on
+	 * the rdata, not only name+type: a host can have several A/AAAA
+	 * records (e.g. a link-local and a global address), each its own entry.
+	 */
 	c = NULL;
 	while ((c = _c_next(d, c, r->name, r->type))) {
-		if (r->type == QTYPE_PTR && strcmp(c->rr.rdname, r->known.ns.name)) {
+		if (!_a_match(r, &c->rr))
 			continue;
-		}
 		c->rr.ttl = ttl;
 		return 0;
 	}
@@ -561,11 +619,21 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 		c->rr.ip = r->known.a.ip;
 		break;
 
+	case QTYPE_AAAA:
+		c->rr.ip6 = r->known.aaaa.ip6;
+		break;
+
 	case QTYPE_NS:
 	case QTYPE_CNAME:
 	case QTYPE_PTR:
 		c->rr.rdname = strdup(r->known.ns.name);
-		c->rr.ip = ip;
+		/* Stash the responder address for mquery's device view */
+#ifdef ENABLE_IPV6
+		if (inet_family(from) == AF_INET6)
+			c->rr.ip6 = ((const struct sockaddr_in6 *)from)->sin6_addr;
+		else
+#endif
+			c->rr.ip = ((const struct sockaddr_in *)from)->sin_addr;
 		break;
 
 	case QTYPE_SRV:
@@ -588,21 +656,118 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 /* Copy the data bits only */
 static void _a_copy(struct message *m, mdns_answer_t *a)
 {
+	/*
+	 * Re-encode name rdata from rdname so compression is computed for
+	 * this packet.  The raw cached rdata holds pointers into the packet
+	 * it arrived in and cannot be replayed verbatim.  See issue #79.
+	 */
+	if (a->type == QTYPE_SRV) {
+		message_rdata_srv(m, a->srv.priority, a->srv.weight, a->srv.port, a->rdname);
+		return;
+	}
+	if (a->rdname) {
+		message_rdata_name(m, a->rdname);
+		return;
+	}
+
 	if (a->rdata) {
 		message_rdata_raw(m, a->rdata, a->rdlen);
 		return;
 	}
 
 	if (a->ip.s_addr)
-		message_rdata_raw(m, (unsigned char *)&a->ip, 4);
-	if (a->type == QTYPE_SRV)
-		message_rdata_srv(m, a->srv.priority, a->srv.weight, a->srv.port, a->rdname);
-	else if (a->rdname)
-		message_rdata_name(m, a->rdname);
+		message_rdata_ipv4(m, a->ip);
+	else if (!IN6_IS_ADDR_UNSPECIFIED(&(a->ip6)))
+		message_rdata_ipv6(m, a->ip6);
+}
+
+/*
+ * RFC 6763 §12: when answering a PTR or SRV query, add the related SRV,
+ * TXT and address records to the additional section so a client need not
+ * query again.  See issue #76.  Records answered this round are tracked so
+ * we never repeat one of them as an additional record.
+ */
+#define ADDITIONAL_MAX 64
+struct answered {
+	mdns_record_t *rec[ADDITIONAL_MAX];
+	int n;
+};
+
+static void _answered_add(struct answered *a, mdns_record_t *r)
+{
+	if (a->n < ADDITIONAL_MAX)
+		a->rec[a->n++] = r;
+}
+
+static int _answered(const struct answered *a, const mdns_record_t *r)
+{
+	int i;
+
+	for (i = 0; i < a->n; i++) {
+		if (a->rec[i] == r)
+			return 1;
+	}
+
+	return 0;
+}
+
+/* Append one additional record, unless already in the packet or out of room */
+static void _ar(mdns_daemon_t *d, struct message *m, mdns_record_t *r, struct answered *seen)
+{
+	if (_answered(seen, r))
+		return;
+	if (message_packet_len(m) + (int)_rr_len(&r->rr) >= d->frame)
+		return;
+
+	message_ar(m, r->rr.name, r->rr.type, d->class + (r->unique ? 32768 : 0), r->rr.ttl);
+	_a_copy(m, &r->rr);
+	_answered_add(seen, r);
+}
+
+/* Append the A/AAAA records for host to the additional section */
+static void _ar_addr(mdns_daemon_t *d, struct message *m, char *host, struct answered *seen)
+{
+	mdns_record_t *r;
+
+	if (!host)
+		return;
+
+	for (r = mdnsd_get_published(d, host); r; r = r->next) {
+		if (strcmp(r->rr.name, host))
+			continue;
+		if (r->rr.type == QTYPE_A || r->rr.type == QTYPE_AAAA)
+			_ar(d, m, r, seen);
+	}
+}
+
+/* RFC 6763 §12 additional records for an answered PTR or SRV record */
+static void _additional(mdns_daemon_t *d, struct message *m, mdns_record_t *ans, struct answered *seen)
+{
+	mdns_record_t *r;
+
+	if (ans->rr.type == QTYPE_SRV) {
+		_ar_addr(d, m, ans->rr.rdname, seen);
+		return;
+	}
+
+	if (ans->rr.type != QTYPE_PTR || !ans->rr.rdname || !strcmp(ans->rr.name, DISCO_NAME))
+		return;
+
+	for (r = mdnsd_get_published(d, ans->rr.rdname); r; r = r->next) {
+		if (strcmp(r->rr.name, ans->rr.rdname))
+			continue;
+
+		if (r->rr.type == QTYPE_SRV) {
+			_ar(d, m, r, seen);
+			_ar_addr(d, m, r->rr.rdname, seen);
+		} else if (r->rr.type == QTYPE_TXT) {
+			_ar(d, m, r, seen);
+		}
+	}
 }
 
 /* Copy a published record into an outgoing message */
-static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
+static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list, struct answered *seen)
 {
 	mdns_record_t *r;
 	int ret = 0;
@@ -641,12 +806,111 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list)
 			 */
 			_r_remove_lists(d, r, list);
 			_r_done(d, r);
+		} else {
+			_answered_add(seen, r);
 		}
 	}
 
 	return ret;
 }
 
+/* Refresh the cached local interface addresses if needed (every ~5s) */
+static void _refresh_local_addrs(mdns_daemon_t *d, bool force)
+{
+	struct ifaddrs *ifa = NULL;
+
+	/* Refresh at most every 5 seconds */
+	if (d->local_addrs_refreshed && (d->now.tv_sec - d->local_addrs_refreshed) < LOCAL_ADDR_REFRESH_INTERVAL && !force)
+		return;
+
+	if (getifaddrs(&ifa) != 0)
+		return;
+
+	/* Swap in the latest snapshot */
+	if (d->local_ifaddrs)
+		freeifaddrs(d->local_ifaddrs);
+	d->local_ifaddrs = ifa;
+	d->local_addrs_refreshed = d->now.tv_sec ? d->now.tv_sec : time(NULL);
+}
+
+/* Check if an IPv4 address belongs to this host (any interface) */
+static bool _is_local_ipv4(mdns_daemon_t *d, struct in_addr ip)
+{
+	struct ifaddrs *it;
+
+	/* Always consider the primary configured address as local */
+	if (ip.s_addr == d->addr.s_addr)
+		return true;
+
+	_refresh_local_addrs(d, false);
+
+	for (it = d->local_ifaddrs; it; it = it->ifa_next) {
+		struct sockaddr_in *sin;
+		if (!it->ifa_addr)
+			continue;
+		if (it->ifa_addr->sa_family != AF_INET)
+			continue;
+		sin = (struct sockaddr_in *)it->ifa_addr;
+		if (sin->sin_addr.s_addr == ip.s_addr)
+			return true;
+	}
+
+	return false;
+}
+
+#ifdef ENABLE_IPV6
+/* Check if an IPv6 address belongs to this host (any interface) */
+static bool _is_local_ipv6(mdns_daemon_t *d, struct in6_addr ip)
+{
+	struct ifaddrs *it;
+
+	if (IN6_ARE_ADDR_EQUAL(&ip, &d->addr_v6))
+		return true;
+
+	_refresh_local_addrs(d, false);
+
+	for (it = d->local_ifaddrs; it; it = it->ifa_next) {
+		struct sockaddr_in6 *sin6;
+
+		if (!it->ifa_addr || it->ifa_addr->sa_family != AF_INET6)
+			continue;
+		sin6 = (struct sockaddr_in6 *)it->ifa_addr;
+		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip))
+			return true;
+	}
+
+	return false;
+}
+#endif
+
+/* Ignore packets we sent ourselves, regardless of address family */
+static bool _is_local(mdns_daemon_t *d, const inet_addr_t *from)
+{
+#ifdef ENABLE_IPV6
+	if (inet_family(from) == AF_INET6)
+		return _is_local_ipv6(d, ((const struct sockaddr_in6 *)from)->sin6_addr);
+#endif
+	return _is_local_ipv4(d, ((const struct sockaddr_in *)from)->sin_addr);
+}
+
+/* mDNS multicast destination for the daemon's transport family */
+static void mdns_mcast(inet_addr_t *to, sa_family_t family)
+{
+	memset(to, 0, sizeof(*to));
+	to->ss_family = family;
+
+#ifdef ENABLE_IPV6
+	if (family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)to;
+
+		inet_pton(AF_INET6, "ff02::fb", &sin6->sin6_addr);
+		sin6->sin6_port = htons(5353);
+		return;
+	}
+#endif
+	((struct sockaddr_in *)to)->sin_addr.s_addr = inet_addr("224.0.0.251");
+	((struct sockaddr_in *)to)->sin_port        = htons(5353);
+}
 
 mdns_daemon_t *mdnsd_new(int class, int frame)
 {
@@ -660,9 +924,17 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	d->expireall = (unsigned long)d->now.tv_sec + GC;
 	d->class = class;
 	d->frame = frame;
+	d->family = AF_INET;
 	d->received_callback = NULL;
+	d->local_ifaddrs = NULL;
+	d->local_addrs_refreshed = 0;
 
 	return d;
+}
+
+void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family)
+{
+	d->family = family;
 }
 
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
@@ -679,8 +951,15 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
 		while (r) {
 			next = r->next;
 
-			if (r->rr.type == QTYPE_A)
-				mdnsd_set_ip(d, r, addr);
+			if (r->rr.type == QTYPE_A) {
+				if (addr.s_addr == 0) {
+					r->rr.ttl = 0;
+					r->list = d->a_now;
+					d->a_now = r;
+				} else {
+					mdnsd_set_ip(d, r, addr);
+				}
+			}
 
 			r = next;
 		}
@@ -694,11 +973,50 @@ struct in_addr mdnsd_get_address(mdns_daemon_t *d)
 	return d->addr;
 }
 
+void mdnsd_set_ipv6_address(mdns_daemon_t *d, struct in6_addr addr)
+{
+	int i;
+
+	if (!memcmp(&d->addr_v6, &addr, sizeof(d->addr_v6)))
+		return;		/* No change */
+
+	for (i = 0; i < SPRIME; i++) {
+		mdns_record_t *r, *next;
+
+		r = d->published[i];
+		while (r) {
+			next = r->next;
+
+			if (r->rr.type == QTYPE_AAAA) {
+				if (IN6_IS_ADDR_UNSPECIFIED(&addr)) {
+					r->rr.ttl = 0;
+					r->list = d->a_now;
+					d->a_now = r;
+				} else {
+					mdnsd_set_ipv6(d, r, addr);
+				}
+			}
+
+			r = next;
+		}
+	}
+
+	d->addr_v6 = addr;
+}
+
+struct in6_addr mdnsd_get_ipv6_address(mdns_daemon_t *d)
+{
+	return d->addr_v6;
+}
+
 /* Shutting down, zero out ttl and push out all records */
 void mdnsd_shutdown(mdns_daemon_t *d)
 {
 	int i;
 	mdns_record_t *cur, *next;
+
+	if (!d)
+		return;
 
 	d->a_now = 0;
 	for (i = 0; i < SPRIME; i++) {
@@ -728,12 +1046,16 @@ void mdnsd_free(mdns_daemon_t *d)
 {
 	struct unicast *u;
 
+	if (!d)
+		return;
+
 	for (size_t i = 0; i< LPRIME; i++) {
 		struct cached *cur = d->cache[i];
 
 		while (cur) {
 			struct cached *next = cur->next;
 
+			cur->next = NULL;
 			_free_cached(cur);
 			cur = next;
 		}
@@ -746,6 +1068,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		while (cur) {
 			struct mdns_record *next = cur->next;
 
+			cur->next = NULL;
 			_free_record(cur);
 			cur = next;
 		}
@@ -754,6 +1077,7 @@ void mdnsd_free(mdns_daemon_t *d)
 		while (curq) {
 			struct query *next = curq->next;
 
+			curq->next = NULL;
 			free(curq->name);
 			free(curq);
 			curq = next;
@@ -764,9 +1088,13 @@ void mdnsd_free(mdns_daemon_t *d)
 	while (u) {
 		struct unicast *next = u->next;
 
+		u->next = NULL;
 		free(u);
 		u = next;
 	}
+
+	if (d->local_ifaddrs)
+		freeifaddrs(d->local_ifaddrs);
 
 	free(d);
 }
@@ -778,15 +1106,20 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 	d->received_callback_data = data;
 }
 
-int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned short port)
+int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 {
 	mdns_record_t *r = NULL;
 	int i, j;
+	bool did_addr_refresh = false;
 
 	if (d->shutdown)
 		return 1;
 
 	gettimeofday(&d->now, 0);
+
+	/* Ignore packets originated from any of our own local addresses */
+	if (_is_local(d, from))
+		return 0;
 
 	if (m->header.qr == 0) {
 		/* Process each query */
@@ -802,7 +1135,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			if (!r)
 				continue;
 
-			/* Service enumeratio/discovery prepeare to send all matching records */
+			/* Service enumeration/discovery prepare to send all matching records */
 			if (!strcmp(m->qd[i].name, DISCO_NAME)) {
 				d->disco = 1;
 				while (r) {
@@ -824,12 +1157,19 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 				/* probing state, check for conflicts */
 				if (r->unique && r->unique < 5 && !r->modified) {
 					/* Check all to-be answers against our own */
-					for (j = 0; j < m->nscount; j++) {
+					for (j = 0; j < m->ancount; j++) {
 						if (!m->an || m->qd[i].type != m->an[j].type || strcmp(m->qd[i].name, m->an[j].name))
 							continue;
 
 						/* This answer isn't ours, conflict! */
 						if (!_a_match(&m->an[j], &r->rr)) {
+							/* Before flagging conflict, force a local address refresh and re-check */
+							if (!did_addr_refresh) {
+								did_addr_refresh = true;
+								_refresh_local_addrs(d, true);
+							}
+							if (_is_local(d, from))
+								continue;
 							_conflict(d, r);
 							has_conflict = true;
 							break;
@@ -859,8 +1199,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			}
 
 			/* Send the matching unicast reply */
-			if (!has_conflict && port != 5353)
-				_u_push(d, r_start, m->id, ip, port);
+			if (!has_conflict && inet_port(from) != 5353)
+				_u_push(d, r_start, m->id, from);
 		}
 
 		return 0;
@@ -881,7 +1221,11 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		r = _r_next(d, NULL, m->an[i].name, m->an[i].type);
 		if (r && r->unique && r->modified && _a_match(&m->an[i], &r->rr)) {
 			/* double check, is this actually from us, looped back? */
-			if (ip.s_addr == d->addr.s_addr)
+			if (!did_addr_refresh) {
+				did_addr_refresh = true;
+				_refresh_local_addrs(d, true);
+			}
+			if (_is_local(d, from))
 				continue;
 			_conflict(d, r);
 		}
@@ -889,7 +1233,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		if (d->received_callback)
 			d->received_callback(&m->an[i], d->received_callback_data);
 
-		if (_cache(d, &m->an[i], ip) != 0) {
+		if (_cache(d, &m->an[i], from) != 0) {
 			ERR("Failed caching answer, possibly too long packet, skipping.");
 			continue;
 		}
@@ -898,17 +1242,17 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 	return 0;
 }
 
-int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port)
+int mdnsd_out(mdns_daemon_t *d, struct message *m, inet_addr_t *to)
 {
 	mdns_record_t *r;
+	struct answered seen = { 0 };
 	int ret = 0;
 
 	gettimeofday(&d->now, 0);
 	memset(m, 0, sizeof(struct message));
 
 	/* Defaults, multicast */
-	*port = htons(5353);
-	ip->s_addr = inet_addr("224.0.0.251");
+	mdns_mcast(to, d->family);
 	m->header.qr = 1;
 	m->header.aa = 1;
 
@@ -919,13 +1263,16 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		INFO("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
 
 		d->uanswers = u->next;
-		*port = u->port;
-		*ip = u->to;
+		*to = u->to;
 		m->id = u->id;
 		message_qd(m, u->r->rr.name, u->r->rr.type, d->class);
 		message_an(m, u->r->rr.name, u->r->rr.type, d->class, u->r->rr.ttl);
 		u->r->last_sent = d->now;
 		_a_copy(m, &u->r->rr);
+
+		/* RFC 6763 §12 additional records for the unicast answer */
+		_answered_add(&seen, u->r);
+		_additional(d, m, u->r, &seen);
 		free(u);
 
 		return 1;
@@ -933,7 +1280,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 
 	/* Accumulate any immediate responses */
 	if (d->a_now)
-		ret += _r_out(d, m, &d->a_now);
+		ret += _r_out(d, m, &d->a_now, &seen);
 
 	/* Check if it's time to send the publish retries (unlink if done) */
 	if (!d->probing && d->a_publish && _tvdiff(d->now, d->publish) <= 0) {
@@ -960,6 +1307,8 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 				message_an(m, cur->rr.name, cur->rr.type, d->class, cur->rr.ttl);
 			_a_copy(m, &cur->rr);
 			cur->last_sent = d->now;
+			if (cur->rr.ttl != 0)
+				_answered_add(&seen, cur);
 
 			if (cur->rr.ttl != 0 && cur->tries < 4) {
 				last = cur;
@@ -989,7 +1338,11 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 
 	/* Check if a_pause is ready */
 	if (d->a_pause && _tvdiff(d->now, d->pause) <= 0)
-		ret += _r_out(d, m, &d->a_pause);
+		ret += _r_out(d, m, &d->a_pause, &seen);
+
+	/* RFC 6763 §12: expand the answers, not the additionals _ar() appends */
+	for (int i = 0, n = seen.n; i < n; i++)
+		_additional(d, m, seen.rec[i], &seen);
 
 	/* Now process questions */
 	if (ret)
@@ -1366,6 +1719,12 @@ void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip)
 	_r_publish(d, r);
 }
 
+void mdnsd_set_ipv6(mdns_daemon_t *d, mdns_record_t *r, struct in6_addr ip6)
+{
+	r->rr.ip6 = ip6;
+	_r_publish(d, r);
+}
+
 void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name)
 {
 	r->rr.srv.priority = priority;
@@ -1374,16 +1733,197 @@ void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, 
 	mdnsd_set_host(d, r, name);
 }
 
+/* Internal helper: update set of addresses for given host & type (A/AAAA) */
+static int _update_addresses_for_host(mdns_daemon_t *d, const char *host, unsigned short type, const void *addrs, size_t count)
+{
+	mdns_record_t *r;
+	mdns_record_t *cur;
+	unsigned long ttl = 120; /* default TTL if none exists */
+	char buf6[INET6_ADDRSTRLEN];
+
+	if (!d || !host)
+		return -1;
+
+	/* Determine TTL from any existing record of this type */
+	r = mdnsd_find(d, host, type);
+	if (r) {
+		const mdns_answer_t *data = mdnsd_record_data(r);
+		if (data && data->ttl)
+			ttl = data->ttl;
+	}
+
+	/* For each desired address, check if there's a matching existing record */
+	for (size_t i = 0; i < count; i++) {
+		bool found = false;
+		cur = mdnsd_get_published(d, host);
+		while (cur) {
+			const mdns_answer_t *data = mdnsd_record_data(cur);
+			if (data->type == type && strcmp(data->name, host) == 0) {
+				if (type == QTYPE_A) {
+					const struct in_addr *a = (const struct in_addr *)addrs;
+					if (data->ip.s_addr == a[i].s_addr) {
+						found = true;
+						INFO("Found A record for %s addr %s", host, inet_ntoa(a[i]));
+						break;
+					}
+				} else if (type == QTYPE_AAAA) {
+					const struct in6_addr *a6 = (const struct in6_addr *)addrs;
+					if (memcmp(&data->ip6, &a6[i], sizeof(struct in6_addr)) == 0) {
+						found = true;
+						INFO("Found AAAA record for %s addr %s", host, inet_ntop(AF_INET6, &a6[i], buf6, sizeof(buf6)));
+						break;
+					}
+				}
+			}
+			cur = mdnsd_record_next(cur);
+		}
+		if (!found) {
+			/* Create new record for this address */
+			mdns_record_t *nr = mdnsd_shared(d, host, type, ttl);
+			if (!nr)
+				continue;
+			if (type == QTYPE_A) {
+				const struct in_addr *a = (const struct in_addr *)addrs;
+				mdnsd_set_ip(d, nr, a[i]);
+				INFO("Created A record for %s addr %s", host, inet_ntoa(a[i]));
+			} else {
+				const struct in6_addr *a6 = (const struct in6_addr *)addrs;
+				mdnsd_set_ipv6(d, nr, a6[i]);
+				INFO("Created AAAA record for %s addr %s", host, inet_ntop(AF_INET6, &a6[i], buf6, sizeof(buf6)));
+			}
+		}
+	}
+
+	/* Remove stale records (present but not in desired set) */
+	cur = mdnsd_get_published(d, host);
+	while (cur) {
+		mdns_record_t *next = mdnsd_record_next(cur);
+		const mdns_answer_t *data = mdnsd_record_data(cur);
+		if (data->type == type && strcmp(data->name, host) == 0) {
+			bool still_present = false;
+			for (size_t i = 0; i < count; i++) {
+				if (type == QTYPE_A) {
+					const struct in_addr *a = (const struct in_addr *)addrs;
+					if (data->ip.s_addr == a[i].s_addr) { still_present = true; break; }
+				} else {
+					const struct in6_addr *a6 = (const struct in6_addr *)addrs;
+					if (memcmp(&data->ip6, &a6[i], sizeof(struct in6_addr)) == 0) { still_present = true; break; }
+				}
+			}
+			if (!still_present)
+				mdnsd_done(d, cur);
+		}
+		cur = next;
+	}
+
+	return 0;
+}
+
+int mdnsd_set_addresses_for_host(mdns_daemon_t *d, const char *host, const struct in_addr *addrs, size_t count)
+{
+	return _update_addresses_for_host(d, host, QTYPE_A, addrs, count);
+}
+
+int mdnsd_set_ipv6_addresses_for_host(mdns_daemon_t *d, const char *host, const struct in6_addr *addrs, size_t count)
+{
+	return _update_addresses_for_host(d, host, QTYPE_AAAA, addrs, count);
+}
+
+int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname)
+{
+	struct ifaddrs *ifa = NULL;
+	struct ifaddrs *it;
+	struct in_addr *v4 = NULL; size_t v4c = 0;
+	struct in6_addr *v6 = NULL; size_t v6c = 0;
+	char buf[INET_ADDRSTRLEN];
+	char buf6[INET6_ADDRSTRLEN];
+
+	if (getifaddrs(&ifa) != 0)
+		return -1;
+
+	/* Collect all v4/v6 addresses for the interface */
+	for (it = ifa; it; it = it->ifa_next) {
+		if (!it->ifa_addr || !it->ifa_name || strcmp(it->ifa_name, ifname))
+			continue;
+		if (it->ifa_addr->sa_family == AF_INET) {
+			v4 = realloc(v4, (v4c + 1) * sizeof(*v4));
+			if (v4) {
+				struct sockaddr_in *sin = (struct sockaddr_in *)it->ifa_addr;
+				v4[v4c++] = sin->sin_addr;
+				if(inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf)))
+						INFO("Adding address %s for interface %s", buf, ifname);
+			}
+		} else if (it->ifa_addr->sa_family == AF_INET6) {
+			v6 = realloc(v6, (v6c + 1) * sizeof(*v6));
+			if (v6) {
+				struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)it->ifa_addr;
+				v6[v6c++] = sin6->sin6_addr;
+				if (inet_ntop(AF_INET6, &sin6->sin6_addr, buf6, sizeof(buf6)))
+						INFO("Adding address %s for interface %s", buf6, ifname);
+			}
+		}
+	}
+	freeifaddrs(ifa);
+
+	/*
+	 * Reconcile per host name, not per record pointer: the calls below
+	 * free stale records, which would dangle a record iterator.  See #92.
+	 */
+	char **hosts = NULL;
+	size_t hostc = 0;
+
+	for (size_t idx = 0; idx < SPRIME; idx++) {
+		for (mdns_record_t *cur = d->published[idx]; cur; cur = mdnsd_record_next(cur)) {
+			const mdns_answer_t *data = mdnsd_record_data(cur);
+			bool seen = false;
+			char **tmp;
+
+			if (data->type != QTYPE_A && data->type != QTYPE_AAAA)
+				continue;
+
+			for (size_t i = 0; i < hostc; i++) {
+				if (!strcmp(hosts[i], data->name)) {
+					seen = true;
+					break;
+				}
+			}
+			if (seen)
+				continue;
+
+			tmp = realloc(hosts, (hostc + 1) * sizeof(*hosts));
+			if (!tmp)
+				continue;
+			hosts = tmp;
+			hosts[hostc] = strdup(data->name);
+			if (hosts[hostc])
+				hostc++;
+		}
+	}
+
+	for (size_t i = 0; i < hostc; i++) {
+		INFO("Updating addresses for host %s", hosts[i]);
+		/* A count of 0 is intentional: it withdraws that whole family. */
+		mdnsd_set_addresses_for_host(d, hosts[i], v4, v4c);
+		mdnsd_set_ipv6_addresses_for_host(d, hosts[i], v6, v6c);
+		free(hosts[i]);
+	}
+	free(hosts);
+
+	free(v4);
+	free(v6);
+	return 0;
+}
+
 static int process_in(mdns_daemon_t *d, int sd)
 {
 	static unsigned char buf[MAX_PACKET_LEN + 1];
-	struct sockaddr_in from;
-	socklen_t ssize = sizeof(struct sockaddr_in);
+	inet_addr_t from;
+	socklen_t ssize = sizeof(from);
 	ssize_t bsize;
 
 	memset(buf, 0, sizeof(buf));
 
-	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
+	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, MSG_DONTWAIT, (struct sockaddr *)&from, &ssize)) > 0) {
 		struct message m = { 0 };
 		int rc;
 
@@ -1393,7 +1933,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 		rc = message_parse(&m, buf);
 		if (rc)
 			continue;
-		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
+		rc = mdnsd_in(d, &m, &from);
 		if (rc)
 			continue;
 	}
@@ -1406,25 +1946,18 @@ static int process_in(mdns_daemon_t *d, int sd)
 
 static int process_out(mdns_daemon_t *d, int sd)
 {
-	unsigned short int port;
-	struct sockaddr_in to;
-	struct in_addr ip;
+	inet_addr_t to;
 	struct message m;
 
-	while (mdnsd_out(d, &m, &ip, &port)) {
+	while (mdnsd_out(d, &m, &to)) {
 		unsigned char *buf;
 		ssize_t len;
-
-		memset(&to, 0, sizeof(to));
-		to.sin_family = AF_INET;
-		to.sin_port = port;
-		to.sin_addr = ip;
 
 		len = message_packet_len(&m);
 		buf = message_packet(&m);
 		mdnsd_log_hex("Send Data:", buf, len);
 
-		if (sendto(sd, buf, len, 0, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len)
+		if (sendto(sd, buf, len, MSG_DONTWAIT, (struct sockaddr *)&to, inet_len(&to)) != len)
 			return 2;
 	}
 
@@ -1448,7 +1981,7 @@ int mdnsd_step(mdns_daemon_t *d, int sd, bool in, bool out, struct timeval *tv)
 	}
 
 	/* Service Enumeration/Discovery completed */
-	if (d->disco)
+	if (d && d->disco)
 		d->disco = 0;
 
 	return rc;

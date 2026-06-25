@@ -26,7 +26,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include <errno.h>
+#include <sys/types.h>		/* needed for u_int on DragonFly BSD */
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -40,43 +43,21 @@
 
 #include "mdnsd.h"
 
-#ifndef IN_ZERONET
-#define IN_ZERONET(addr) ((addr & IN_CLASSA_NET) == 0)
-#endif
-
-#ifndef IN_LOOPBACK
-#define IN_LOOPBACK(addr) ((addr & IN_CLASSA_NET) == 0x7f000000)
-#endif
-
-#ifndef IN_LINKLOCAL
-#define IN_LINKLOCALNETNUM 0xa9fe0000
-#define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == IN_LINKLOCALNETNUM)
-#endif
-
 static TAILQ_HEAD(iflist, iface) iface_list = TAILQ_HEAD_INITIALIZER(iface_list);
-
-#if 0	/* unused from v0.11 and later */
-/* Check if valid address */
-static int valid_addr(struct in_addr *ina)
-{
-	in_addr_t addr;
-
-	addr = ntohl(ina->s_addr);
-	if (IN_ZERONET(addr) || IN_LOOPBACK(addr) || IN_LINKLOCAL(addr))
-		return 0;
-
-	return 1;
-}
-#endif	/* unused */
 
 struct iface *iface_iterator(int first)
 {
-	static struct iface *iface = NULL;
+	static struct iface *next = NULL;
+	struct iface *iface;
 
 	if (first)
 		iface = TAILQ_FIRST(&iface_list);
 	else
-		iface = TAILQ_NEXT(iface, link);
+		iface = next;
+
+	/* prepare for next, in case iface is unlinked */
+	if (iface)
+		next = TAILQ_NEXT(iface, link);
 
 	return iface;
 }
@@ -95,25 +76,69 @@ struct iface *iface_find(const char *ifname)
 	return NULL;
 }
 
-int iface_update(char *ifname)
+void iface_free(struct iface *iface)
+{
+	if (!iface)
+		return;
+
+	TAILQ_REMOVE(&iface_list, iface, link);
+	free(iface);
+}
+
+static void mark(void)
+{
+	struct iface *iface;
+
+	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
+		iface->unused = 1;
+		iface->inaddr_old = iface->inaddr;
+		memset(&iface->inaddr, 0, sizeof(iface->inaddr));
+		iface->in6addr_old = iface->in6addr;
+		memset(&iface->in6addr, 0, sizeof(iface->in6addr));
+	}
+}
+
+static int sweep(void)
+{
+	struct iface *iface;
+	int changed = 0;
+
+	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
+		if (iface->unused)
+			continue;
+
+		if (!iface->changed)
+			continue;
+
+		if (iface->inaddr.s_addr == iface->inaddr_old.s_addr &&	IN6_ARE_ADDR_EQUAL(&iface->in6addr, &iface->in6addr_old)) {
+			iface->changed = 0;
+			continue;
+		}
+
+		changed++;
+	}
+
+	return changed;
+}
+
+void iface_init(char *ifname)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	struct iface *iface = NULL;
-	int changed = 0;
 	int rc = -1;
 
 	rc = getifaddrs(&ifaddr);
 	if (rc) {
 		ERR("Failed fetching system interfaces: %s", strerror(errno));
-		return 0;
+		return;
 	}
 
-	if (ifname)
-		iface = iface_find(ifname);
+	mark();
 
 	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-		struct in_addr ina;
-		char buf[20];
+		struct in6_addr ina;
+		char buf[INET6_ADDRSTRLEN];
+
 
 		if (!ifa->ifa_addr)
 			continue;
@@ -127,22 +152,26 @@ int iface_update(char *ifname)
 		if (!(ifa->ifa_flags & IFF_UP))
 			continue; /* skip for now, not enabled */
 
-		if (ifa->ifa_addr->sa_family != AF_INET)
+		if (ifa->ifa_addr->sa_family != AF_INET && ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
 		if (ifname && strcmp(ifname, ifa->ifa_name))
 			continue;
 
 		/* Validate IP address */
-		rc = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
+		socklen_t salen = ifa->ifa_addr->sa_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+		rc = getnameinfo(ifa->ifa_addr, salen, buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
 		if (rc)
 			continue;
 
 		/* Use address from getnameinfo() */
-		if (!inet_aton(buf, &ina))
+		char* pc = strchr(buf, '%');
+		if (pc != NULL)  /* inet_pton cannot handle the interface part of a link local IPv6 address. */
+			*pc = '\0';
+		if (inet_pton(ifa->ifa_addr->sa_family, buf, &ina) <= 0)
 			continue;
 
-		if (!ifname)
+		if (!iface)
 			iface = iface_find(ifa->ifa_name);
 
 		if (!iface) {
@@ -151,34 +180,49 @@ int iface_update(char *ifname)
 				ERR("Failed allocating memory for iface %s: %s", ifa->ifa_name, strerror(errno));
 				exit(1);
 			}
+
+			DBG("Creating iface instance for interface %s, address %s", ifa->ifa_name, buf);
 			TAILQ_INSERT_TAIL(&iface_list, iface, link);
 
 			strlcpy(iface->ifname, ifa->ifa_name, sizeof(iface->ifname));
 			iface->ifindex = if_nametoindex(ifa->ifa_name);
+			iface->hostid = 1;
 			iface->sd = -1;
+			iface->sd6 = -1;
 		} else {
 			iface->unused = 0;
 		}
 
-		if (iface->inaddr.s_addr != ina.s_addr) {
-			DBG("Found interface %s, address %s", ifa->ifa_name, buf);
-			iface->inaddr = ina;
-			iface->changed = 1;
-			changed++;
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			if (iface->inaddr.s_addr != ina.s6_addr32[0]) {
+				if (is_zeronet(&iface->inaddr) || is_linklocal(&iface->inaddr)) {
+					iface->inaddr.s_addr = ina.s6_addr32[0];
+					iface->changed = 1;
+				}
+			}
+		} else {
+			if (! IN6_ARE_ADDR_EQUAL(&iface->in6addr, &ina)) {
+				if (IN6_IS_ADDR_UNSPECIFIED(&iface->in6addr)    /* Everything is better than no address (::) */
+					/* Any address is preferred over link local address */
+					|| IN6_IS_ADDR_LINKLOCAL(&iface->in6addr)
+					/* Any address is preferred over a site local address except for a link local address. */
+					|| (IN6_IS_ADDR_SITELOCAL(&iface->in6addr) && !IN6_IS_ADDR_LINKLOCAL(&ina))
+					/* A unique local address shall only be overwritten by a global address. */
+					|| ((iface->in6addr.s6_addr[0] & 0xfe) == 0xfc && !IN6_IS_ADDR_SITELOCAL(&ina) && !IN6_IS_ADDR_LINKLOCAL(&ina))
+					) {
+					iface->in6addr = ina;
+					iface->changed = 1;
+				}
+			}
 		}
-		iface = NULL;
 
-		if (ifname)
-			break;
+		/* prepare for next */
+		if (!ifname)
+			iface = NULL;
 	}
 	freeifaddrs(ifaddr);
 
-	return changed;
-}
-
-void iface_init(char *ifname)
-{
-	iface_update(ifname);
+	sweep();
 }
 
 void iface_exit(void)

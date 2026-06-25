@@ -26,8 +26,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include <errno.h>
 #include <glob.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,7 +70,7 @@ static char *chomp(char *str)
 	return str;
 }
 
-static int match(char *key, char *token)
+static int match(const char *key, const char *token)
 {
 	return !strcmp(key, token);
 }
@@ -112,7 +115,7 @@ static void read_line(char *line, struct conf_srec *srec)
     }
 }
 
-static int parse(char *fn, struct conf_srec *srec)
+static int parse(const char *fn, struct conf_srec *srec)
 {
 	FILE *fp;
 	char line[256];
@@ -130,8 +133,16 @@ static int parse(char *fn, struct conf_srec *srec)
 	return 0;
 }
 
+/* Copy a user-supplied host name into buf as a rooted FQDN */
+static void fqdn(char *buf, size_t len, const char *name)
+{
+	size_t n = strlen(name);
+
+	snprintf(buf, len, "%s%s", name, n && name[n - 1] == '.' ? "" : ".");
+}
+
 /* Create a new record, or update an existing one */
-mdns_record_t *record(mdns_daemon_t *d, int shared, char *host,
+static mdns_record_t *record(mdns_daemon_t *d, struct iface *iface, int shared, char *host,
 		      const char *name, unsigned short type, unsigned long ttl)
 {
 	mdns_record_t *r;
@@ -161,7 +172,7 @@ mdns_record_t *record(mdns_daemon_t *d, int shared, char *host,
 		if (shared)
 			r = mdnsd_shared(d, name, type, ttl);
 		else
-			r = mdnsd_unique(d, name, type, ttl, mdnsd_conflict, NULL);
+			r = mdnsd_unique(d, name, type, ttl, mdnsd_conflict, iface);
 
 		if (host)
 			mdnsd_set_host(d, r, host);
@@ -170,14 +181,14 @@ mdns_record_t *record(mdns_daemon_t *d, int shared, char *host,
 	return r;
 }
 
-static int load(mdns_daemon_t *d, char *path, char *hostname)
+static int load(struct iface *iface, mdns_daemon_t *d, const char *path, const char *hostname)
 {
 	struct conf_srec srec;
 	unsigned char *packet;
 	mdns_record_t *r;
 	size_t i;
 	xht_t *h;
-	char hlocal[256], nlocal[256], tlocal[256];
+	char hlocal[256], tlocal[256], tgtlocal[256], clocal[256];
 	int len = 0;
 
 	memset(&srec, 0, sizeof(srec));
@@ -192,24 +203,38 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 		srec.type = strdup("_http._tcp");
 
 	snprintf(hlocal, sizeof(hlocal), "%s.%s.local.", srec.name, srec.type);
-	snprintf(nlocal, sizeof(nlocal), "%s.local.", srec.name);
 	snprintf(tlocal, sizeof(tlocal), "%s.local.", srec.type);
-	if (!srec.target)
-		srec.target = strdup(hlocal);
+
+	/* SRV target host: a service may override it, else all services on
+	 * this host share the one host name (issue #80) */
+	if (srec.target)
+		fqdn(tgtlocal, sizeof(tgtlocal), srec.target);
+	else
+		snprintf(tgtlocal, sizeof(tgtlocal), "%s.local.", hostname);
 
 	/* Announce that we have a $type service */
-	record(d, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
-	record(d, 1, srec.target, tlocal, QTYPE_PTR, 120);
+	record(d, iface, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
 
-	r = record(d, 0, NULL, hlocal, QTYPE_SRV, 120);
-	mdnsd_set_srv(d, r, 0, 0, srec.port, nlocal);
+	/* RFC 6763 §4.1: the service PTR points at the instance name; the
+	 * SRV under that instance names the target host (issue #80) */
+	record(d, iface, 1, hlocal, tlocal, QTYPE_PTR, 120);
 
-	r = record(d, 0, NULL, nlocal, QTYPE_A, 120);
-	mdnsd_set_ip(d, r, mdnsd_get_address(d));
+	r = record(d, iface, 0, NULL, hlocal, QTYPE_SRV, 120);
+	mdnsd_set_srv(d, r, 0, 0, srec.port, tgtlocal);
 
-	if (srec.cname)
-		record(d, 1, srec.cname, nlocal, QTYPE_CNAME, 120);
-	r = record(d, 0, NULL, hlocal, QTYPE_TXT, 4500);
+	/* Ensure A/AAAA records exist; addresses populated from interface */
+	r = record(d, iface, 0, NULL, tgtlocal, QTYPE_A, 120);
+	r = record(d, iface, 0, NULL, tgtlocal, QTYPE_AAAA, 120);
+
+	/* Publish all v4/v6 addresses for this interface and host */
+	mdnsd_set_interface_addresses(d, iface->ifname);
+
+	/* A cname aliases the host, so it resolves to the host's addresses */
+	if (srec.cname) {
+		fqdn(clocal, sizeof(clocal), srec.cname);
+		record(d, iface, 1, tgtlocal, clocal, QTYPE_CNAME, 120);
+	}
+	r = record(d, iface, 0, NULL, hlocal, QTYPE_TXT, 4500);
 
 	h = xht_new(11);
 	for (i = 0; i < srec.txt_num; i++) {
@@ -231,22 +256,37 @@ static int load(mdns_daemon_t *d, char *path, char *hostname)
 	free(srec.name);
 	free(srec.target);
 	free(srec.cname);
-	for (i = 0; i < NELEMS(srec.txt); i++) {
+	for (i = 0; i < NELEMS(srec.txt); i++)
 		free(srec.txt[i]);
-	}
 
 	return 0;
 }
 
-int conf_init(mdns_daemon_t *d, char *path, int hostid)
+/* Publish the records in @path into all of the interface's contexts */
+static int load_all(struct iface *iface, const char *path, const char *hostname)
 {
-	char hostname[HOST_NAME_MAX];
+	int rc = load(iface, iface->mdns, path, hostname);
+#ifdef ENABLE_IPV6
+	if (iface->mdns6)
+		rc |= load(iface, iface->mdns6, path, hostname);
+#endif
+	return rc;
+}
+
+int conf_init(struct iface *iface, const char *path, const char *hostnm)
+{
+	char hostname[_POSIX_HOST_NAME_MAX];
+	int hostid = iface->hostid;
 	struct stat st;
 	int rc = 0;
 
-	/* apparently gethostname() can fail ... */
-	if (gethostname(hostname, sizeof(hostname)) == -1)
-		strlcpy(hostname, "default", sizeof(hostname));
+	if (hostnm) {
+		strlcpy(hostname, hostnm, sizeof(hostname));
+	} else {
+		/* apparently gethostname() can fail ... */
+		if (gethostname(hostname, sizeof(hostname)) == -1)
+			strlcpy(hostname, "default", sizeof(hostname));
+	}
 
 	/* uniqify hostname by appending -hostid, e.g., default-2 */
 	if (hostid > 1) {
@@ -302,11 +342,11 @@ int conf_init(mdns_daemon_t *d, char *path, int hostid)
 		}
 
 		for (i = 0; i < gl.gl_pathc; i++)
-			rc |= load(d, gl.gl_pathv[i], hostname);
+			rc |= load_all(iface, gl.gl_pathv[i], hostname);
 
 		globfree(&gl);
 	} else
-		rc |= load(d, path, hostname);
+		rc |= load_all(iface, path, hostname);
 
 	return rc;
 }

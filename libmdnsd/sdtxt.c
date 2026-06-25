@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "sdtxt.h"
 #include <stdlib.h>
 #include <string.h>
@@ -45,14 +46,14 @@ static size_t _sd2txt_len(const char *key, char *val)
 	return ret;
 }
 
-static void _sd2txt_count(xht_t *__attribute__((unused)) h, const char *key, void *val, void *arg)
+static void _sd2txt_count(xht_t *h __attribute__((unused)), const char *key, void *val, void *arg)
 {
 	int *const count = arg;
 
 	*count += (int)_sd2txt_len(key, val) + 1;
 }
 
-static void _sd2txt_write(xht_t *__attribute__((unused)) h, const char *key, void *val, void *arg)
+static void _sd2txt_write(xht_t *h __attribute__((unused)), const char *key, void *val, void *arg)
 {
 	unsigned char **txtp = arg;
 	char *const cval = val;
@@ -102,7 +103,7 @@ xht_t *txt2sd(unsigned char *txt, int len)
 	h = xht_new(23);
 
 	/* Loop through data breaking out each block, storing into hashtable */
-	for (; *txt <= len && len > 0; len -= *txt, txt += *txt + 1) {
+	for (; len > 0 && *txt < len; len -= *txt + 1, txt += *txt + 1) {
 		char key[256], *val;
 
 		if (*txt == 0)
@@ -111,11 +112,14 @@ xht_t *txt2sd(unsigned char *txt, int len)
 		memcpy(key, txt + 1, *txt);
 		key[*txt] = 0;
 
+		/* RFC 6763 §6.4: keep a bare key (no '=') as a boolean
+		 * attribute with an empty value rather than drop it (#58) */
 		val = strchr(key, '=');
-		if (val) {
+		if (val)
 			*val++ = 0;
-			xht_store(h, key, (int)strlen(key), val, (int)strlen(val));
-		}
+		else
+			val = "";
+		xht_store(h, key, (int)strlen(key), val, (int)strlen(val));
 	}
 
 	return h;

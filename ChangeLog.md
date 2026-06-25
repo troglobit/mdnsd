@@ -3,8 +3,83 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v1.0][UNRELEASED] -
+---------------------
 
-[v0.11][UNRELEASED]
+Full IPv6 transport, RFC 6763 compliant browsing, and multiple addresses
+per interface. Contributions from Thom Nichols, Florian La Roche, et al.
+
+### Changes
+
+- `libmdnsd`, `mdnsd`, and `mquery`: full IPv6 support, querying and
+  answering over the `ff02::fb` group, not just advertising AAAA records
+  over IPv4, which was introduced in v0.12, issue #10
+- `mdnsd`: support multiple IPv4/IPv6 addresses per interface, with all
+  services sharing one host name, by Thom Nichols, VoltServer, issue #77
+- `mdnsd`: track interface and address changes over netlink, instead of
+  polling, on Linux
+- `mquery`: add device discovery mode
+- RFC 6763 compliance: the service `PTR` now points at the service
+  instance, and query responses carry the matching `SRV`, `TXT`, and
+  address records in the additional section, issues #76 and #80
+- mdnsd: keep key-only `TXT` attributes (boolean flags) instead of
+  dropping them, issue #58
+- Document resolving `.local` names on the host with `libnss-mdns`, in
+  the README and manuals, issue #19
+- `libmdnsd`: installed headers no longer pull in the build's `config.h`,
+  so programs can build against the library again, issue #75
+- `mdnsd`: send goodbye packets when an interface is removed, issue #91
+- Unify the shell and unit tests under one Automake harness, issue #66
+- Cleanups of const/static/unused and `-Wformat`, by Florian La Roche
+
+### Fixes
+
+- Fix #37: `_lmatch()` read one byte past the root label
+- Fix #79: `mquery` sent malformed packets when known-answer suppression
+  kicked in
+- Fix #84: use-after-free of a freed record in `uanswers`
+- Fix #92: use-after-free in `mdnsd_set_interface_addresses`
+- Fix conflict detection to consider all of an interface's addresses, by
+  Thom Nichols, VoltServer, issue #82
+- Fix a one-byte over-read in `txt2sd()` on well-formed input
+- Fix a memory overflow, by Hans Baumgartner
+- Update the cached records when an interface changes, by Zhu Yongjian
+
+[v0.12][] - 2023-01-22
+----------------------
+
+IPv6 support, including a lot of fixes and cleanup again from the team
+at [devolo AG](https://www.devolo.com).
+
+### Changes
+- libmdnsd, mquery, and mdnsd: add support for IPv6 AAAA records,
+  including display in mquery, by Florian Zschocke, devolo AG
+- mdnsd: add `-H hostname` support, for testing purposes mainly
+- mquery: add `-l debug` support
+- mquery: Display every answer we get when in `mdnsd-scan` mode
+- Initial support for test framework, including unit testing w/ cmocka
+- Add support for disabling installation of man pages
+- Add support for building without `mquery`
+
+### Fixes
+- Fix #11: port to other UNIX systems, currently tested on the following
+  operating systems, except Linux, should also work on later versions:
+  - FreeBSD 13
+  - NetBSD 9.1
+  - OpenBSD 6.8
+  - DragonFly BSD 5.8
+  - SunOS solaris 5.11 omnios-r151034
+- Fix #49: various typos in log messages
+- Fix #52: double free, introduced in v0.11
+- Fix #55: mDNS conflict check, fixed by Florian Zschocke, devolo AG
+- Fix #56: parsing of A record from packet must maintain network byte
+  order, found and fixed by Florian Zschocke, devolo AG
+- Fix #65: libmdnsd: Make SPRIME actually a prime number, found and
+  fixed by Florian Zschocke, devolo AG
+- Fix #74: fix segfault when mdnsd interface is removed
+
+
+[v0.11][] - 2022-01-09
 ----------------------
 
 Multiple interface support, and a lot of fixes again from the team at
@@ -13,9 +88,12 @@ Multiple interface support, and a lot of fixes again from the team at
 ### Changes
 - Add support for multiple interfaces.  Similar to running one
   mdnsd v0.10 per interface, sharing the same .conf files, issue #8
-- Removed `-a ADDR` flag, not applicable anymore
+- Drop `-a ADDR` command line option, not applicable anymore
+- Drop `-p` command line option, not needed anymore
 - The `-i IFACE` option now limits mdnsd to run on one interface
 - Add support for query type ANY, by Peter Fleer, issue #34
+- The libmdnsd function `mdnsd_step()` is now always non-blocking by
+  employing `MSG_DONTWAIT` for its `sendto()` and `recvfrom()` ops
 - Create PID file when starting up, and touch on .conf reload.  This
   is used by process supervisors like Finit to acknowledge that the
   process (mdnsd) is done and ready to serve requests again
@@ -36,7 +114,7 @@ Multiple interface support, and a lot of fixes again from the team at
   - Drop own, looped back, multicast packets -- only if we detect
     it as our own published records
   - Send publish records only if probes have gone unanswered
-- Fix #43: _ldecomp() breaking on long name offsets, by Chris Beaumont
+- Fix #43: `_ldecomp()` breaking on long name offsets, by Chris Beaumont
 
 
 [v0.10][] - 2020-05-06
@@ -121,8 +199,10 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.10...HEAD
-[v0.11]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
-[v0.10]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.12...HEAD
+[v1.0]: https://github.com/troglobit/mdnsd/compare/v0.12...v1.0
+[v0.12]: https://github.com/troglobit/mdnsd/compare/v0.11...v0.12
+[v0.11]: https://github.com/troglobit/mdnsd/compare/v0.10...v0.11
+[v0.10]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
 [v0.9]: https://github.com/troglobit/mdnsd/compare/v0.8...v0.9
 [v0.8]: https://github.com/troglobit/mdnsd/compare/v0.7G...v0.8

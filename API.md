@@ -25,7 +25,9 @@ Here is a small example how to publish a few records:
 	r = mdnsd_unique(d, hlocal, QTYPE_SRV, 600, conflict, NULL);
 	mdnsd_set_srv(d, r, 0, 0, port, nlocal);
 	r = mdnsd_unique(d, nlocal, QTYPE_A, 600, conflict, NULL);
-	mdnsd_set_raw(d, r, (char *)&ip.s_addr, 4);
+	mdnsd_set_ip(d, r, ip_addr);
+	r = mdnsd_unique(d, nlocal, QTYPE_AAAA, 600, conflict, NULL);
+	mdnsd_set_ipv6(d, r, ip6_addr);
 
 	r = mdnsd_unique(d, hlocal, QTYPE_TXT, 600, conflict, NULL);
 	h = xht_new(11);

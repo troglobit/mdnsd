@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #define SYSLOG_NAMES
 #include <ctype.h>
 #include <stdio.h>
@@ -36,9 +37,34 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include "mdnsd.h"
 
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
+#endif
+
+#ifndef INTERNAL_NOPRI		/* Illumos/SmartOS/Bionic */
+#define INTERNAL_NOPRI 0x10
+
+struct {
+	char *c_name;
+	int   c_val;
+} prioritynames[] =
+  {
+    { "alert",   LOG_ALERT },
+    { "crit",    LOG_CRIT },
+    { "debug",   LOG_DEBUG },
+    { "emerg",   LOG_EMERG },
+    { "error",   LOG_ERR },
+    { "err",     LOG_ERR },
+    { "info",    LOG_INFO },
+    { "none",    INTERNAL_NOPRI },
+    { "notice",  LOG_NOTICE },
+    { "panic",   LOG_EMERG },
+    { "warning", LOG_WARNING },
+    { "warn",    LOG_WARNING },
+    { NULL, -1 }
+  };
 #endif
 
 static int do_syslog = 0;
@@ -76,7 +102,7 @@ void mdnsd_log_open(const char *ident)
 	do_syslog = 1;
 }
 
-void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len)
+void mdnsd_log_hex(const char *msg, unsigned char *buffer, ssize_t len)
 {
 	char ascii[17];
 	int i;

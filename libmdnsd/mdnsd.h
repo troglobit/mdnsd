@@ -31,7 +31,7 @@
 #define LIB_MDNSD_H_
 
 #include "1035.h"
-#include <arpa/inet.h>
+#include "inet.h"
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -62,6 +62,7 @@ typedef struct mdns_answer {
 	unsigned short int rdlen;
 	unsigned char *rdata;
 	struct in_addr ip;	/* A, network byte order */
+	struct in6_addr ip6;	/* AAAA, network byte order */
 	char *rdname;		/* NS/CNAME/PTR/SRV */
 	struct {
 		unsigned short int priority, weight, port;
@@ -90,7 +91,7 @@ void mdnsd_log_time(struct timeval *tv, char *buf, size_t len);
 /**
  * HEX dump a buffer to log
  */
-void mdnsd_log_hex(char *msg, unsigned char *buffer, ssize_t len);
+void mdnsd_log_hex(const char *msg, unsigned char *buffer, ssize_t len);
 
 /**
  * Log to syslog or stdio
@@ -104,6 +105,12 @@ void mdnsd_log(int severity, const char *fmt, ...);
 mdns_daemon_t *mdnsd_new(int class, int frame);
 
 /**
+ * Set the daemon's transport address family, AF_INET (default) or
+ * AF_INET6.  Selects the multicast group mdnsd_out() targets.
+ */
+void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family);
+
+/**
  * Set mDNS daemon host IP address
  */
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr);
@@ -112,6 +119,16 @@ void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr);
  * Get mDNS daemon host IP address from previous set
  */
 struct in_addr mdnsd_get_address(mdns_daemon_t *d);
+
+/**
+ * Set mDNS daemon host IPv6 address
+ */
+void mdnsd_set_ipv6_address(mdns_daemon_t *d, struct in6_addr addr);
+
+/**
+ * Get mDNS daemon host IPv6 address from previous set
+ */
+struct in6_addr mdnsd_get_ipv6_address(mdns_daemon_t *d);
 
 /**
  * Gracefully shutdown the daemon, use mdnsd_out() to get the last
@@ -142,16 +159,16 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 /**
  * Oncoming message from host (to be cached/processed)
  */
-int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned short port);
+int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from);
 
 /**
  * Outgoing messge to be delivered to host, returns >0 if one was
- * returned and m/ip/port set
+ * returned and m/to set
  */
-int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port);
+int mdnsd_out(mdns_daemon_t *d, struct message *m, inet_addr_t *to);
 
 /**
- * returns the max wait-time until mdnsd_out() needs to be called again 
+ * returns the max wait-time until mdnsd_out() needs to be called again
  */
 struct timeval *mdnsd_sleep(mdns_daemon_t *d);
 
@@ -205,7 +222,7 @@ const mdns_answer_t *mdnsd_record_data(const mdns_record_t *r);
 mdns_record_t *mdnsd_unique(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl, void (*conflict)(char *host, int type, void *arg), void *arg);
 
 
-/** 
+/**
  * Create a new shared record
  */
 mdns_record_t *mdnsd_shared(mdns_daemon_t *d, const char *host, unsigned short type, unsigned long ttl);
@@ -238,6 +255,7 @@ void mdnsd_done(mdns_daemon_t *d, mdns_record_t *r);
 void mdnsd_set_raw(mdns_daemon_t *d, mdns_record_t *r, const char *data, unsigned short len);
 void mdnsd_set_host(mdns_daemon_t *d, mdns_record_t *r, const char *name);
 void mdnsd_set_ip(mdns_daemon_t *d, mdns_record_t *r, struct in_addr ip);
+void mdnsd_set_ipv6(mdns_daemon_t *d, mdns_record_t *r, struct in6_addr ip6);
 void mdnsd_set_srv(mdns_daemon_t *d, mdns_record_t *r, unsigned short priority, unsigned short weight, unsigned short port, char *name);
 
 /**
@@ -250,4 +268,27 @@ int mdnsd_step(mdns_daemon_t *d, int mdns_socket, bool processIn, bool processOu
  * Returns none
  */
 void records_clear(mdns_daemon_t *d);
+
+/**
+ * Multi-address support: set all IPv4 addresses for a given host name.
+ * Adds missing A records and removes stale ones.
+ * Returns 0 on success.
+ */
+int mdnsd_set_addresses_for_host(mdns_daemon_t *d, const char *host,
+								 const struct in_addr *addrs, size_t count);
+
+/**
+ * Multi-address support: set all IPv6 addresses for a given host name.
+ * Adds missing AAAA records and removes stale ones.
+ * Returns 0 on success.
+ */
+int mdnsd_set_ipv6_addresses_for_host(mdns_daemon_t *d, const char *host,
+									  const struct in6_addr *addrs, size_t count);
+
+/**
+ * Automatic interface discovery: update all published host A/AAAA records
+ * to match all addresses currently assigned to the given interface.
+ * Returns 0 on success.
+ */
+int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname);
 #endif	/* LIB_MDNSD_H_ */

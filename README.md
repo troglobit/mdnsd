@@ -1,10 +1,12 @@
 mdnsd - embeddable Multicast DNS Daemon
 =======================================
-[![License Badge][]][License] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
+[![License svg][]][License] [![Release svg][]][Release] [![Repology svg][]][Repology] [![GitHub svg][]][GitHub] [![Coverity svg][]][Coverity]
 
 - [About](#about)
+- [Features](#features)
 - [Usage](#usage)
   - [Service Records](#service-records)
+  - [Resolving .local Names](#resolving-local-names)
 - [Build & Install](#build--install)
 - [Origin & References](#origin--references)
 
@@ -12,11 +14,32 @@ mdnsd - embeddable Multicast DNS Daemon
 About
 -----
 
-[Jeremie Miller's][jeremie] original mDNS/mDNS-SD library daemon.
+`mdnsd` is a small Multicast DNS and DNS-SD (service discovery) responder
+and library for advertising hosts and services on the local link.  It
+descends from [Jeremie Miller's][jeremie] original mDNS/mDNS-SD daemon.
 
-Download a [relased tarball][releases] (not a GitHub zip) to unlock a
-fully supported version.  Hardcore devs. can proceed to clone the GIT
-repository, see below for help.
+> Download a [versioned relased tarball][releases] (not a GitHub zip) to
+> unlock a fully supported version.  Hardcore devs. can proceed to clone
+> the GIT repository, see below for help.
+
+
+Features
+--------
+
+- Dual-stack: answers over IPv4 (`224.0.0.251`) and IPv6 (`ff02::fb`),
+  with A and AAAA records for the host and its services.
+- RFC 6763 (DNS-SD) compliant.  Service `PTR` records point at the
+  service instance, so they show up in `avahi-browse`, `mdns-scan`, and
+  the like.  Responses bundle the matching `SRV`, `TXT`, and address
+  records in the additional section, so clients skip the follow-ups.
+  Key-only `TXT` attributes (boolean flags) work too.
+- Multiple addresses per interface, with all of a host's services under
+  one host name.
+- Tracks interface and address changes in real time over netlink, no
+  poll cycle.
+- A small embeddable C library (`libmdnsd`), the `mdnsd` daemon, and the
+  `mquery` scan/debug tool.
+- Runs on GNU/Linux and the BSDs.
 
 
 Usage
@@ -25,13 +48,13 @@ Usage
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
 different path can be given, which may be a directory or a single file.
 
-    Usage: mdnsd [-hnpsv] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]
+    Usage: mdnsd [-hnsv] [-H NAME] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]
     
+        -H NAME   Hostname to advertise, default: system hostname
         -h        This help text
         -i IFACE  Announce services only on this interface, default: all
         -l LEVEL  Set log level: none, err, notice (default), info, debug
         -n        Run in foreground, do not detach from controlling terminal
-        -p        Persistent mode, retry if the socket or interface is lost
         -s        Use syslog even if running in foreground
         -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
         -v        Show program version
@@ -41,17 +64,15 @@ different path can be given, which may be a directory or a single file.
 By default mdnsd daemonizes, detaches from the controlling terminal and
 continues running in the background, logging errors (or debug messages
 if enabled) to the systmem log.  There is no output to be expected.  On
-GNU/Linux, use `mdns-scan` or Wireshark to verify your setup.  Other
-operating systems have their own set of tools for mDNS-SD and mdnsd may
-not even have a place there.
+GNU/Linux, use `mdns-scan`, the bundled `mquery` tool, or Wireshark to
+verify your setup.  Other operating systems have their own set of tools
+for mDNS-SD and mdnsd may not even have a place there.
 
-mdnsd currently only runs on one system interface.  To figure out which
-to use, the system routing table is queried, specifically the default
-route.  To run on systems without a default route, e.g. a link-local
-only system, use `-i IFACE`.  Starting mdnsd early in the boot process
-means the system may not yet have acquired an IP address, or the
-interface itself may not even exist yet, in which case `-p` may likely
-also help.
+mdnsd runs on all multicast enabled system interfaces.  It can be limted
+to run on only one using the `-i IFACE` command line option.  Starting
+mdnsd early in the boot process, when the interface may not yet have
+acquired an IP address, or the interface itself may not even exist yet,
+mdnsd handles this by periodically probing for interface changes.
 
 See the file [API.md][] for pointers on how to use the mDNS library.
 
@@ -60,7 +81,9 @@ See the file [API.md][] for pointers on how to use the mDNS library.
 
 This section provides a couple of service record examples.  The syntax
 of the files is fairly free form.  Optional directives: `name`, `txt`,
-`target`, and `cname`.
+`target`, and `cname`.  See the **mdnsd.service(5)** manual for the full
+file format; in particular `target` sets the host the service's `SRV`
+record points to, while the service `PTR` always points to the instance.
 
 > **Note:** you need at least one service record for `mdnsd` to respond
 > to queries from, e.g., `mdns-scan`.
@@ -73,7 +96,6 @@ _FTP service example:_
     port 21
     txt server=uftpd
     txt version=2.6
-    target ftp.luthien.local
     cname ftp.local
 
 _HTTP service example:_
@@ -84,7 +106,6 @@ _HTTP service example:_
     port 80
     txt server=merecat
     txt version=2.31
-    target www.luthien.local
     cname home.local
 
 _SSH service example:_
@@ -95,12 +116,30 @@ _SSH service example:_
     port 22
 
 
+### Resolving .local Names
+
+`mdnsd` advertises this host and answers queries for it; it does not make
+the system resolver mDNS-aware.  To let programs on the host resolve
+`.local` names, e.g., `ping foo.local` or `getaddrinfo()`, install the
+libnss-mdns package and add it to `/etc/nsswitch.conf`:
+
+    hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4
+
+The two halves are complementary: `mdnsd` answers for the names it
+advertises, while libnss-mdns resolves everyone else's.  libnss-mdns
+issues its own queries, so nothing extra needs to run, and it coexists
+with `mdnsd` on port 5353.
+
+> **Note:** run either `mdnsd` or `avahi-daemon`, not both; two
+> responders on the same link would answer over each other.
+
+
 Build & Install
 ---------------
 
 This project is built for and developed on GNU/Linux systems, but should
-work on any UNIX like system.  Use the standard GNU configure script to
-create a Makefile for your system and then call make.
+work on any UNIX[^1] like system.  Use the standard GNU configure script
+to create a Makefile for your system and then call make.
 
     ./configure
     make all
@@ -108,7 +147,12 @@ create a Makefile for your system and then call make.
 
 Users who checked out the source from GitHub must run `./autogen.sh`
 first to create the configure script.  This requires GNU autotools and
-`pkg-config` to be installed on the build system.
+`pkg-config` to be installed on the build system.  For the test suite
+you also need `libcmocka-dev`.
+
+IPv6 support is built by default; pass `--disable-ipv6` to leave it out.
+To resolve `.local` names on the host, also install the `libnss-mdns`
+package, see [Resolving .local Names](#resolving-local-names) above.
 
 If you install to the default location used by the configure script,
 the library is installed in `/usr/local/lib`, which may not be in
@@ -122,26 +166,34 @@ may need to update the cache:
 If you don't get any output from the above command, the ld.so.conf needs
 updating, or you may not be using the GNU C library.
 
+[^1]: Builds and runs fine on: FreeBSD, NetBSD, OpenBSD, DragonFly BSD,
+    and Illumos/SmartOS.
+
 
 Origin & References
 -------------------
 
 This mDNS-SD implementation was developed by [Jeremie Miller][jeremie]
 in 2003, originally [announced on the rendezvous-dev][announced] mailing
-list.  It has many forks and has been used by many other applications
-over the years.
+list.  The original name was 'mhttp'.  It has many forks and has been
+used by many other applications over the years.
 
-This GitHub project is an attempt to clean it up, develop it further,
-and maintain it for the long haul.
+The GitHub project is an attempt by [Joachim Wiberg][troglobit] to clean
+up the original code base, develop it further, and maintain it for the
+long haul under the name `mdnsd`.
 
-
-[jeremie]:         https://github.com/quartzjer
-[releases]:        https://github.com/troglobit/mdnsd/releases
-[announced]:       https://web.archive.org/web/20140115142008/http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
-[API.md]:          https://github.com/troglobit/mdnsd/blob/master/API.md
-[License]:         https://en.wikipedia.org/wiki/BSD_licenses
-[License Badge]:   https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
-[GitHub]:          https://github.com/troglobit/mdnsd/actions/workflows/build.yml/
-[GitHub Status]:   https://github.com/troglobit/mdnsd/actions/workflows/build.yml/badge.svg
-[Coverity Scan]:   https://scan.coverity.com/projects/20680
-[Coverity Status]: https://scan.coverity.com/projects/20680/badge.svg
+[jeremie]:      https://github.com/quartzjer
+[troglobit]:    https://github.com/troglobit
+[releases]:     https://github.com/troglobit/mdnsd/releases
+[announced]:    https://web.archive.org/web/20140115142008/http://lists.apple.com/archives/rendezvous-dev/2003/Feb/msg00062.html
+[API.md]:       https://github.com/troglobit/mdnsd/blob/master/API.md
+[License]:      https://en.wikipedia.org/wiki/BSD_licenses
+[License svg]:  https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
+[Release]:      https://github.com/troglobit/mdnsd/releases
+[Release svg]:  https://img.shields.io/github/v/release/troglobit/mdnsd
+[Repology]:     https://repology.org/project/mdnsd/versions
+[Repology svg]: https://repology.org/badge/tiny-repos/mdnsd.svg
+[GitHub]:       https://github.com/troglobit/mdnsd/actions/workflows/build.yml/
+[GitHub svg]:   https://github.com/troglobit/mdnsd/actions/workflows/build.yml/badge.svg
+[Coverity]:     https://scan.coverity.com/projects/20680
+[Coverity svg]: https://scan.coverity.com/projects/20680/badge.svg

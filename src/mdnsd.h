@@ -30,9 +30,8 @@
 #ifndef MDNSD_H_
 #define MDNSD_H_
 
-#include "config.h"
-
 #include <net/if.h>		/* IFNAMSIZ */
+#include <netinet/in.h>
 #include <libmdnsd/mdnsd.h>
 #include <libmdnsd/sdtxt.h>
 
@@ -43,17 +42,37 @@
 #define NELEMS(array) (sizeof(array) / sizeof((array)[0]))
 #endif
 
+#ifndef IN_ZERONET
+#define IN_ZERONET(addr) ((addr & IN_CLASSA_NET) == 0)
+#endif
+
+#ifndef IN_LOOPBACK
+#define IN_LOOPBACK(addr) ((addr & IN_CLASSA_NET) == 0x7f000000)
+#endif
+
+#ifndef IN_LINKLOCAL
+#define IN_LINKLOCALNETNUM 0xa9fe0000
+#define IN_LINKLOCAL(addr) ((addr & IN_CLASSB_NET) == IN_LINKLOCALNETNUM)
+#endif
+
 struct iface {
 	TAILQ_ENTRY(iface) link;
 	char               unused;
 	char               changed;
 
 	char               ifname[IFNAMSIZ];
-	int                ifindex;		/* Physical interface index   */
-	struct in_addr     inaddr;		/* == 0 for non IP interfaces */
+	int                ifindex;          /* Physical interface index   */
+	struct in_addr     inaddr;           /* == 0 for non IP interfaces */
+	struct in_addr     inaddr_old;
+	struct in6_addr    in6addr;          /* == :: for non IP interfaces */
+	struct in6_addr    in6addr_old;
+
 	int                sd;
+	int                sd6;              /* IPv6 multicast socket      */
 
 	mdns_daemon_t     *mdns;
+	mdns_daemon_t     *mdns6;            /* IPv6 transport context     */
+	int                hostid;           /* init to 1, +1 on conflict  */
 };
 
 void mdnsd_conflict(char *name, int type, void *arg);
@@ -61,13 +80,12 @@ void mdnsd_conflict(char *name, int type, void *arg);
 /* addr.c */
 struct iface *iface_iterator(int first);
 struct iface *iface_find(const char *ifname);
-int           iface_update(char *ifname);
-
+void          iface_free(struct iface *iface);
 void          iface_init(char *ifname);
 void          iface_exit(void);
 
 /* conf.c */
-int conf_init(mdns_daemon_t *d, char *path, int hostid);
+int conf_init(struct iface *iface, const char *path, const char *hostnm);
 
 /* replacement functions for systems that don't have them  */
 #ifndef HAVE_PIDFILE
@@ -77,5 +95,26 @@ int pidfile(const char *basename);
 #ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
+
+static inline int is_linklocal(struct in_addr *ina)
+{
+	return IN_LINKLOCAL(ntohl(ina->s_addr));
+}
+
+static inline int is_zeronet(struct in_addr *ina)
+{
+	return IN_ZERONET(ntohl(ina->s_addr));
+}
+
+static inline int is_add_valid(struct in_addr *ina)
+{
+	in_addr_t addr;
+
+	addr = ntohl(ina->s_addr);
+	if (IN_ZERONET(addr) || IN_LOOPBACK(addr) || IN_LINKLOCAL(addr))
+		return 0;
+
+	return 1;
+}
 
 #endif /* MDNSD_H_ */

@@ -38,6 +38,18 @@
 #define MDNS_1035_H_
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+/*
+ * At least FreeBSD, OpenBSD and NexentaCore do not define the
+ * s6_addr32, s6_addr8, and s6_addr16 for user land.
+ */
+#if !defined s6_addr32 && defined __sun__
+# define s6_addr32 _S6_un._S6_u32
+#elif !defined s6_addr32 && ( defined __OpenBSD__ || defined __FreeBSD__ || defined __NetBSD__ )
+# define s6_addr32 __u6_addr.__u6_addr32
+#endif  /* !defined s6_addr32 */
 
 /* Should be reasonably large, for UDP */
 #define MAX_PACKET_LEN 65535
@@ -53,6 +65,7 @@ struct question {
 #define QTYPE_CNAME  5
 #define QTYPE_PTR    12
 #define QTYPE_TXT    16
+#define QTYPE_AAAA   28
 #define QTYPE_SRV    33
 #define QTYPE_ANY    255
 
@@ -67,6 +80,10 @@ struct resource {
 			struct in_addr ip;
 			char *name;
 		} a;
+		struct {
+			struct in6_addr ip6;
+			char *name;
+		} aaaa;
 		struct {
 			char *name;
 		} ns;
@@ -141,7 +158,9 @@ void message_ar(struct message *m, char *name, unsigned short int type, unsigned
 /**
  * Append various special types of resource data blocks
  */
-void message_rdata_long (struct message *m, struct in_addr l);
+void message_rdata_long (struct message *m, unsigned long l);
+void message_rdata_ipv4 (struct message *m, struct in_addr a);
+void message_rdata_ipv6 (struct message *m, struct in6_addr a6);
 void message_rdata_name (struct message *m, char *name);
 void message_rdata_srv  (struct message *m, unsigned short int priority, unsigned short int weight,
 			 unsigned short int port, char *name);
