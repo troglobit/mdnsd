@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd Jan 4 2022
+.Dd Jun 25 2026
 .Dt MQUERY 1
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Sh SYNOPSIS
 .Nm mquery
 .Op Fl hDsTv
+.Op Fl 6
 .Op Fl i Ar IFACE
 .Op Fl d Ar HOST
 .Op Fl t Ar TYPE
@@ -58,6 +59,8 @@ the initial query, by default
 This program follows the usual UNIX command line syntax. The options are
 as follows:
 .Bl -tag
+.It Fl 6
+Query over IPv6 (the ff02::fb group) instead of IPv4.
 .It Fl h
 Print a bare bones help message and exits.
 .It Fl D
@@ -104,16 +107,14 @@ query to the respondent.  This option skips that specific scan and runs
 in a simple mode.
 .It Fl t Ar TYPE
 Query type, default 12 (PTR).
-.It Fl h
-Print a help message and exit.
 .It Fl v
 Show program version.
 .It Fl w Ar SEC
 Delay (approximate) in seconds before automatically exiting.
 .El
 .Sh SEE ALSO
-.Xr mdns-scan 1
 .Xr mdnsd 8 ,
+.Xr mdns-scan 1
 .Sh AUTHORS
 This mDNS-SD implementation was created in 2003 by
 .An Jeremie Miller Aq jer@jabber.org .

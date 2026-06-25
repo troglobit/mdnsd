@@ -265,13 +265,14 @@ static void sig_init(void)
 
 static int usage(int code)
 {
-	printf("Usage: %s [-hnsv] "
+	printf("Usage: %s [-hnsv] [-H NAME] "
 #ifdef HAVE_SO_BINDTODEVICE
 	       "[-i IFACE] "
 #endif
 	       "[-l LEVEL] [-t TTL] [PATH]\n"
 	       "\n"
 	       "Options:\n"
+	       "    -H NAME   Hostname to advertise, default: system hostname\n"
 	       "    -h        This help text\n"
 #ifdef HAVE_SO_BINDTODEVICE
 	       "    -i IFACE  Interface to announce services on, and get address from\n"

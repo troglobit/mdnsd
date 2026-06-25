@@ -3,8 +3,10 @@ mdnsd - embeddable Multicast DNS Daemon
 [![License svg][]][License] [![Release svg][]][Release] [![Repology svg][]][Repology] [![GitHub svg][]][GitHub] [![Coverity svg][]][Coverity]
 
 - [About](#about)
+- [Features](#features)
 - [Usage](#usage)
   - [Service Records](#service-records)
+  - [Resolving .local Names](#resolving-local-names)
 - [Build & Install](#build--install)
 - [Origin & References](#origin--references)
 
@@ -12,11 +14,32 @@ mdnsd - embeddable Multicast DNS Daemon
 About
 -----
 
-[Jeremie Miller's][jeremie] original mDNS/mDNS-SD library daemon.
+`mdnsd` is a small Multicast DNS and DNS-SD (service discovery) responder
+and library for advertising hosts and services on the local link.  It
+descends from [Jeremie Miller's][jeremie] original mDNS/mDNS-SD daemon.
 
 > Download a [versioned relased tarball][releases] (not a GitHub zip) to
 > unlock a fully supported version.  Hardcore devs. can proceed to clone
 > the GIT repository, see below for help.
+
+
+Features
+--------
+
+- Dual-stack: answers over IPv4 (`224.0.0.251`) and IPv6 (`ff02::fb`),
+  with A and AAAA records for the host and its services.
+- RFC 6763 (DNS-SD) compliant.  Service `PTR` records point at the
+  service instance, so they show up in `avahi-browse`, `mdns-scan`, and
+  the like.  Responses bundle the matching `SRV`, `TXT`, and address
+  records in the additional section, so clients skip the follow-ups.
+  Key-only `TXT` attributes (boolean flags) work too.
+- Multiple addresses per interface, with all of a host's services under
+  one host name.
+- Tracks interface and address changes in real time over netlink, no
+  poll cycle.
+- A small embeddable C library (`libmdnsd`), the `mdnsd` daemon, and the
+  `mquery` scan/debug tool.
+- Runs on GNU/Linux and the BSDs.
 
 
 Usage
@@ -25,8 +48,9 @@ Usage
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
 different path can be given, which may be a directory or a single file.
 
-    Usage: mdnsd [-hnpsv] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]
+    Usage: mdnsd [-hnsv] [-H NAME] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]
     
+        -H NAME   Hostname to advertise, default: system hostname
         -h        This help text
         -i IFACE  Announce services only on this interface, default: all
         -l LEVEL  Set log level: none, err, notice (default), info, debug
@@ -92,6 +116,24 @@ _SSH service example:_
     port 22
 
 
+### Resolving .local Names
+
+`mdnsd` advertises this host and answers queries for it; it does not make
+the system resolver mDNS-aware.  To let programs on the host resolve
+`.local` names, e.g., `ping foo.local` or `getaddrinfo()`, install the
+libnss-mdns package and add it to `/etc/nsswitch.conf`:
+
+    hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4
+
+The two halves are complementary: `mdnsd` answers for the names it
+advertises, while libnss-mdns resolves everyone else's.  libnss-mdns
+issues its own queries, so nothing extra needs to run, and it coexists
+with `mdnsd` on port 5353.
+
+> **Note:** run either `mdnsd` or `avahi-daemon`, not both; two
+> responders on the same link would answer over each other.
+
+
 Build & Install
 ---------------
 
@@ -107,6 +149,10 @@ Users who checked out the source from GitHub must run `./autogen.sh`
 first to create the configure script.  This requires GNU autotools and
 `pkg-config` to be installed on the build system.  For the test suite
 you also need `libcmocka-dev`.
+
+IPv6 support is built by default; pass `--disable-ipv6` to leave it out.
+To resolve `.local` names on the host, also install the `libnss-mdns`
+package, see [Resolving .local Names](#resolving-local-names) above.
 
 If you install to the default location used by the configure script,
 the library is installed in `/usr/local/lib`, which may not be in
