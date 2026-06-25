@@ -26,6 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include <errno.h>
 #include <sys/types.h>		/* needed for u_int on DragonFly BSD */
 #include <ifaddrs.h>

@@ -29,10 +29,8 @@
 #ifndef MDNSD_MCSOCK_H_
 #define MDNSD_MCSOCK_H_
 
-
 #include <netinet/in.h>  /* in_addr */
 #include <net/if.h>      /* IFNAMSIZ */
-
 
 struct ifnfo {
 	char               ifname[IFNAMSIZ]; /**< Interface name */

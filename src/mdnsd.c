@@ -27,6 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include <getopt.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -41,7 +43,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "config.h"
 #include "mcsock.h"
 #include "mdnsd.h"
 #include "netlink.h"

@@ -30,8 +30,6 @@
 #ifndef MDNSD_H_
 #define MDNSD_H_
 
-#include "config.h"
-
 #include <net/if.h>		/* IFNAMSIZ */
 #include <netinet/in.h>
 #include <libmdnsd/mdnsd.h>
