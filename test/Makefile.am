@@ -35,26 +35,26 @@ TESTS             += sdtxt
 xht_SOURCES        = xht.c
 xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
 
-addr_SOURCES       = addr_test.c
+addr_SOURCES       = addr.c
 addr_LDADD         = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS) ../src/addr.o
 # Link libmdnsd statically so --wrap intercepts the getifaddrs() call
 # inside the library too, not just the copy in ../src/addr.o.
 addr_LDFLAGS       = -static -Wl,--wrap=getifaddrs -Wl,--wrap=freeifaddrs
 
-# answer_test.c #includes mdnsd.c to reach the static _a_copy(), so it
+# answer.c #includes mdnsd.c to reach the static _a_copy(), so it
 # compiles the library sources here rather than linking libmdnsd.la.
-answer_SOURCES     = answer_test.c ../libmdnsd/1035.c ../libmdnsd/xht.c \
+answer_SOURCES     = answer.c ../libmdnsd/1035.c ../libmdnsd/xht.c \
                      ../libmdnsd/sdtxt.c ../libmdnsd/log.c ../libmdnsd/inet.c
 answer_CPPFLAGS    = $(AM_CPPFLAGS)
 answer_LDADD       = $(cmocka_LIBS) $(LIBOBJS)
 
-# label_test.c #includes 1035.c to reach the static _lmatch(); the codec
+# label.c #includes 1035.c to reach the static _lmatch(); the codec
 # is self-contained, so no extra library sources are needed.
-label_SOURCES      = label_test.c
+label_SOURCES      = label.c
 label_CPPFLAGS     = $(AM_CPPFLAGS)
 label_LDADD        = $(cmocka_LIBS) $(LIBOBJS)
 
 # sd2txt()/txt2sd() are public, so this one links the library normally.
-sdtxt_SOURCES      = sdtxt_test.c
+sdtxt_SOURCES      = sdtxt.c
 sdtxt_LDADD        = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
 endif
