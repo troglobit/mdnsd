@@ -6,8 +6,8 @@ files
 libmdnsd-dev/
 libmdnsd-dev.*
 libmdnsd/
-libmdnsd1/
-libmdnsd1.*
+libmdnsd2/
+libmdnsd2.*
 mdnsd.debhelper.log
 mdnsd.substvars
 mdnsd.postinst.debhelper

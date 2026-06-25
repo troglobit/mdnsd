@@ -1,3 +1,62 @@
+mdnsd (1.0) stable; urgency=medium
+
+  * Full IPv6 support: mdnsd and mquery now query and answer over the
+    ff02::fb group, not just advertise AAAA records over IPv4 (issue #10)
+  * Support multiple IPv4/IPv6 addresses per interface, with all of a
+    host's services sharing one host name, by Thom Nichols, VoltServer
+    (issue #77)
+  * Track interface and address changes in real time over netlink,
+    instead of polling, on Linux
+  * mquery: add device discovery mode (-D/-d/-T)
+  * RFC 6763 compliance: the service PTR now points at the service
+    instance, and responses carry the matching SRV, TXT, and address
+    records in the additional section (issues #76, #80)
+  * Keep key-only TXT attributes (boolean flags) instead of dropping
+    them (issue #58)
+  * Resolve .local names on the host with libnss-mdns; the mdnsd package
+    now Recommends it (issue #19)
+  * libmdnsd: installed headers no longer pull in the build's config.h,
+    so programs can build against the library again (issue #75)
+  * Send goodbye packets when an interface is removed, by Gavin J
+    (issue #91)
+  * Unify the shell and unit tests under one Automake harness (issue #66)
+  * Fix #37: _lmatch() read one byte past the root label
+  * Fix #79: mquery sent malformed packets when known-answer suppression
+    kicked in
+  * Fix #84: use-after-free of a freed record in uanswers
+  * Fix #92: use-after-free in mdnsd_set_interface_addresses
+  * Fix #82: conflict detection now considers all of an interface's
+    addresses, by Thom Nichols, VoltServer
+  * Fix a one-byte over-read in txt2sd(), and a memory overflow
+  * Library SONAME bumped to libmdnsd.so.2, so the runtime package is
+    now libmdnsd2 (was libmdnsd1)
+  * Packaging: debhelper compat 13, Standards-Version 4.6.2.0
+
+ -- Joachim Wiberg <troglobit@gmail.com>  Thu, 25 Jun 2026 12:00:00 +0200
+
+mdnsd (0.12) stable; urgency=medium
+
+  * libmdnsd, mquery, and mdnsd: add support for IPv6 AAAA records,
+    including display in mquery, by Florian Zschocke, devolo AG
+  * mdnsd: add -H hostname support, for testing purposes mainly
+  * mquery: add -l debug support
+  * mquery: display every answer received when in mdns-scan mode
+  * Initial support for a test framework, including cmocka unit tests
+  * Add support for disabling installation of man pages
+  * Add support for building without mquery
+  * Fix #11: port to other UNIX systems (FreeBSD, NetBSD, OpenBSD,
+    DragonFly BSD, and illumos/SmartOS)
+  * Fix #49: various typos in log messages
+  * Fix #52: double free, introduced in v0.11
+  * Fix #55: mDNS conflict check, by Florian Zschocke, devolo AG
+  * Fix #56: parse A records keeping network byte order, by Florian
+    Zschocke, devolo AG
+  * Fix #65: make SPRIME actually a prime number, by Florian Zschocke,
+    devolo AG
+  * Fix #74: segfault when the mdnsd interface is removed
+
+ -- Joachim Wiberg <troglobit@gmail.com>  Sun, 22 Jan 2023 12:00:00 +0100
+
 mdnsd (0.11) stable; urgency=medium
 
   * Add support for multiple interfaces, similar to running one

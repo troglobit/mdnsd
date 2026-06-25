@@ -4,11 +4,11 @@ Source: https://github.com/troglobit/mdnsd
 
 Files: *
 Copyright: 2003  Jeremie Miller <jer@jabber.org>
-           2016-2021  Joachim Wiberg <troglobit@gmail.com>
+           2016-2026  Joachim Wiberg <troglobit@gmail.com>
 License: BSD
 
 Files: debian/*
-Copyright: Copyright 2018-2021  Joachim Wiberg <troglobit@gmail.com>
+Copyright: 2018-2026  Joachim Wiberg <troglobit@gmail.com>
 License: BSD
 
 License: BSD
