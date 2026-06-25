@@ -63,15 +63,27 @@ static int   ttl         = 255;
  * Create a multicast socket and bind it to the given interface.
  * Conclude by joining 224.0.0.251:5353 to hear others.
  */
-static int multicast_socket(struct iface *iface, unsigned char ttl)
+static int multicast_socket(struct iface *iface, unsigned char ttl, sa_family_t family)
 {
-	struct ifnfo ifa;
+	struct ifnfo ifa = { 0 };
+
 	memcpy(ifa.ifname, iface->ifname, sizeof(ifa.ifname));
 	ifa.ifindex = iface->ifindex;
 	ifa.inaddr = iface->inaddr;
+
+#ifdef ENABLE_IPV6
+	if (family == AF_INET6)
+		return mdns_socket6(&ifa, ttl);
+#else
+	(void)family;
+#endif
 	return mdns_socket(&ifa, ttl);
 }
 
+/*
+ * Each transport context (v4 and v6) defends its own name, so a conflict
+ * on either triggers a reload that re-probes both -- deliberate, not a bug.
+ */
 void mdnsd_conflict(char *name, int type, void *arg)
 {
 	struct iface *iface = (struct iface *)arg;
@@ -135,6 +147,18 @@ static void free_iface(struct iface *iface)
 	iface->mdns = NULL;
 	if (iface->sd >= 0)
 		close(iface->sd);
+
+#ifdef ENABLE_IPV6
+	if (iface->mdns6) {
+		mdnsd_shutdown(iface->mdns6);
+		if (iface->sd6 >= 0)
+			mdnsd_step(iface->mdns6, iface->sd6, false, true, NULL);
+		mdnsd_free(iface->mdns6);
+		iface->mdns6 = NULL;
+		if (iface->sd6 >= 0)
+			close(iface->sd6);
+	}
+#endif
 	iface_free(iface);
 }
 
@@ -158,12 +182,28 @@ static void setup_iface(struct iface *iface)
 	}
 
 	if (iface->sd < 0) {
-		iface->sd = multicast_socket(iface, (unsigned char)ttl);
+		iface->sd = multicast_socket(iface, (unsigned char)ttl, AF_INET);
 		if (iface->sd < 0) {
 			ERR("Failed creating socket: %s", strerror(errno));
 			exit(1);
 		}
 	}
+
+#ifdef ENABLE_IPV6
+	/* IPv6 is best-effort: degrade to IPv4-only if it cannot be set up */
+	if (iface->sd6 < 0)
+		iface->sd6 = multicast_socket(iface, (unsigned char)ttl, AF_INET6);
+
+	if (iface->sd6 >= 0 && !iface->mdns6) {
+		iface->mdns6 = mdnsd_new(QCLASS_IN, 1000);
+		if (!iface->mdns6) {
+			ERR("Failed creating mDNS context for interface %s: %s", iface->ifname, strerror(errno));
+			exit(1);
+		}
+		mdnsd_set_family(iface->mdns6, AF_INET6);
+		mdnsd_register_receive_callback(iface->mdns6, record_received, NULL);
+	}
+#endif
 
 	/*
 	 * Reconfigure in place: conf_init() reuses records and the reconcile
@@ -361,6 +401,13 @@ int main(int argc, char *argv[])
 			FD_SET(iface->sd, &fds);
 			if (iface->sd > nfds)
 				nfds = iface->sd;
+#ifdef ENABLE_IPV6
+			if (iface->sd6 >= 0) {
+				FD_SET(iface->sd6, &fds);
+				if (iface->sd6 > nfds)
+					nfds = iface->sd6;
+			}
+#endif
 		}
 
 		if (nfds > 0)
@@ -375,6 +422,10 @@ int main(int argc, char *argv[])
 				sys_init();
 				for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
 					records_clear(iface->mdns);
+#ifdef ENABLE_IPV6
+					if (iface->mdns6)
+						records_clear(iface->mdns6);
+#endif
 					conf_init(iface, path, hostnm);
 				}
 				pidfile(PACKAGE_NAME);
@@ -401,18 +452,29 @@ int main(int argc, char *argv[])
 				continue;
 
 			rc = mdnsd_step(iface->mdns, iface->sd, FD_ISSET(iface->sd, &fds), true, &next);
-			if (!rc) {
-				if (tv.tv_sec > next.tv_sec)
-					tv = next;
+			if (rc) {
+				if (rc == 1)
+					ERR("Failed reading from socket %d: %s", errno, strerror(errno));
+				if (rc == 2)
+					ERR("Failed writing to socket: %s", strerror(errno));
+
+				free_iface(iface);
 				continue;
 			}
+			if (tv.tv_sec > next.tv_sec)
+				tv = next;
 
-			if (rc == 1)
-				ERR("Failed reading from socket %d: %s", errno, strerror(errno));
-			if (rc == 2)
-				ERR("Failed writing to socket: %s", strerror(errno));
-
-			free_iface(iface);
+#ifdef ENABLE_IPV6
+			if (iface->mdns6 && iface->sd6 >= 0) {
+				rc = mdnsd_step(iface->mdns6, iface->sd6, FD_ISSET(iface->sd6, &fds), true, &next);
+				if (rc) {
+					ERR("%s: IPv6 socket error, disabling IPv6", iface->ifname);
+					close(iface->sd6);
+					iface->sd6 = -1;
+				} else if (tv.tv_sec > next.tv_sec)
+					tv = next;
+			}
+#endif
 		}
 	}
 

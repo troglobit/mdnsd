@@ -70,8 +70,10 @@ struct iface {
 	struct in6_addr    in6addr_old;
 
 	int                sd;
+	int                sd6;              /* IPv6 multicast socket      */
 
 	mdns_daemon_t     *mdns;
+	mdns_daemon_t     *mdns6;            /* IPv6 transport context     */
 	int                hostid;           /* init to 1, +1 on conflict  */
 };
 

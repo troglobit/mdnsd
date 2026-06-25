@@ -218,7 +218,12 @@ static int ans(mdns_answer_t *a, void *arg)
 		if (!spec)
 			mdnsd_query(d, a->rdname, a->type, ans, a->rdname);
 
-		printf("+ %s (%s)\n", a->rdname, inet_ntoa(a->ip));
+		/* The responder address may be v4 or v6 */
+		if (a->ip.s_addr)
+			inet_ntop(AF_INET, &a->ip, ipinput, sizeof(ipinput));
+		else
+			inet_ntop(AF_INET6, &a->ip6, ipinput, sizeof(ipinput));
+		printf("+ %s (%s)\n", a->rdname, ipinput);
 		return 0;
 	}
 
@@ -467,18 +472,25 @@ static void print_device_detail(void)
 	}
 }
 
-/* Create multicast 224.0.0.251:5353 socket */
-static int msock(char *ifname)
+/* Create the mDNS multicast socket for the given address family */
+static int msock(char *ifname, sa_family_t family)
 {
 	struct ifnfo ifa = { 0 };
+	struct ifnfo *iface = NULL;
 
 	if (ifname) {
 		memcpy(ifa.ifname, ifname, sizeof(ifa.ifname));
 		ifa.ifindex = if_nametoindex(ifname);
-		return mdns_socket(&ifa, 0);
+		iface = &ifa;
 	}
 
-	return mdns_socket(NULL, 0);
+#ifdef ENABLE_IPV6
+	if (family == AF_INET6)
+		return mdns_socket6(iface, 0);
+#else
+	(void)family;
+#endif
+	return mdns_socket(iface, 0);
 }
 
 
@@ -486,6 +498,9 @@ static int usage(int code)
 {
 	/* mquery -D -T    mquery -t 12 _http._tcp.local. */
 	printf("usage: mquery [-hDsTv] "
+#ifdef ENABLE_IPV6
+	       "[-6] "
+#endif
 #ifdef HAVE_SO_BINDTODEVICE
 	       "[-i IFNAME] "
 #endif
@@ -496,15 +511,14 @@ static int usage(int code)
 int main(int argc, char *argv[])
 {
 	struct message m;
-	struct in_addr ip;
-	unsigned short port;
 	ssize_t bsize;
 	socklen_t ssize;
 	unsigned char buf[MAX_PACKET_LEN];
 	char default_iface[IFNAMSIZ] = { 0 };
-	struct sockaddr_in from, to;
+	inet_addr_t from, to;
 	const char *name = DISCO_NAME;
 	char *ifname = NULL;
+	sa_family_t family = AF_INET;
 	int type = QTYPE_PTR;	/* 12 */
 	time_t start;
 	int wait = 0;
@@ -515,11 +529,20 @@ int main(int argc, char *argv[])
 #ifdef HAVE_SO_BINDTODEVICE
 			   "i:"
 #endif
+#ifdef ENABLE_IPV6
+			   "6"
+#endif
 			   "d:l:st:vw:")) != EOF) {
 		switch (c) {
 		case 'h':
 		case '?':
 			return usage(0);
+
+#ifdef ENABLE_IPV6
+		case '6':
+			family = AF_INET6;
+			break;
+#endif
 
 		case 'D':
 			devmode = 1;
@@ -572,7 +595,7 @@ int main(int argc, char *argv[])
 	if (!ifname)
 		ifname = getifname(default_iface, sizeof(default_iface));
 
-	sd = msock(ifname);
+	sd = msock(ifname, family);
 	if (sd == -1) {
 		printf("Failed creating multicast socket: %s\n", strerror(errno));
 		return 1;
@@ -581,6 +604,7 @@ int main(int argc, char *argv[])
 	d = mdnsd_new(1, 1000);
 	if (!d)
 		return 1;
+	mdnsd_set_family(d, family);
 
 	start = time(NULL);
 	if (devmode) {
@@ -606,12 +630,12 @@ int main(int argc, char *argv[])
 		select(sd + 1, &fds, 0, 0, tv);
 
 		if (FD_ISSET(sd, &fds)) {
-			ssize = sizeof(struct sockaddr_in);
+			ssize = sizeof(from);
 			while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, 0, (struct sockaddr *)&from, &ssize)) > 0) {
 				last_rx = time(NULL);
 				memset(&m, 0, sizeof(struct message));
 				if (message_parse(&m, buf) == 0)
-					mdnsd_in(d, &m, from.sin_addr, from.sin_port);
+					mdnsd_in(d, &m, &from);
 			}
 			if (bsize < 0 && errno != EAGAIN) {
 				printf("Failed reading from socket %d: %s\n", errno, strerror(errno));
@@ -619,14 +643,10 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		while (mdnsd_out(d, &m, &ip, &port)) {
+		while (mdnsd_out(d, &m, &to)) {
 			int len = message_packet_len(&m);
 
-			memset(&to, 0, sizeof(to));
-			to.sin_family = AF_INET;
-			to.sin_port = port;
-			to.sin_addr = ip;
-			if (sendto(sd, message_packet(&m), len, 0, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len) {
+			if (sendto(sd, message_packet(&m), len, 0, (struct sockaddr *)&to, inet_len(&to)) != len) {
 				printf("Failed writing to socket: %s\n", strerror(errno));
 				return 1;
 			}

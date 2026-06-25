@@ -118,6 +118,25 @@ browse()
 		|| FAIL "SRV target is not the shared host name"
 }
 
+# Browse over the IPv6 transport (ff02::fb).  See issue #10.
+browse6()
+{
+	# shellcheck disable=SC2154
+	../src/mquery -h 2>&1 | grep -q '\[-6\]' || SKIP "built without IPv6 support"
+
+	print "Browsing _ftp._tcp.local. over IPv6 ..."
+	mquery -6 -t 12 _ftp._tcp.local. >"$DIR/result6" || FAIL "IPv6 query failed"
+	cat "$DIR/result6"
+	grep -q "+ Troglobit FTP Server._ftp._tcp.local." "$DIR/result6" \
+		|| FAIL "service not discoverable over IPv6"
+
+	print "Resolving the instance SRV over IPv6 ..."
+	mquery -6 -s -t 33 "Troglobit FTP Server._ftp._tcp.local." >"$DIR/srv6" \
+		|| FAIL "IPv6 SRV query failed"
+	grep -q "to test.local.:21" "$DIR/srv6" \
+		|| FAIL "SRV not resolvable over IPv6"
+}
+
 # Gather a pcap of the session
 # Example:
 #          collect eth0 -c10 'dst 224.0.0.251'

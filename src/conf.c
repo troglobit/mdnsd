@@ -140,10 +140,9 @@ static void fqdn(char *buf, size_t len, const char *name)
 }
 
 /* Create a new record, or update an existing one */
-static mdns_record_t *record(struct iface *iface, int shared, char *host,
+static mdns_record_t *record(mdns_daemon_t *d, struct iface *iface, int shared, char *host,
 		      const char *name, unsigned short type, unsigned long ttl)
 {
-	mdns_daemon_t *d = iface->mdns;
 	mdns_record_t *r;
 
 	r = mdnsd_find(d, name, type);
@@ -180,9 +179,8 @@ static mdns_record_t *record(struct iface *iface, int shared, char *host,
 	return r;
 }
 
-static int load(struct iface *iface, const char *path, const char *hostname)
+static int load(struct iface *iface, mdns_daemon_t *d, const char *path, const char *hostname)
 {
-	mdns_daemon_t *d = iface->mdns;
 	struct conf_srec srec;
 	unsigned char *packet;
 	mdns_record_t *r;
@@ -213,18 +211,18 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 		snprintf(tgtlocal, sizeof(tgtlocal), "%s.local.", hostname);
 
 	/* Announce that we have a $type service */
-	record(iface, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
+	record(d, iface, 1, tlocal, DISCO_NAME, QTYPE_PTR, 120);
 
 	/* RFC 6763 §4.1: the service PTR points at the instance name; the
 	 * SRV under that instance names the target host (issue #80) */
-	record(iface, 1, hlocal, tlocal, QTYPE_PTR, 120);
+	record(d, iface, 1, hlocal, tlocal, QTYPE_PTR, 120);
 
-	r = record(iface, 0, NULL, hlocal, QTYPE_SRV, 120);
+	r = record(d, iface, 0, NULL, hlocal, QTYPE_SRV, 120);
 	mdnsd_set_srv(d, r, 0, 0, srec.port, tgtlocal);
 
 	/* Ensure A/AAAA records exist; addresses populated from interface */
-	r = record(iface, 0, NULL, tgtlocal, QTYPE_A, 120);
-	r = record(iface, 0, NULL, tgtlocal, QTYPE_AAAA, 120);
+	r = record(d, iface, 0, NULL, tgtlocal, QTYPE_A, 120);
+	r = record(d, iface, 0, NULL, tgtlocal, QTYPE_AAAA, 120);
 
 	/* Publish all v4/v6 addresses for this interface and host */
 	mdnsd_set_interface_addresses(d, iface->ifname);
@@ -232,9 +230,9 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 	/* A cname aliases the host, so it resolves to the host's addresses */
 	if (srec.cname) {
 		fqdn(clocal, sizeof(clocal), srec.cname);
-		record(iface, 1, tgtlocal, clocal, QTYPE_CNAME, 120);
+		record(d, iface, 1, tgtlocal, clocal, QTYPE_CNAME, 120);
 	}
-	r = record(iface, 0, NULL, hlocal, QTYPE_TXT, 4500);
+	r = record(d, iface, 0, NULL, hlocal, QTYPE_TXT, 4500);
 
 	h = xht_new(11);
 	for (i = 0; i < srec.txt_num; i++) {
@@ -260,6 +258,17 @@ static int load(struct iface *iface, const char *path, const char *hostname)
 		free(srec.txt[i]);
 
 	return 0;
+}
+
+/* Publish the records in @path into all of the interface's contexts */
+static int load_all(struct iface *iface, const char *path, const char *hostname)
+{
+	int rc = load(iface, iface->mdns, path, hostname);
+#ifdef ENABLE_IPV6
+	if (iface->mdns6)
+		rc |= load(iface, iface->mdns6, path, hostname);
+#endif
+	return rc;
 }
 
 int conf_init(struct iface *iface, const char *path, const char *hostnm)
@@ -331,11 +340,11 @@ int conf_init(struct iface *iface, const char *path, const char *hostnm)
 		}
 
 		for (i = 0; i < gl.gl_pathc; i++)
-			rc |= load(iface, gl.gl_pathv[i], hostname);
+			rc |= load_all(iface, gl.gl_pathv[i], hostname);
 
 		globfree(&gl);
 	} else
-		rc |= load(iface, path, hostname);
+		rc |= load_all(iface, path, hostname);
 
 	return rc;
 }

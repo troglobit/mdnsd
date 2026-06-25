@@ -32,6 +32,7 @@
 
 #include "config.h"
 #include "1035.h"
+#include "inet.h"
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -105,6 +106,12 @@ void mdnsd_log(int severity, const char *fmt, ...);
 mdns_daemon_t *mdnsd_new(int class, int frame);
 
 /**
+ * Set the daemon's transport address family, AF_INET (default) or
+ * AF_INET6.  Selects the multicast group mdnsd_out() targets.
+ */
+void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family);
+
+/**
  * Set mDNS daemon host IP address
  */
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr);
@@ -153,13 +160,13 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 /**
  * Oncoming message from host (to be cached/processed)
  */
-int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned short port);
+int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from);
 
 /**
  * Outgoing messge to be delivered to host, returns >0 if one was
- * returned and m/ip/port set
+ * returned and m/to set
  */
-int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port);
+int mdnsd_out(mdns_daemon_t *d, struct message *m, inet_addr_t *to);
 
 /**
  * returns the max wait-time until mdnsd_out() needs to be called again

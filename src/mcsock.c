@@ -180,3 +180,80 @@ int mdns_socket(struct ifnfo *iface, unsigned char ttl)
 
 	return mc_socket(iface, ttl);
 }
+
+#ifdef ENABLE_IPV6
+static int mc_socket6(struct ifnfo *iface, unsigned char ttl)
+{
+	struct ipv6_mreq mreq = { 0 };
+	const int hops = ttl;
+	const int unicast_hops = 255;
+	const int on = 1;
+	struct sockaddr_in6 sin6;
+	int sd;
+
+	sd = socket(AF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	if (sd < 0) {
+		ERR("Failed creating UDP6 socket: %s", strerror(errno));
+		return -1;
+	}
+
+#ifdef SO_REUSEPORT
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
+		WARN("Failed setting SO_REUSEPORT: %s", strerror(errno));
+#endif
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
+		WARN("Failed setting SO_REUSEADDR: %s", strerror(errno));
+
+	/* Keep the v6 socket v6-only so it doesn't shadow the v4 socket */
+	if (setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)))
+		WARN("Failed setting IPV6_V6ONLY: %s", strerror(errno));
+
+	if (setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &on, sizeof(on)))
+		WARN("Failed enabling IPV6_MULTICAST_LOOP on %s: %s", iface->ifname, strerror(errno));
+
+	/* mDNS is link-local, so hop limit 1; some users may route it */
+	if (setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops)))
+		WARN("Failed setting IPV6_MULTICAST_HOPS to %d: %s", hops, strerror(errno));
+	if (setsockopt(sd, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &unicast_hops, sizeof(unicast_hops)))
+		WARN("Failed setting IPV6_UNICAST_HOPS to %d: %s", unicast_hops, strerror(errno));
+
+	if (iface->ifindex) {
+		unsigned int idx = (unsigned int)iface->ifindex;
+
+		/* Pick the outgoing interface for multicast */
+		if (setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &idx, sizeof(idx)))
+			WARN("Failed setting IPV6_MULTICAST_IF to %d: %s", iface->ifindex, strerror(errno));
+#ifdef HAVE_SO_BINDTODEVICE
+		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname, strlen(iface->ifname)))
+			INFO("Failed setting SO_BINDTODEVICE on %s: %s", iface->ifname, strerror(errno));
+#endif
+	}
+
+	/* Join the mDNS link-local group on the given interface */
+	inet_pton(AF_INET6, "ff02::fb", &mreq.ipv6mr_multiaddr);
+	mreq.ipv6mr_interface = (unsigned int)iface->ifindex;
+	if (setsockopt(sd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq)))
+		WARN("Failed joining mDNS group ff02::fb: %s", strerror(errno));
+
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_port   = htons(5353);
+	sin6.sin6_addr   = in6addr_any;
+	if (bind(sd, (struct sockaddr *)&sin6, sizeof(sin6))) {
+		close(sd);
+		ERR("Failed binding socket to [::]:5353: %s", strerror(errno));
+		return -1;
+	}
+	INFO("Bound to [::]:5353 on iface %s", iface->ifname);
+
+	return sd;
+}
+
+int mdns_socket6(struct ifnfo *iface, unsigned char ttl)
+{
+	if (ttl == 0)
+		ttl = 1;
+
+	return mc_socket6(iface, ttl);
+}
+#endif /* ENABLE_IPV6 */

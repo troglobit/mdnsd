@@ -59,6 +59,12 @@ AC_ARG_ENABLE(doc,
         AS_HELP_STRING([--disable-doc], [Disable installing documentation]),,
 	[enable_doc=yes])
 
+AC_ARG_ENABLE(ipv6,
+        AS_HELP_STRING([--disable-ipv6], [Disable IPv6 support, default: enabled]),,
+	[enable_ipv6=yes])
+AS_IF([test "x$enable_ipv6" = "xyes"],
+	[AC_DEFINE([ENABLE_IPV6], [1], [Enable IPv6 support])])
+
 AC_ARG_WITH([systemd],
 	[AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
 	[with_systemd=auto])
@@ -135,6 +141,7 @@ cat <<EOF
 
  Optional features:
   documentations.....: $enable_doc
+  IPv6 support.......: $enable_ipv6
   mquery.............: $with_mquery
   systemd............: $with_systemd
   test suite.........: $enable_tests

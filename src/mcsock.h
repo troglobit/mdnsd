@@ -49,4 +49,11 @@ struct ifnfo {
  */
 int mdns_socket(struct ifnfo *iface, unsigned char ttl);
 
+#ifdef ENABLE_IPV6
+/**
+ * Create an IPv6 mDNS multicast socket joined to ff02::fb on @iface.
+ */
+int mdns_socket6(struct ifnfo *iface, unsigned char ttl);
+#endif
+
 #endif 	/* MDNSD_MCSOCK_H_ */

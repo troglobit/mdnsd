@@ -557,9 +557,10 @@ static void test_unicast_answer_no_uaf(__attribute__((__unused__)) void **state)
 {
 	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
 	struct message q, in, out;
-	struct in_addr ip, from, oip;
+	struct in_addr ip;
+	inet_addr_t from, to;
+	struct sockaddr_in *sin;
 	mdns_record_t *r;
-	unsigned short oport;
 
 	assert_non_null(d);
 
@@ -572,17 +573,21 @@ static void test_unicast_answer_no_uaf(__attribute__((__unused__)) void **state)
 	message_qd(&q, "test.local.", QTYPE_A, QCLASS_IN);
 	memset(&in, 0, sizeof(in));
 	assert_int_equal(0, message_parse(&in, message_packet(&q)));
-	inet_pton(AF_INET, "192.168.0.2", &from);
+	memset(&from, 0, sizeof(from));
+	sin = (struct sockaddr_in *)&from;
+	sin->sin_family = AF_INET;
+	inet_pton(AF_INET, "192.168.0.2", &sin->sin_addr);
+	sin->sin_port = htons(5354);
 	/* mdnsd_in() checks the source against the local addresses once. */
 	will_return(__wrap_getifaddrs, NULL);
 	will_return(__wrap_getifaddrs, 0);
-	mdnsd_in(d, &in, from, 5354);
+	mdnsd_in(d, &in, &from);
 
 	/* Remove r while its unicast answer is still queued, then flush. */
 	mdnsd_done(d, r);
 
 	memset(&out, 0, sizeof(out));
-	mdnsd_out(d, &out, &oip, &oport);
+	mdnsd_out(d, &out, &to);
 
 	mdnsd_shutdown(d);
 	mdnsd_free(d);

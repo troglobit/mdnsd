@@ -186,6 +186,7 @@ void iface_init(char *ifname)
 			iface->ifindex = if_nametoindex(ifa->ifa_name);
 			iface->hostid = 1;
 			iface->sd = -1;
+			iface->sd6 = -1;
 		} else {
 			iface->unused = 0;
 		}

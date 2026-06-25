@@ -70,8 +70,7 @@ struct query {
 
 struct unicast {
 	int id;
-	struct in_addr to;
-	unsigned short port;
+	inet_addr_t to;
 	mdns_record_t *r;
 	struct unicast *next;
 };
@@ -103,6 +102,7 @@ struct mdns_daemon {
 	struct unicast *uanswers;
 	struct query *queries[SPRIME], *qlist;
 
+	sa_family_t family;		/* transport: AF_INET or AF_INET6 */
 	struct in_addr addr;
 	struct in6_addr addr_v6;
 
@@ -333,7 +333,7 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 }
 
 /* Create generic unicast response struct */
-static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr to, unsigned short port)
+static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, const inet_addr_t *to)
 {
 	struct unicast *u;
 
@@ -343,8 +343,7 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, struct in_addr t
 
 	u->r = r;
 	u->id = id;
-	u->to = to;
-	u->port = port;
+	u->to = *to;
 	u->next = d->uanswers;
 	d->uanswers = u;
 }
@@ -538,7 +537,7 @@ static void _gc(mdns_daemon_t *d)
 	d->expireall = (unsigned long)(d->now.tv_sec + GC);
 }
 
-static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
+static int _cache(mdns_daemon_t *d, struct resource *r, const inet_addr_t *from)
 {
 	unsigned long int ttl;
 	struct cached *c = 0;
@@ -627,7 +626,13 @@ static int _cache(mdns_daemon_t *d, struct resource *r, struct in_addr ip)
 	case QTYPE_CNAME:
 	case QTYPE_PTR:
 		c->rr.rdname = strdup(r->known.ns.name);
-		c->rr.ip = ip;
+		/* Stash the responder address for mquery's device view */
+#ifdef ENABLE_IPV6
+		if (inet_family(from) == AF_INET6)
+			c->rr.ip6 = ((const struct sockaddr_in6 *)from)->sin6_addr;
+		else
+#endif
+			c->rr.ip = ((const struct sockaddr_in *)from)->sin_addr;
 		break;
 
 	case QTYPE_SRV:
@@ -808,8 +813,8 @@ static int _r_out(mdns_daemon_t *d, struct message *m, mdns_record_t **list, str
 	return ret;
 }
 
-/* Refresh cached local IPv4 addresses if needed (every ~5s) */
-static void _refresh_local_ipv4(mdns_daemon_t *d, bool force)
+/* Refresh the cached local interface addresses if needed (every ~5s) */
+static void _refresh_local_addrs(mdns_daemon_t *d, bool force)
 {
 	struct ifaddrs *ifa = NULL;
 
@@ -836,7 +841,7 @@ static bool _is_local_ipv4(mdns_daemon_t *d, struct in_addr ip)
 	if (ip.s_addr == d->addr.s_addr)
 		return true;
 
-	_refresh_local_ipv4(d, false);
+	_refresh_local_addrs(d, false);
 
 	for (it = d->local_ifaddrs; it; it = it->ifa_next) {
 		struct sockaddr_in *sin;
@@ -852,6 +857,60 @@ static bool _is_local_ipv4(mdns_daemon_t *d, struct in_addr ip)
 	return false;
 }
 
+#ifdef ENABLE_IPV6
+/* Check if an IPv6 address belongs to this host (any interface) */
+static bool _is_local_ipv6(mdns_daemon_t *d, struct in6_addr ip)
+{
+	struct ifaddrs *it;
+
+	if (IN6_ARE_ADDR_EQUAL(&ip, &d->addr_v6))
+		return true;
+
+	_refresh_local_addrs(d, false);
+
+	for (it = d->local_ifaddrs; it; it = it->ifa_next) {
+		struct sockaddr_in6 *sin6;
+
+		if (!it->ifa_addr || it->ifa_addr->sa_family != AF_INET6)
+			continue;
+		sin6 = (struct sockaddr_in6 *)it->ifa_addr;
+		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip))
+			return true;
+	}
+
+	return false;
+}
+#endif
+
+/* Ignore packets we sent ourselves, regardless of address family */
+static bool _is_local(mdns_daemon_t *d, const inet_addr_t *from)
+{
+#ifdef ENABLE_IPV6
+	if (inet_family(from) == AF_INET6)
+		return _is_local_ipv6(d, ((const struct sockaddr_in6 *)from)->sin6_addr);
+#endif
+	return _is_local_ipv4(d, ((const struct sockaddr_in *)from)->sin_addr);
+}
+
+/* mDNS multicast destination for the daemon's transport family */
+static void mdns_mcast(inet_addr_t *to, sa_family_t family)
+{
+	memset(to, 0, sizeof(*to));
+	to->ss_family = family;
+
+#ifdef ENABLE_IPV6
+	if (family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)to;
+
+		inet_pton(AF_INET6, "ff02::fb", &sin6->sin6_addr);
+		sin6->sin6_port = htons(5353);
+		return;
+	}
+#endif
+	((struct sockaddr_in *)to)->sin_addr.s_addr = inet_addr("224.0.0.251");
+	((struct sockaddr_in *)to)->sin_port        = htons(5353);
+}
+
 mdns_daemon_t *mdnsd_new(int class, int frame)
 {
 	mdns_daemon_t *d;
@@ -864,11 +923,17 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	d->expireall = (unsigned long)d->now.tv_sec + GC;
 	d->class = class;
 	d->frame = frame;
+	d->family = AF_INET;
 	d->received_callback = NULL;
 	d->local_ifaddrs = NULL;
 	d->local_addrs_refreshed = 0;
 
 	return d;
+}
+
+void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family)
+{
+	d->family = family;
 }
 
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
@@ -1040,7 +1105,7 @@ void mdnsd_register_receive_callback(mdns_daemon_t *d, mdnsd_record_received_cal
 	d->received_callback_data = data;
 }
 
-int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned short port)
+int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 {
 	mdns_record_t *r = NULL;
 	int i, j;
@@ -1051,8 +1116,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 
 	gettimeofday(&d->now, 0);
 
-	/* Ignore packets originated from any of our local IPv4 addresses */
-	if (_is_local_ipv4(d, ip))
+	/* Ignore packets originated from any of our own local addresses */
+	if (_is_local(d, from))
 		return 0;
 
 	if (m->header.qr == 0) {
@@ -1100,9 +1165,9 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 							/* Before flagging conflict, force a local address refresh and re-check */
 							if (!did_addr_refresh) {
 								did_addr_refresh = true;
-								_refresh_local_ipv4(d, true);
+								_refresh_local_addrs(d, true);
 							}
-							if (_is_local_ipv4(d, ip))
+							if (_is_local(d, from))
 								continue;
 							_conflict(d, r);
 							has_conflict = true;
@@ -1133,8 +1198,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			}
 
 			/* Send the matching unicast reply */
-			if (!has_conflict && port != 5353)
-				_u_push(d, r_start, m->id, ip, port);
+			if (!has_conflict && inet_port(from) != 5353)
+				_u_push(d, r_start, m->id, from);
 		}
 
 		return 0;
@@ -1157,9 +1222,9 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 			/* double check, is this actually from us, looped back? */
 			if (!did_addr_refresh) {
 				did_addr_refresh = true;
-				_refresh_local_ipv4(d, true);
+				_refresh_local_addrs(d, true);
 			}
-			if (_is_local_ipv4(d, ip))
+			if (_is_local(d, from))
 				continue;
 			_conflict(d, r);
 		}
@@ -1167,7 +1232,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 		if (d->received_callback)
 			d->received_callback(&m->an[i], d->received_callback_data);
 
-		if (_cache(d, &m->an[i], ip) != 0) {
+		if (_cache(d, &m->an[i], from) != 0) {
 			ERR("Failed caching answer, possibly too long packet, skipping.");
 			continue;
 		}
@@ -1176,7 +1241,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, struct in_addr ip, unsigned sh
 	return 0;
 }
 
-int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned short *port)
+int mdnsd_out(mdns_daemon_t *d, struct message *m, inet_addr_t *to)
 {
 	mdns_record_t *r;
 	struct answered seen = { 0 };
@@ -1186,8 +1251,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 	memset(m, 0, sizeof(struct message));
 
 	/* Defaults, multicast */
-	*port = htons(5353);
-	ip->s_addr = inet_addr("224.0.0.251");
+	mdns_mcast(to, d->family);
 	m->header.qr = 1;
 	m->header.aa = 1;
 
@@ -1198,8 +1262,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, struct in_addr *ip, unsigned 
 		INFO("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
 
 		d->uanswers = u->next;
-		*port = htons(u->port);
-		*ip = u->to;
+		*to = u->to;
 		m->id = u->id;
 		message_qd(m, u->r->rr.name, u->r->rr.type, d->class);
 		message_an(m, u->r->rr.name, u->r->rr.type, d->class, u->r->rr.ttl);
@@ -1853,8 +1916,8 @@ int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname)
 static int process_in(mdns_daemon_t *d, int sd)
 {
 	static unsigned char buf[MAX_PACKET_LEN + 1];
-	struct sockaddr_in from;
-	socklen_t ssize = sizeof(struct sockaddr_in);
+	inet_addr_t from;
+	socklen_t ssize = sizeof(from);
 	ssize_t bsize;
 
 	memset(buf, 0, sizeof(buf));
@@ -1869,7 +1932,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 		rc = message_parse(&m, buf);
 		if (rc)
 			continue;
-		rc = mdnsd_in(d, &m, from.sin_addr, ntohs(from.sin_port));
+		rc = mdnsd_in(d, &m, &from);
 		if (rc)
 			continue;
 	}
@@ -1882,25 +1945,18 @@ static int process_in(mdns_daemon_t *d, int sd)
 
 static int process_out(mdns_daemon_t *d, int sd)
 {
-	unsigned short int port;
-	struct sockaddr_in to;
-	struct in_addr ip;
+	inet_addr_t to;
 	struct message m;
 
-	while (mdnsd_out(d, &m, &ip, &port)) {
+	while (mdnsd_out(d, &m, &to)) {
 		unsigned char *buf;
 		ssize_t len;
-
-		memset(&to, 0, sizeof(to));
-		to.sin_family = AF_INET;
-		to.sin_port = port;
-		to.sin_addr = ip;
 
 		len = message_packet_len(&m);
 		buf = message_packet(&m);
 		mdnsd_log_hex("Send Data:", buf, len);
 
-		if (sendto(sd, buf, len, MSG_DONTWAIT, (struct sockaddr *)&to, sizeof(struct sockaddr_in)) != len)
+		if (sendto(sd, buf, len, MSG_DONTWAIT, (struct sockaddr *)&to, inet_len(&to)) != len)
 			return 2;
 	}
 
