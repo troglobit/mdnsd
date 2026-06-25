@@ -1,5 +1,11 @@
 *~
 *.swp
+*.o
+*.lo
+*.la
+.deps/
+.dirstamp
+.libs/
 .config
 .gdb_history
 .gdbinit
