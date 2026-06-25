@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - 'dev'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   PROJECT_NAME: mdnsd
