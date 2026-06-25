@@ -3,6 +3,47 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v1.0][UNRELEASED] -
+---------------------
+
+Full IPv6 transport, RFC 6763 compliant browsing, and multiple addresses
+per interface. Contributions from Thom Nichols, Florian La Roche, et al.
+
+### Changes
+
+- `libmdnsd`, `mdnsd`, and `mquery`: full IPv6 support, querying and
+  answering over the `ff02::fb` group, not just advertising AAAA records
+  over IPv4, which was introduced in v0.12, issue #10
+- `mdnsd`: support multiple IPv4/IPv6 addresses per interface, with all
+  services sharing one host name, by Thom Nichols, VoltServer, issue #77
+- `mdnsd`: track interface and address changes over netlink, instead of
+  polling, on Linux
+- `mquery`: add device discovery mode
+- RFC 6763 compliance: the service `PTR` now points at the service
+  instance, and query responses carry the matching `SRV`, `TXT`, and
+  address records in the additional section, issues #76 and #80
+- mdnsd: keep key-only `TXT` attributes (boolean flags) instead of
+  dropping them, issue #58
+- Document resolving `.local` names on the host with `libnss-mdns`, in
+  the README and manuals, issue #19
+- `libmdnsd`: installed headers no longer pull in the build's `config.h`,
+  so programs can build against the library again, issue #75
+- `mdnsd`: send goodbye packets when an interface is removed, issue #91
+- Unify the shell and unit tests under one Automake harness, issue #66
+- Cleanups of const/static/unused and `-Wformat`, by Florian La Roche
+
+### Fixes
+
+- Fix #37: `_lmatch()` read one byte past the root label
+- Fix #79: `mquery` sent malformed packets when known-answer suppression
+  kicked in
+- Fix #84: use-after-free of a freed record in `uanswers`
+- Fix #92: use-after-free in `mdnsd_set_interface_addresses`
+- Fix conflict detection to consider all of an interface's addresses, by
+  Thom Nichols, VoltServer, issue #82
+- Fix a one-byte over-read in `txt2sd()` on well-formed input
+- Fix a memory overflow, by Hans Baumgartner
+- Update the cached records when an interface changes, by Zhu Yongjian
 
 [v0.12][] - 2023-01-22
 ----------------------
@@ -159,6 +200,7 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed memory leaks
 
 [UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.12...HEAD
+[v1.0]: https://github.com/troglobit/mdnsd/compare/v0.12...v1.0
 [v0.12]: https://github.com/troglobit/mdnsd/compare/v0.11...v0.12
 [v0.11]: https://github.com/troglobit/mdnsd/compare/v0.10...v0.11
 [v0.10]: https://github.com/troglobit/mdnsd/compare/v0.9...v0.10
