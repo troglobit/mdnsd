@@ -101,7 +101,7 @@ static int _label(struct message *m, unsigned char **bufp, char **namep)
 
 
 	/* Sanity check */
-	if (m->_len > (int)sizeof(m->_packet))
+	if (m->_len >= (int)sizeof(m->_packet))
 		return 1;
 
 	/* Set namep to the end of the block */
@@ -120,8 +120,10 @@ static int _label(struct message *m, unsigned char **bufp, char **namep)
 			prevOffset = offset;
 		}
 
-		/* Make sure we're not over the limits */
-		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) >= MAX_PACKET_LEN)
+		/* Make sure we're not over the limits, and that the source
+		 * label stays within the packet buffer */
+		if ((name + *label) - *namep > 255 || m->_len + ((name + *label) - *namep) >= MAX_PACKET_LEN ||
+		    (label + 1 + *label) - (char *)m->_buf > MAX_PACKET_LEN)
 			return 1;
 
 		/* Copy chars for this label */
