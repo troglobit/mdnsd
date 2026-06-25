@@ -63,16 +63,17 @@ different path can be given, which may be a directory or a single file.
 
 By default mdnsd daemonizes, detaches from the controlling terminal and
 continues running in the background, logging errors (or debug messages
-if enabled) to the systmem log.  There is no output to be expected.  On
+if enabled) to the system log.  There is no output to be expected.  On
 GNU/Linux, use `mdns-scan`, the bundled `mquery` tool, or Wireshark to
 verify your setup.  Other operating systems have their own set of tools
 for mDNS-SD and mdnsd may not even have a place there.
 
-mdnsd runs on all multicast enabled system interfaces.  It can be limted
+mdnsd runs on all multicast enabled system interfaces.  It can be limited
 to run on only one using the `-i IFACE` command line option.  Starting
 mdnsd early in the boot process, when the interface may not yet have
 acquired an IP address, or the interface itself may not even exist yet,
-mdnsd handles this by periodically probing for interface changes.
+is fine; mdnsd tracks interface and address changes in real time over
+netlink and (re)configures itself as they appear.
 
 See the file [API.md][] for pointers on how to use the mDNS library.
 
