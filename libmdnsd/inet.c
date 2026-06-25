@@ -1,4 +1,5 @@
 /* IPv4/IPv6 address helpers, cf. the inet.[ch] wrapper in SMCRoute */
+#include "config.h"
 #include <arpa/inet.h>
 #include <string.h>
 

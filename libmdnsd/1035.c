@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "1035.h"
 #include <string.h>
 #include <stdio.h>

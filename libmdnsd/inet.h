@@ -2,15 +2,10 @@
 #ifndef MDNSD_INET_H_
 #define MDNSD_INET_H_
 
-#include "config.h"
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#ifdef ENABLE_IPV6
-#define INET_ADDRSTR_LEN INET6_ADDRSTRLEN
-#else
-#define INET_ADDRSTR_LEN INET_ADDRSTRLEN
-#endif
+#define INET_ADDRSTR_LEN INET6_ADDRSTRLEN	/* fits AF_INET and AF_INET6 */
 
 /*
  * Wrapper for an IPv4 or IPv6 socket address.  Everything is kept in a

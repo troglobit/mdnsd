@@ -37,14 +37,9 @@
 #ifndef MDNS_1035_H_
 #define MDNS_1035_H_
 
-#include "config.h"
 #include <arpa/inet.h>
-#ifdef HAVE_NETINET_IN_H
-# include <netinet/in.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 /*
  * At least FreeBSD, OpenBSD and NexentaCore do not define the

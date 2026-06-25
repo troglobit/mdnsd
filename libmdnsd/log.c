@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #define SYSLOG_NAMES
 #include <ctype.h>
 #include <stdio.h>

@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "sdtxt.h"
 #include <stdlib.h>
 #include <string.h>

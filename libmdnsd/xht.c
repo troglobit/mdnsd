@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "xht.h"
 #include <string.h>
 #include <stdlib.h>

@@ -30,7 +30,6 @@
 #ifndef LIB_MDNSD_H_
 #define LIB_MDNSD_H_
 
-#include "config.h"
 #include "1035.h"
 #include "inet.h"
 #include <sys/time.h>

@@ -27,6 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "mdnsd.h"
 #include <string.h>
 #include <stdlib.h>
