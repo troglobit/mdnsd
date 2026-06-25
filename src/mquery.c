@@ -476,21 +476,20 @@ static void print_device_detail(void)
 static int msock(char *ifname, sa_family_t family)
 {
 	struct ifnfo ifa = { 0 };
-	struct ifnfo *iface = NULL;
 
-	if (ifname) {
-		memcpy(ifa.ifname, ifname, sizeof(ifa.ifname));
-		ifa.ifindex = if_nametoindex(ifname);
-		iface = &ifa;
-	}
+	if (!ifname)
+		return -1;
+
+	strlcpy(ifa.ifname, ifname, sizeof(ifa.ifname));
+	ifa.ifindex = if_nametoindex(ifname);
 
 #ifdef ENABLE_IPV6
 	if (family == AF_INET6)
-		return mdns_socket6(iface, 0);
+		return mdns_socket6(&ifa, 0);
 #else
 	(void)family;
 #endif
-	return mdns_socket(iface, 0);
+	return mdns_socket(&ifa, 0);
 }
 
 
