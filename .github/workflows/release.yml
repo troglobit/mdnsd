@@ -42,7 +42,7 @@ jobs:
           sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Build release ...
         run: |
-          make release
+          make release || (find . -name test-suite.log -exec cat {} +; false)
           ls -lF ../
           mkdir -p artifacts/
           mv ../*.tar.* artifacts/

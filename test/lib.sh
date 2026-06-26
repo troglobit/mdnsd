@@ -219,12 +219,17 @@ topo_basic()
 	sllip=$(grep "eth0" "$DIR/tmp" | grep -i "fe80" | sed -e 's;.*\(fe80::.*\)/64.*;\1;')
 	if [ -n "$sllip" ] ; then client_addr_ll6=$sllip ; fi
 
-	# Wait *dad_transmits +1 seconds for DAD to finish and link local address become valid
+	# Wait for DAD to finish on BOTH ends so the link-local addresses are
+	# valid -- pinging a still-tentative peer fails, which slower setups
+	# such as `make distcheck` trip over.  dad_transmits + a few seconds.
 	to=$(nsenter --net="$client" -- cat /proc/sys/net/ipv6/conf/eth0/dad_transmits)
-	while [ $to -gt -1 ] ; do
-		nsenter --net="$client" -- ip -6 addr show dev eth0 | grep -q tentative || break
-		: $((to -= 1))
+	to=$((to + 3))
+	while [ $to -gt 0 ] ; do
+		tentative=$(nsenter --net="$client" -- ip -6 addr show dev eth0 tentative
+			    nsenter --net="$server" -- ip -6 addr show dev eth0 tentative)
+		[ -z "$tentative" ] && break
 		sleep 1
+		: $((to -= 1))
 	done
 
 	echo "$server" >> "$DIR/mounts"
