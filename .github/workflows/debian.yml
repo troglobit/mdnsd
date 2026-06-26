@@ -1,0 +1,38 @@
+name: Debian Package
+
+# Build the .deb packages and run lintian, on the packaging branch only.
+on:
+  push:
+    branches:
+      - debian
+  pull_request:
+    branches:
+      - debian
+
+jobs:
+  debuild:
+    name: Build .deb packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install build dependencies
+        run: |
+          sudo apt-get -y update
+          # Tools (debuild, dh, lintian) + autotools for dh_autoreconf +
+          # the source Build-Depends (pkg-config, systemd-dev).
+          sudo apt-get -y install build-essential devscripts debhelper \
+              autoconf automake libtool pkg-config systemd-dev lintian fakeroot
+      - name: Build packages and run lintian
+        run: |
+          debuild -uc -us -B --lintian-opts --profile debian -i -I --show-overrides
+      - name: Collect built packages
+        run: |
+          mkdir -p artifacts
+          find .. -maxdepth 1 -type f \( -name '*.deb' -o -name '*.ddeb' -o -name '*.changes' \) \
+              -exec mv {} artifacts/ \;
+          ls -lF artifacts/
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: mdnsd-debs
+          path: artifacts/*
