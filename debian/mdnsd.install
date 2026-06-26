@@ -1,2 +1,5 @@
+etc/mdns.d/ssh.service
+usr/lib/systemd/system/mdnsd.service
 usr/sbin/mdnsd
+usr/share/man/man5/mdnsd.service.5
 usr/share/man/man8/mdnsd.8

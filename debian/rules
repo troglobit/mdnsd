@@ -7,8 +7,3 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
 override_dh_installchangelogs:
 	dh_installchangelogs ChangeLog.md
-
-override_dh_auto_install:
-	dh_auto_install
-	rm -f debian/mdnsd/usr/share/doc/mdnsd/LICENSE
-	rm -f debian/mdnsd/usr/share/doc/mdnsd/ChangeLog.md

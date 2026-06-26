@@ -1,0 +1,4 @@
+usr/lib/*/libmdnsd.la
+usr/share/doc/mdnsd/README.md
+usr/share/doc/mdnsd/ChangeLog.md
+usr/share/doc/mdnsd/LICENSE

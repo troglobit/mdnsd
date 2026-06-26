@@ -17,3 +17,7 @@ mdnsd/*
 mquery.*
 mquery/
 tmp/
+
+# .install files are source manifests, not build artifacts; keep them
+# despite the broad <pkg>.* patterns above.
+!*.install
