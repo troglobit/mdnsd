@@ -99,4 +99,4 @@ jobs:
           sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Build & Check
         run: |
-          make distcheck
+          make distcheck || (find . -name test-suite.log -exec cat {} +; false)
