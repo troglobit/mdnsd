@@ -213,7 +213,8 @@ static bool _a_match(struct resource *r, mdns_answer_t *a)
 		case QTYPE_PTR:
 		case QTYPE_NS:
 		case QTYPE_CNAME:
-			return strcmp(a->rdname, r->known.ns.name) == 0;
+			return r->known.ns.name && a->rdname &&
+				strcmp(r->known.ns.name, a->rdname) == 0;
 
 		case QTYPE_A:
 			return memcmp(&r->known.a.ip, &a->ip, 4) == 0;
@@ -222,7 +223,8 @@ static bool _a_match(struct resource *r, mdns_answer_t *a)
 			return memcmp(&r->known.aaaa.ip6, &a->ip6, 16) == 0;
 
 		default:
-			return r->rdlength == a->rdlen && memcmp(r->rdata, a->rdata, r->rdlength) == 0;
+			return r->rdlength == a->rdlen &&
+				(r->rdlength == 0 || memcmp(r->rdata, a->rdata, r->rdlength) == 0);
 	}
 
 	return 0;

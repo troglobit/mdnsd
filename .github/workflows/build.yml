@@ -56,9 +56,11 @@ jobs:
           name: mdnsd-test-${{ matrix.compiler }}
           path: test/*
   asan:
-    # Run the cmocka unit tests under AddressSanitizer; this is where the
-    # heap-use-after-free from issue #92 would resurface.  The unit tests
-    # mock getifaddrs() and run directly (no namespace), so the run is
+    # Run the cmocka unit tests under AddressSanitizer and UBSan.  This is
+    # the gate for the use-after-free (#92), the reload leak (#93, caught by
+    # LSan), and the NULL-to-nonnull in _a_match() (#94, caught by UBSan --
+    # -fno-sanitize-recover makes it fail rather than just warn).  The unit
+    # tests mock getifaddrs() and run directly (no namespace), so the run is
     # deterministic.  The shell tests are not run here -- the daemon's
     # leak-on-exit under a signal would make the run flaky.
     name: asan
@@ -66,7 +68,7 @@ jobs:
     env:
       MAKEFLAGS: -j3
       CC: clang
-      CFLAGS: -fsanitize=address -g -O1
+      CFLAGS: -fsanitize=address,undefined -fno-sanitize-recover=undefined -g -O1
     steps:
       - name: Install dependencies
         run: |
@@ -77,7 +79,7 @@ jobs:
         run: |
           ./autogen.sh
           ./configure --prefix= --enable-tests
-      - name: Build and unit test under AddressSanitizer
+      - name: Build and unit test under AddressSanitizer and UBSan
         run: |
           make check TESTS="xht addr answer label sdtxt conflict" || (cat test/test-suite.log; false)
   distcheck:
