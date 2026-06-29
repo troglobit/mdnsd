@@ -1996,6 +1996,8 @@ void records_clear(mdns_daemon_t *d)
 		{
 			mdns_record_t *const next = r->next;
 			_r_remove_lists(d, r, NULL);
+			_u_remove(d, r);
+			_free_record(r);
 			r = next;
 		}
 		d->published[i] = NULL;

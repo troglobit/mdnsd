@@ -39,6 +39,7 @@ per interface. Contributions from Thom Nichols, Florian La Roche, et al.
   kicked in
 - Fix #84: use-after-free of a freed record in `uanswers`
 - Fix #92: use-after-free in `mdnsd_set_interface_addresses`
+- Fix #93: memory leak in `records_clear()` on config reload
 - Fix conflict detection to consider all of an interface's addresses, by
   Thom Nichols, VoltServer, issue #82
 - Fix a one-byte over-read in `txt2sd()` on well-formed input

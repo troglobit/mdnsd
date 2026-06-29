@@ -25,12 +25,13 @@ TESTS             += iprecords.sh
 TESTS             += lostif.sh
 
 if ENABLE_UNIT_TESTS
-check_PROGRAMS     = xht addr answer label sdtxt
+check_PROGRAMS     = xht addr answer label sdtxt conflict
 TESTS             += xht
 TESTS             += addr
 TESTS             += answer
 TESTS             += label
 TESTS             += sdtxt
+TESTS             += conflict
 
 xht_SOURCES        = xht.c
 xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
@@ -57,4 +58,8 @@ label_LDADD        = $(cmocka_LIBS) $(LIBOBJS)
 # sd2txt()/txt2sd() are public, so this one links the library normally.
 sdtxt_SOURCES      = sdtxt.c
 sdtxt_LDADD        = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
+
+# records_clear() and the record API are public; links the library normally.
+conflict_SOURCES   = conflict.c
+conflict_LDADD     = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
 endif
