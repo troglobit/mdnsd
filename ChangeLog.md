@@ -3,7 +3,7 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
-[v1.0][UNRELEASED] -
+[v1.0][] - 2026-07-06
 ---------------------
 
 Full IPv6 transport, RFC 6763 compliant browsing, and multiple addresses
@@ -14,6 +14,9 @@ per interface. Contributions from Thom Nichols, Florian La Roche, et al.
 - `libmdnsd`, `mdnsd`, and `mquery`: full IPv6 support, querying and
   answering over the `ff02::fb` group, not just advertising AAAA records
   over IPv4, which was introduced in v0.12, issue #10
+- `libmdnsd`: API and ABI break; the soname is now `libmdnsd.so.2`
+  (`-version-info 2:0:0`) for the IPv6 and multiple-address changes, so
+  dependent programs must be rebuilt
 - `mdnsd`: support multiple IPv4/IPv6 addresses per interface, with all
   services sharing one host name, by Thom Nichols, VoltServer, issue #77
 - `mdnsd`: track interface and address changes over netlink, instead of
