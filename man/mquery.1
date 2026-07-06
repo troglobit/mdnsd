@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd Jun 25 2026
+.Dd Jun 30 2026
 .Dt MQUERY 1
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Op Fl 6
 .Op Fl i Ar IFACE
 .Op Fl d Ar HOST
+.Op Fl l Ar LEVEL
 .Op Fl t Ar TYPE
 .Op Fl w Ar SEC
 .Op Ar NAME
@@ -42,10 +43,17 @@
 .Nm
 is a companion tool to
 .Xr mdnsd 8 ,
-but can also be used stand-alone with other mDNS servers.  It formats
-and sends mDNS service queries, similar to how
-.Xr mdns-scan 1
-works, but with a fraction of the usability.
+but can also be used stand-alone with other mDNS responders.  It sends
+mDNS queries and prints the replies, much like
+.Xr mdns-scan 1 ,
+but it also resolves what it finds.  With
+.Fl D
+it follows each service PTR to its SRV, TXT, and address records and
+prints a device table, and with
+.Fl T
+or
+.Fl w
+it stops on its own instead of running until interrupted.
 .Pp
 .Nm
 runs on the system default interface, derived from the routing table.
@@ -96,6 +104,8 @@ Interface to run query on, by default the system default interface is
 used, derived from the routing table.
 .Pp
 Only available on Linux.
+.It Fl l Ar LEVEL
+Set the log level: none, err, notice (default), info, or debug.
 .It Fl s
 By default
 .Nm
@@ -106,9 +116,31 @@ query to the respondent.  This option skips that specific scan and runs
 .Nm
 in a simple mode.
 .It Fl t Ar TYPE
-Query type, default 12 (PTR).
+Query for the given record
+.Ar TYPE ,
+a numeric DNS type, default 12 (PTR).  The common types are:
+.Pp
+.Bl -tag -width "CNAME (5)XX" -compact -offset indent
+.It A (1)
+IPv4 address
+.It NS (2)
+name server
+.It CNAME (5)
+alias (canonical name)
+.It PTR (12)
+service instance or pointer
+.It TXT (16)
+service metadata
+.It AAAA (28)
+IPv6 address
+.It SRV (33)
+service target host and port
+.It ANY (255)
+any of the above
+.El
 .It Fl v
-Show program version.
+Show program version, along with the project homepage and the address
+for bug reports.
 .It Fl w Ar SEC
 Delay (approximate) in seconds before automatically exiting.
 .El

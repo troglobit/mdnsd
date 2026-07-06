@@ -176,7 +176,7 @@ static const char *type2str(int type)
 		return "CNAME (5)";
 
 	case QTYPE_PTR:
-		return "TR (12)";
+		return "PTR (12)";
 
 	case QTYPE_TXT:
 		return "TXT (16)";
@@ -495,15 +495,38 @@ static int msock(char *ifname, sa_family_t family)
 
 static int usage(int code)
 {
-	/* mquery -D -T    mquery -t 12 _http._tcp.local. */
-	printf("usage: mquery [-hDsTv] "
+	printf("Usage: mquery [-hDsTv] "
 #ifdef ENABLE_IPV6
 	       "[-6] "
 #endif
 #ifdef HAVE_SO_BINDTODEVICE
 	       "[-i IFNAME] "
 #endif
-	       "[-d HOST] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
+	       "[-d HOST] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n"
+	       "\n"
+	       "Options:\n"
+#ifdef ENABLE_IPV6
+	       "    -6         Query over IPv6 (ff02::fb), default: IPv4\n"
+#endif
+	       "    -D         Scan for devices and their services, like mdns-scan\n"
+	       "    -d HOST    Like -D, but only HOST, with full service details\n"
+	       "    -h         This help text\n"
+#ifdef HAVE_SO_BINDTODEVICE
+	       "    -i IFNAME  Interface to query on, default: primary LAN interface\n"
+#endif
+	       "    -l LEVEL   Set log level: none, err, notice (default), info, debug\n"
+	       "    -s         Simple output, print each record as it arrives\n"
+	       "    -T         Terminate soon after the last reply, for scripting\n"
+	       "    -t TYPE    Record type to query for, default: PTR (12), see below\n"
+	       "    -v         Show program version and support information\n"
+	       "    -w SEC     Wait SEC seconds for replies, then exit\n"
+	       "\n"
+	       "Record types for -t:\n"
+	       "    A (1)      NS (2)     CNAME (5)  PTR (12)\n"
+	       "    TXT (16)   AAAA (28)  SRV (33)   ANY (255)\n"
+	       "\n"
+	       "Arguments:\n"
+	       "    NAME       Name to query for, default: all service types\n");
 	return code;
 }
 
@@ -576,7 +599,11 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'v':
-			puts(PACKAGE_VERSION);
+			printf("mquery %s\n"
+			       "\n"
+			       "Bug report address: %s\n"
+			       "Project homepage:   %s\n",
+			       PACKAGE_VERSION, PACKAGE_BUGREPORT, PACKAGE_URL);
 			return 0;
 
 		case 'w':
