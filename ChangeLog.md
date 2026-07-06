@@ -19,6 +19,9 @@ per interface. Contributions from Thom Nichols, Florian La Roche, et al.
 - `mdnsd`: track interface and address changes over netlink, instead of
   polling, on Linux
 - `mquery`: add device discovery mode
+- `mquery`: browse by service type or host name (`.local.` implied),
+  resolve any record type directly, decode `TXT` records, and print the
+  `-D`/`-d` device table on Ctrl-C
 - RFC 6763 compliance: the service `PTR` now points at the service
   instance, and query responses carry the matching `SRV`, `TXT`, and
   address records in the additional section, issues #76 and #80

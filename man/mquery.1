@@ -55,18 +55,26 @@ or
 .Fl w
 it stops on its own instead of running until interrupted.
 .Pp
+By default
 .Nm
-runs on the system default interface, derived from the routing table.
-To run on another interface, use the
-.Fl i Ar IFACE
-command line option.  It runs continuously monitoring for responses to
-the initial query, by default
-.Cm _services._dns-sd._udp.local.
+browses all service types on the link.  Give a service type, such as
+.Cm _http._tcp ,
+to list its instances, or a host or instance name together with
+.Fl t
+to resolve a specific record.  The
+.Cm .local.\&
+domain is appended automatically unless the name is already rooted with
+a trailing dot.
 .Pp
+.Nm
+runs on the system default interface, derived from the routing table;
+use
+.Fl i Ar IFACE
+to run on another.
 .Sh OPTIONS
 This program follows the usual UNIX command line syntax. The options are
 as follows:
-.Bl -tag
+.Bl -tag -width 9n
 .It Fl 6
 Query over IPv6 (the ff02::fb group) instead of IPv4.
 .It Fl h
@@ -97,7 +105,7 @@ but filter results to
 and show a detailed per-service breakdown instead of the summary table.
 .Ar HOST
 may be given with or without the
-.Cm .local.
+.Cm .local.\&
 suffix.
 .It Fl i Ar IFACE
 Interface to run query on, by default the system default interface is
@@ -107,18 +115,21 @@ Only available on Linux.
 .It Fl l Ar LEVEL
 Set the log level: none, err, notice (default), info, or debug.
 .It Fl s
-By default
-.Nm
-behaves a lot like
-.Xr mdns-scan 1 ,
-which after receiving an initial reply to a scan, sends a specific PTR
-query to the respondent.  This option skips that specific scan and runs
-.Nm
-in a simple mode.
+Simple output: print one line per record as it arrives, instead of the
+default browse that follows service
+.Sy PTR
+records.  Implied whenever
+.Fl t
+requests a type other than
+.Sy PTR .
 .It Fl t Ar TYPE
 Query for the given record
 .Ar TYPE ,
-a numeric DNS type, default 12 (PTR).  The common types are:
+a numeric DNS type, default 12 (PTR).  For any type other than
+.Sy PTR
+the replies are printed directly, as if
+.Fl s
+were given.  The common types are:
 .Pp
 .Bl -tag -width "CNAME (5)XX" -compact -offset indent
 .It A (1)
@@ -144,9 +155,48 @@ for bug reports.
 .It Fl w Ar SEC
 Delay (approximate) in seconds before automatically exiting.
 .El
+.Sh EXAMPLES
+Browse all service types on the link:
+.Pp
+.Dl mquery
+.Pp
+List the SSH servers, then resolve one to its host and port:
+.Pp
+.Dl mquery _ssh._tcp
+.Dl mquery -t 33 myhost._ssh._tcp
+.Pp
+Look up a host's address, or a service's TXT metadata:
+.Pp
+.Dl mquery -t 1 myhost
+.Dl mquery -t 16 myhost._ssh._tcp
+.Pp
+Scan the link and resolve it into a device table:
+.Pp
+.Dl mquery -D
+.Pp
+Show one device in detail, or let the scan stop itself for scripting:
+.Pp
+.Dl mquery -d myhost
+.Dl mquery -D -T
+.Pp
+Query over IPv6 instead of IPv4:
+.Pp
+.Dl mquery -6 _http._tcp
+.Pp
+The
+.Cm .local.\&
+domain is implied in all of these, and
+.Fl D
+and
+.Fl d
+print their table on Ctrl-C or, for scripts, with
+.Fl T
+or
+.Fl w Ar SEC .
 .Sh SEE ALSO
-.Xr mdnsd 8 ,
-.Xr mdns-scan 1
+.Xr avahi-browse 1 ,
+.Xr mdns-scan 1 ,
+.Xr mdnsd 8
 .Sh AUTHORS
 This mDNS-SD implementation was created in 2003 by
 .An Jeremie Miller Aq jer@jabber.org .

@@ -7,6 +7,7 @@ mdnsd - embeddable Multicast DNS Daemon
 - [Usage](#usage)
   - [Service Records](#service-records)
   - [Resolving .local Names](#resolving-local-names)
+  - [Browsing with mquery](#browsing-with-mquery)
 - [Build & Install](#build--install)
 - [Origin & References](#origin--references)
 
@@ -133,6 +134,25 @@ with `mdnsd` on port 5353.
 
 > **Note:** run either `mdnsd` or `avahi-daemon`, not both; two
 > responders on the same link would answer over each other.
+
+
+### Browsing with mquery
+
+The bundled `mquery` tool discovers and resolves services on the local
+link, a bit like `avahi-browse`.  Give it a service type or a host name;
+the `.local.` domain is implied.
+
+    mquery                     # browse all service types on the link
+    mquery _http._tcp          # list instances of a service type
+    mquery -t 33 NAME          # resolve an instance's host and port (SRV)
+    mquery -t 16 NAME          # show a service's TXT metadata
+    mquery -t 1  host          # resolve a host's address (-t 28 for IPv6)
+    mquery -D                  # scan and resolve into a device table
+    mquery -d host             # show one device in detail
+
+The `-D` and `-d` modes print their table when you stop the scan with
+Ctrl-C, or automatically with `-T` (quiet timeout) or `-w SEC`.  See the
+**mquery(1)** manual for the full list of record types and options.
 
 
 Build & Install
