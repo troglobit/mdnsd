@@ -64,7 +64,7 @@ static char *chomp(char *str)
 	}
 
 	p = str + strlen(str) - 1;
-        while (*p == '\n')
+	while (p >= str && *p == '\n')
 		*p-- = 0;
 
 	return str;
