@@ -31,7 +31,7 @@
 .Nd small query tool for multicast DNS
 .Sh SYNOPSIS
 .Nm mquery
-.Op Fl hDsTv
+.Op Fl hDLsTv
 .Op Fl 6
 .Op Fl i Ar IFACE
 .Op Fl d Ar HOST
@@ -112,6 +112,19 @@ Interface to run query on, by default the system default interface is
 used, derived from the routing table.
 .Pp
 Only available on Linux.
+.It Fl L
+Ignore replies from services on the local host.  By default
+.Nm
+shows them, so an
+.Xr mdnsd 8
+or
+.Xr avahi-daemon 8
+on the same machine is discoverable; use
+.Fl L
+to skip the local host, like
+.Xr avahi-browse 1 Ns 's
+.Fl l , Fl Fl ignore-local
+option.
 .It Fl l Ar LEVEL
 Set the log level: none, err, notice (default), info, or debug.
 .It Fl s

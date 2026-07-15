@@ -546,7 +546,7 @@ static char *qualify(const char *name, char *buf, size_t len)
 
 static int usage(int code)
 {
-	printf("Usage: mquery [-hDsTv] "
+	printf("Usage: mquery [-hDLsTv] "
 #ifdef ENABLE_IPV6
 	       "[-6] "
 #endif
@@ -565,6 +565,7 @@ static int usage(int code)
 #ifdef HAVE_SO_BINDTODEVICE
 	       "    -i IFNAME  Interface to query on, default: primary LAN interface\n"
 #endif
+	       "    -L         Ignore services on the local host, like avahi-browse -l\n"
 	       "    -l LEVEL   Set log level: none, err, notice (default), info, debug\n"
 	       "    -s         Simple output, one line per record (implied unless -t is PTR)\n"
 	       "    -T         Terminate soon after the last reply, for scripting\n"
@@ -601,12 +602,13 @@ int main(int argc, char *argv[])
 	char *ifname = NULL;
 	sa_family_t family = AF_INET;
 	int type = QTYPE_PTR;	/* 12 */
+	int local = 1;
 	time_t start;
 	int wait = 0;
 	fd_set fds;
 	int sd, c;
 
-	while ((c = getopt(argc, argv, "h?DT"
+	while ((c = getopt(argc, argv, "h?DLT"
 #ifdef HAVE_SO_BINDTODEVICE
 			   "i:"
 #endif
@@ -627,6 +629,10 @@ int main(int argc, char *argv[])
 
 		case 'D':
 			devmode = 1;
+			break;
+
+		case 'L':
+			local = 0;
 			break;
 
 		case 'T':
@@ -700,6 +706,7 @@ int main(int argc, char *argv[])
 	if (!d)
 		return 1;
 	mdnsd_set_family(d, family);
+	mdnsd_set_local(d, local);
 
 	start = time(NULL);
 	if (devmode) {

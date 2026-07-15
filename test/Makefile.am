@@ -6,7 +6,7 @@ AM_CPPFLAGS        = -I$(top_srcdir)
 
 # Not covered by any _SOURCES, so ship these explicitly (the *.c unit
 # tests are distributed automatically via _SOURCES).
-EXTRA_DIST         = README.md lib.sh discover.sh browse.sh ipv6.sh iprecords.sh lostif.sh unittest.h
+EXTRA_DIST         = README.md lib.sh discover.sh browse.sh ipv6.sh iprecords.sh lostif.sh local.sh unittest.h
 CLEANFILES         = *~ *.trs *.log
 
 # top_srcdir is only needed for `make distcheck` (VPATH builds).
@@ -23,6 +23,7 @@ TESTS             += browse.sh
 TESTS             += ipv6.sh
 TESTS             += iprecords.sh
 TESTS             += lostif.sh
+TESTS             += local.sh
 
 if ENABLE_UNIT_TESTS
 check_PROGRAMS     = xht addr answer label sdtxt conflict

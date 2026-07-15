@@ -94,7 +94,7 @@ struct mdns_record {
 };
 
 struct mdns_daemon {
-	char shutdown, disco;
+	char shutdown, disco, local;
 	unsigned long int expireall, checkqlist;
 	struct timeval now, sleep, pause, probe, publish;
 	int class, frame;
@@ -927,6 +927,7 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	d->class = class;
 	d->frame = frame;
 	d->family = AF_INET;
+	d->local = 1;		/* process replies from our own host by default */
 	d->received_callback = NULL;
 	d->local_ifaddrs = NULL;
 	d->local_addrs_refreshed = 0;
@@ -937,6 +938,17 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family)
 {
 	d->family = family;
+}
+
+/* Process replies from our own host, or ignore them like avahi-browse(1) -l */
+void mdnsd_set_local(mdns_daemon_t *d, int enable)
+{
+	d->local = enable ? 1 : 0;
+}
+
+int mdnsd_get_local(mdns_daemon_t *d)
+{
+	return d->local;
 }
 
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
@@ -1118,6 +1130,10 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 		return 1;
 
 	gettimeofday(&d->now, 0);
+
+	/* Skip replies from our own host when local processing is off, cf. mquery -L */
+	if (!d->local && _is_local(d, from))
+		return 0;
 
 	if (m->header.qr == 0) {
 		/* Process each query */
