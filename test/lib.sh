@@ -80,13 +80,18 @@ mdnsd_stop()
 }
 
 # prefer source tree build, fall back to check one level up
-mquery()
+_mquery()
 {
+	ns=$1; shift
 	bin="../src/mquery"
 #	bin="/usr/bin/mdns-scan"
 	[ -x "$bin" ] || SKIP "Cannot find mquery"
-	nsenter --net="$client" -- "$bin" -i eth0 -w 2 "$@"
+	nsenter --net="$ns" -- "$bin" -i eth0 -w 2 "$@"
 }
+
+# Query from the client, or (mquery_local) from the mdnsd host itself
+mquery()       { _mquery "$client" "$@"; }
+mquery_local() { _mquery "$server" "$@"; }
 
 discover()
 {

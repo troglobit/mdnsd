@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -52,6 +53,14 @@ static int simple;
 static int devmode;
 static int terminate_mode;
 static char *detail;	/* hostname filter for -d */
+static volatile sig_atomic_t running = 1;
+
+/* Ctrl-C or SIGTERM: break the event loop so -D/-d still print results */
+static void sig_handler(int signo)
+{
+	(void)signo;
+	running = 0;
+}
 
 struct instance {
 	char iname[256];	/* e.g. "MySwitch._http._tcp.local." */
@@ -176,7 +185,7 @@ static const char *type2str(int type)
 		return "CNAME (5)";
 
 	case QTYPE_PTR:
-		return "TR (12)";
+		return "PTR (12)";
 
 	case QTYPE_TXT:
 		return "TXT (16)";
@@ -199,33 +208,39 @@ static const char *type2str(int type)
 }
 
 /* Print an answer */
-static int ans(mdns_answer_t *a, void *arg)
+/* Browse: follow each service PTR and print "+ instance (responder)". */
+static int ans_browse(mdns_answer_t *a, void *arg)
 {
-	int now;
+	char *spec = (char *)arg;
 	char ipinput[INET6_ADDRSTRLEN];
 
+	if (a->type != QTYPE_PTR)
+		return 0;
+
+	if (!spec)
+		mdnsd_query(d, a->rdname, a->type, ans_browse, a->rdname);
+
+	/* The responder address may be v4 or v6 */
+	if (a->ip.s_addr)
+		inet_ntop(AF_INET, &a->ip, ipinput, sizeof(ipinput));
+	else
+		inet_ntop(AF_INET6, &a->ip6, ipinput, sizeof(ipinput));
+	printf("+ %s (%s)\n", a->rdname, ipinput);
+
+	return 0;
+}
+
+/* Simple: print each record as it arrives, one line per type. */
+static int ans_record(mdns_answer_t *a, void *arg)
+{
+	char ipinput[INET6_ADDRSTRLEN];
+	int now;
+
+	(void)arg;
 	if (a->ttl == 0)
 		now = 0;
 	else
 		now = a->ttl - time(0);
-
-	if (!simple) {
-		char *spec = (char *)arg;
-
-		if (a->type != QTYPE_PTR)
-			return 0;
-
-		if (!spec)
-			mdnsd_query(d, a->rdname, a->type, ans, a->rdname);
-
-		/* The responder address may be v4 or v6 */
-		if (a->ip.s_addr)
-			inet_ntop(AF_INET, &a->ip, ipinput, sizeof(ipinput));
-		else
-			inet_ntop(AF_INET6, &a->ip6, ipinput, sizeof(ipinput));
-		printf("+ %s (%s)\n", a->rdname, ipinput);
-		return 0;
-	}
 
 	switch (a->type) {
 	case QTYPE_A:
@@ -245,6 +260,26 @@ static int ans(mdns_answer_t *a, void *arg)
 	case QTYPE_SRV:
 		printf("SRV %s for %d seconds to %s:%d\n", a->name, now, a->rdname, a->srv.port);
 		break;
+
+	case QTYPE_TXT: {
+		unsigned char *p = a->rdata;	/* <len><string>... on the wire */
+		int rem = a->rdlen;
+
+		/* Decode in wire order; txt2sd() would reorder and split on '='. */
+		printf("TXT %s for %d seconds:", a->name, now);
+		while (p && rem > 0) {
+			int slen = *p++;
+
+			rem--;
+			if (slen > rem)
+				break;
+			printf(" %.*s", slen, p);
+			p   += slen;
+			rem -= slen;
+		}
+		printf("\n");
+		break;
+	}
 
 	default:
 		printf("%s %s for %d seconds with %d data\n", type2str(a->type), a->name, now, a->rdlen);
@@ -493,17 +528,64 @@ static int msock(char *ifname, sa_family_t family)
 }
 
 
+/* Qualify a user-given name for mDNS: root it under .local. unless it
+ * already ends in a dot, so "mquery _ssh._tcp" and "mquery host" work. */
+static char *qualify(const char *name, char *buf, size_t len)
+{
+	size_t n = strlen(name);
+
+	if (n > 0 && name[n - 1] == '.')
+		strlcpy(buf, name, len);		/* already rooted */
+	else if (n >= 6 && !strcmp(&name[n - 6], ".local"))
+		snprintf(buf, len, "%s.", name);	/* ...local -> ...local. */
+	else
+		snprintf(buf, len, "%s.local.", name);	/* _ssh._tcp -> ...local. */
+
+	return buf;
+}
+
 static int usage(int code)
 {
-	/* mquery -D -T    mquery -t 12 _http._tcp.local. */
-	printf("usage: mquery [-hDsTv] "
+	printf("Usage: mquery [-hDLsTv] "
 #ifdef ENABLE_IPV6
 	       "[-6] "
 #endif
 #ifdef HAVE_SO_BINDTODEVICE
 	       "[-i IFNAME] "
 #endif
-	       "[-d HOST] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n");
+	       "[-d HOST] [-l LEVEL] [-t TYPE] [-w SEC] [NAME]\n"
+	       "\n"
+	       "Options:\n"
+#ifdef ENABLE_IPV6
+	       "    -6         Query over IPv6 (ff02::fb), default: IPv4\n"
+#endif
+	       "    -D         Scan for devices and their services, like mdns-scan\n"
+	       "    -d HOST    Like -D, but only HOST, with full service details\n"
+	       "    -h         This help text\n"
+#ifdef HAVE_SO_BINDTODEVICE
+	       "    -i IFNAME  Interface to query on, default: primary LAN interface\n"
+#endif
+	       "    -L         Ignore services on the local host, like avahi-browse -l\n"
+	       "    -l LEVEL   Set log level: none, err, notice (default), info, debug\n"
+	       "    -s         Simple output, one line per record (implied unless -t is PTR)\n"
+	       "    -T         Terminate soon after the last reply, for scripting\n"
+	       "    -t TYPE    Record type to query for, default: PTR (12), see below\n"
+	       "    -v         Show program version and support information\n"
+	       "    -w SEC     Wait SEC seconds for replies, then exit\n"
+	       "\n"
+	       "Record types for -t:\n"
+	       "    A (1)      NS (2)     CNAME (5)  PTR (12)\n"
+	       "    TXT (16)   AAAA (28)  SRV (33)   ANY (255)\n"
+	       "\n"
+	       "Arguments:\n"
+	       "    NAME       Service type (e.g. _http._tcp) or host to query;\n"
+	       "               .local. is implied, default: browse all service types\n"
+	       "\n"
+	       "Examples:\n"
+	       "    mquery                    Browse all service types on the link\n"
+	       "    mquery _http._tcp         List instances of a service type\n"
+	       "    mquery -t 33 NAME         Resolve an instance's host and port (SRV)\n"
+	       "    mquery -D                 Scan and resolve to a device table\n");
 	return code;
 }
 
@@ -516,15 +598,17 @@ int main(int argc, char *argv[])
 	char default_iface[IFNAMSIZ] = { 0 };
 	inet_addr_t from, to;
 	const char *name = DISCO_NAME;
+	char namebuf[256];
 	char *ifname = NULL;
 	sa_family_t family = AF_INET;
 	int type = QTYPE_PTR;	/* 12 */
+	int local = 1;
 	time_t start;
 	int wait = 0;
 	fd_set fds;
 	int sd, c;
 
-	while ((c = getopt(argc, argv, "h?DT"
+	while ((c = getopt(argc, argv, "h?DLT"
 #ifdef HAVE_SO_BINDTODEVICE
 			   "i:"
 #endif
@@ -545,6 +629,10 @@ int main(int argc, char *argv[])
 
 		case 'D':
 			devmode = 1;
+			break;
+
+		case 'L':
+			local = 0;
 			break;
 
 		case 'T':
@@ -576,7 +664,11 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'v':
-			puts(PACKAGE_VERSION);
+			printf("mquery %s\n"
+			       "\n"
+			       "Bug report address: %s\n"
+			       "Project homepage:   %s\n",
+			       PACKAGE_VERSION, PACKAGE_BUGREPORT, PACKAGE_URL);
 			return 0;
 
 		case 'w':
@@ -589,7 +681,17 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind < argc)
-		name = argv[optind];
+		name = qualify(argv[optind], namebuf, sizeof(namebuf));
+
+	/* Browsing follows service PTRs; any other record type must name what
+	 * to look up, and prints its replies directly (as -s does). */
+	if (!devmode && type != QTYPE_PTR) {
+		if (optind >= argc) {
+			fprintf(stderr, "mquery: querying for %s requires a NAME\n", type2str(type));
+			return usage(1);
+		}
+		simple = 1;
+	}
 
 	if (!ifname)
 		ifname = getifname(default_iface, sizeof(default_iface));
@@ -604,6 +706,7 @@ int main(int argc, char *argv[])
 	if (!d)
 		return 1;
 	mdnsd_set_family(d, family);
+	mdnsd_set_local(d, local);
 
 	start = time(NULL);
 	if (devmode) {
@@ -611,12 +714,18 @@ int main(int argc, char *argv[])
 			printf("Scanning for devices ... press Ctrl-C to stop\n");
 		mdnsd_query(d, DISCO_NAME, QTYPE_PTR, ans_dev, NULL);
 	} else {
-		printf("Querying for %s type %d ... press Ctrl-C to stop\n", name, type);
-		mdnsd_query(d, name, type, ans, NULL);
+		printf("Querying %s for %s ... press Ctrl-C to stop\n", name, type2str(type));
+		mdnsd_query(d, name, type, simple ? ans_record : ans_browse, NULL);
 	}
 
+	struct sigaction sa = { 0 };
+
+	sa.sa_handler = sig_handler;		/* no SA_RESTART: interrupt select() */
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+
 	time_t last_rx = 0;
-	while (1) {
+	while (running) {
 		struct timeval one_sec = { 1, 0 };
 		struct timeval *tv = mdnsd_sleep(d);
 
@@ -627,6 +736,8 @@ int main(int argc, char *argv[])
 		FD_ZERO(&fds);
 		FD_SET(sd, &fds);
 		select(sd + 1, &fds, 0, 0, tv);
+		if (!running)
+			break;
 
 		if (FD_ISSET(sd, &fds)) {
 			ssize = sizeof(from);
@@ -661,6 +772,8 @@ int main(int argc, char *argv[])
 	mdnsd_free(d);
 
 	if (devmode) {
+		if (!running)
+			putchar('\n');	/* drop below the echoed ^C */
 		if (detail)
 			print_device_detail();
 		else

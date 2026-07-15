@@ -578,9 +578,6 @@ static void test_unicast_answer_no_uaf(__attribute__((__unused__)) void **state)
 	sin->sin_family = AF_INET;
 	inet_pton(AF_INET, "192.168.0.2", &sin->sin_addr);
 	sin->sin_port = htons(5354);
-	/* mdnsd_in() checks the source against the local addresses once. */
-	will_return(__wrap_getifaddrs, NULL);
-	will_return(__wrap_getifaddrs, 0);
 	mdnsd_in(d, &in, &from);
 
 	/* Remove r while its unicast answer is still queued, then flush. */

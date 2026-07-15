@@ -94,7 +94,7 @@ struct mdns_record {
 };
 
 struct mdns_daemon {
-	char shutdown, disco;
+	char shutdown, disco, local;
 	unsigned long int expireall, checkqlist;
 	struct timeval now, sleep, pause, probe, publish;
 	int class, frame;
@@ -213,7 +213,8 @@ static bool _a_match(struct resource *r, mdns_answer_t *a)
 		case QTYPE_PTR:
 		case QTYPE_NS:
 		case QTYPE_CNAME:
-			return strcmp(a->rdname, r->known.ns.name) == 0;
+			return r->known.ns.name && a->rdname &&
+				strcmp(r->known.ns.name, a->rdname) == 0;
 
 		case QTYPE_A:
 			return memcmp(&r->known.a.ip, &a->ip, 4) == 0;
@@ -222,7 +223,8 @@ static bool _a_match(struct resource *r, mdns_answer_t *a)
 			return memcmp(&r->known.aaaa.ip6, &a->ip6, 16) == 0;
 
 		default:
-			return r->rdlength == a->rdlen && memcmp(r->rdata, a->rdata, r->rdlength) == 0;
+			return r->rdlength == a->rdlen &&
+				(r->rdlength == 0 || memcmp(r->rdata, a->rdata, r->rdlength) == 0);
 	}
 
 	return 0;
@@ -925,6 +927,7 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 	d->class = class;
 	d->frame = frame;
 	d->family = AF_INET;
+	d->local = 1;		/* process replies from our own host by default */
 	d->received_callback = NULL;
 	d->local_ifaddrs = NULL;
 	d->local_addrs_refreshed = 0;
@@ -935,6 +938,17 @@ mdns_daemon_t *mdnsd_new(int class, int frame)
 void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family)
 {
 	d->family = family;
+}
+
+/* Process replies from our own host, or ignore them like avahi-browse(1) -l */
+void mdnsd_set_local(mdns_daemon_t *d, int enable)
+{
+	d->local = enable ? 1 : 0;
+}
+
+int mdnsd_get_local(mdns_daemon_t *d)
+{
+	return d->local;
 }
 
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr)
@@ -1117,8 +1131,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 
 	gettimeofday(&d->now, 0);
 
-	/* Ignore packets originated from any of our own local addresses */
-	if (_is_local(d, from))
+	/* Skip replies from our own host when local processing is off, cf. mquery -L */
+	if (!d->local && _is_local(d, from))
 		return 0;
 
 	if (m->header.qr == 0) {
@@ -1996,6 +2010,8 @@ void records_clear(mdns_daemon_t *d)
 		{
 			mdns_record_t *const next = r->next;
 			_r_remove_lists(d, r, NULL);
+			_u_remove(d, r);
+			_free_record(r);
 			r = next;
 		}
 		d->published[i] = NULL;

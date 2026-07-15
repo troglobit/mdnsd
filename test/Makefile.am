@@ -6,7 +6,7 @@ AM_CPPFLAGS        = -I$(top_srcdir)
 
 # Not covered by any _SOURCES, so ship these explicitly (the *.c unit
 # tests are distributed automatically via _SOURCES).
-EXTRA_DIST         = README.md lib.sh discover.sh browse.sh ipv6.sh iprecords.sh lostif.sh unittest.h
+EXTRA_DIST         = README.md lib.sh discover.sh browse.sh ipv6.sh iprecords.sh lostif.sh local.sh unittest.h
 CLEANFILES         = *~ *.trs *.log
 
 # top_srcdir is only needed for `make distcheck` (VPATH builds).
@@ -23,14 +23,16 @@ TESTS             += browse.sh
 TESTS             += ipv6.sh
 TESTS             += iprecords.sh
 TESTS             += lostif.sh
+TESTS             += local.sh
 
 if ENABLE_UNIT_TESTS
-check_PROGRAMS     = xht addr answer label sdtxt
+check_PROGRAMS     = xht addr answer label sdtxt conflict
 TESTS             += xht
 TESTS             += addr
 TESTS             += answer
 TESTS             += label
 TESTS             += sdtxt
+TESTS             += conflict
 
 xht_SOURCES        = xht.c
 xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
@@ -57,4 +59,8 @@ label_LDADD        = $(cmocka_LIBS) $(LIBOBJS)
 # sd2txt()/txt2sd() are public, so this one links the library normally.
 sdtxt_SOURCES      = sdtxt.c
 sdtxt_LDADD        = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
+
+# records_clear() and the record API are public; links the library normally.
+conflict_SOURCES   = conflict.c
+conflict_LDADD     = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
 endif

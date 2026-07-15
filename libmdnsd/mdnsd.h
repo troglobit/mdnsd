@@ -111,6 +111,18 @@ mdns_daemon_t *mdnsd_new(int class, int frame);
 void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family);
 
 /**
+ * Control whether replies originating from this host are processed.  On by
+ * default, so mdnsd_in() (and hence mquery) sees a responder on the same
+ * host; disable to skip the local host, like avahi-browse(1) -l.
+ */
+void mdnsd_set_local(mdns_daemon_t *d, int enable);
+
+/**
+ * Get the current local-processing setting, see mdnsd_set_local()
+ */
+int mdnsd_get_local(mdns_daemon_t *d);
+
+/**
  * Set mDNS daemon host IP address
  */
 void mdnsd_set_address(mdns_daemon_t *d, struct in_addr addr);

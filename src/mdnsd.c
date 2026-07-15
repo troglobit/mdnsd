@@ -282,12 +282,11 @@ static int usage(int code)
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
 	       "    -s        Use syslog even if running in foreground\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
-	       "    -v        Show program version\n"
+	       "    -v        Show program version and support information\n"
 	       "\n"
 	       "Arguments:\n"
-	       "    PATH      Path to mDNS-SD .service files, default: /etc/mdns.d\n"
-	       "\n"
-	       "Bug report address: %-40s\n", prognm, PACKAGE_BUGREPORT);
+	       "    PATH      Path to mDNS-SD .service files, default: /etc/mdns.d\n",
+	       prognm);
 
 	return code;
 }
@@ -357,7 +356,11 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'v':
-			puts(PACKAGE_VERSION);
+			printf("%s %s\n"
+			       "\n"
+			       "Bug report address: %s\n"
+			       "Project homepage:   %s\n",
+			       prognm, PACKAGE_VERSION, PACKAGE_BUGREPORT, PACKAGE_URL);
 			return 0;
 
 		default:

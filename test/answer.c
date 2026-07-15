@@ -193,6 +193,45 @@ static void test_additional_records_dedup(__attribute__((__unused__)) void **sta
 	mdnsd_free(d);
 }
 
+/*
+ * Issue #94: _a_match() compared rdata and names without guarding NULL, so
+ * an empty-rdata record -- or a PTR/NS/CNAME with no decoded name -- handed
+ * a NULL to memcmp()/strcmp(), both declared nonnull.  @evverx hit it with
+ * two empty-rdata records sent back to back, which collide in the cache via
+ * _a_match().  Exercise both branches directly under the sanitizer.
+ */
+static void test_a_match_empty_rdata(__attribute__((__unused__)) void **state)
+{
+	struct resource r;
+	mdns_answer_t a;
+
+	memset(&r, 0, sizeof(r));
+	memset(&a, 0, sizeof(a));
+
+	/* TXT has no special case, so it lands in the default rdata compare;
+	 * both records carry empty rdata (rdata == NULL, rdlen == 0). */
+	r.name = "yo"; r.type = QTYPE_TXT;
+	a.name = "yo"; a.type = QTYPE_TXT;
+
+	/* Equal empty rdata is a match, without memcmp(NULL, NULL, 0). */
+	assert_true(_a_match(&r, &a));
+}
+
+/* A PTR with no decoded name must not reach strcmp(NULL, ...). */
+static void test_a_match_null_rdname(__attribute__((__unused__)) void **state)
+{
+	struct resource r;
+	mdns_answer_t a;
+
+	memset(&r, 0, sizeof(r));
+	memset(&a, 0, sizeof(a));
+
+	r.name = "yo"; r.type = QTYPE_PTR;	/* r.known.ns.name == NULL */
+	a.name = "yo"; a.type = QTYPE_PTR;	/* a.rdname == NULL */
+
+	assert_false(_a_match(&r, &a));
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -200,6 +239,8 @@ int main(void)
 		cmocka_unit_test(test_known_answer_srv_compression),
 		cmocka_unit_test(test_additional_records_for_ptr),
 		cmocka_unit_test(test_additional_records_dedup),
+		cmocka_unit_test(test_a_match_empty_rdata),
+		cmocka_unit_test(test_a_match_null_rdname),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
