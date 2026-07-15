@@ -1,3 +1,17 @@
+mdnsd (1.1) stable; urgency=medium
+
+  * mquery: new -L flag to ignore services on the local host
+  * New libmdnsd APIs mdnsd_set_local() and mdnsd_get_local() to ignore
+    or allow local services; a backwards-compatible addition, the SONAME
+    is unchanged (still libmdnsd2)
+  * Services on the same host as the querier are discoverable again; a
+    v1.0 regression stopped clients such as mquery or mdns-scan, run on
+    the device itself, from seeing local services
+  * Fix an out-of-bounds memory access when a .service file contains a
+    blank line (issue #95)
+
+ -- Joachim Wiberg <troglobit@gmail.com>  Wed, 15 Jul 2026 11:58:48 +0200
+
 mdnsd (1.0) stable; urgency=medium
 
   * Full IPv6 support: mdnsd and mquery now query and answer over the
