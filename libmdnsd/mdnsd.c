@@ -1119,10 +1119,6 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 
 	gettimeofday(&d->now, 0);
 
-	/* Ignore packets originated from any of our own local addresses */
-	if (_is_local(d, from))
-		return 0;
-
 	if (m->header.qr == 0) {
 		/* Process each query */
 		for (i = 0; i < m->qdcount; i++) {
