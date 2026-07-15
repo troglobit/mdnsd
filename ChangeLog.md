@@ -3,6 +3,23 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v1.1][UNRELEASED]
+---------------------
+
+### Changes
+
+- `mquery`: new `-L` flag, ignore services on the local host
+- `libmdnsd`: new `mdnsd_set_local()` and `mdnsd_get_local()` APIs to ignore
+  or allow local services.  Backwards-compatible addition
+
+### Fixes
+
+- Services on the same host as the querier are discoverable again; regression
+  in v1.0 which caused clients such as `mquery` or `mdns-scan`, run on the
+  device itself, to not see local services
+- `mdnsd`: fix an out-of-bounds memory access when a `.service` file contains
+  a blank line, issue #95
+
 [v1.0][] - 2026-07-06
 ---------------------
 
@@ -207,7 +224,7 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v0.12...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v1.0...HEAD
 [v1.0]: https://github.com/troglobit/mdnsd/compare/v0.12...v1.0
 [v0.12]: https://github.com/troglobit/mdnsd/compare/v0.11...v0.12
 [v0.11]: https://github.com/troglobit/mdnsd/compare/v0.10...v0.11
