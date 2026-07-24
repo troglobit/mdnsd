@@ -12,6 +12,8 @@ All relevant changes to the project are documented in this file.
   `-g GROUP` options drop privileges after start, and `-p FILE` places
   the pid file where that user can write it.  The bundled systemd unit
   runs unprivileged out of the box, issue #96
+- `mdnsd`: warn, instead of silently note, when `-i IFACE` cannot filter
+  to the interface for lack of the `CAP_NET_RAW` capability
 
 [v1.1][] - 2026-07-17
 ---------------------

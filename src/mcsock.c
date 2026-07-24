@@ -144,7 +144,8 @@ static int mc_socket(struct ifnfo *iface, unsigned char ttl)
 #ifdef HAVE_SO_BINDTODEVICE
 		/* Filter inbound traffic from anyone (ANY) to port 5353 on ifname */
 		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, &iface->ifname, strlen(iface->ifname)))
-			INFO("Failed setting SO_BINDTODEVICE on %s: %s", iface->ifname, strerror(errno));
+			WARN("No interface filter on %s, need CAP_NET_RAW for SO_BINDTODEVICE: %s",
+			     iface->ifname, strerror(errno));
 #endif
 	}
 
@@ -226,7 +227,8 @@ static int mc_socket6(struct ifnfo *iface, unsigned char ttl)
 			WARN("Failed setting IPV6_MULTICAST_IF to %d: %s", iface->ifindex, strerror(errno));
 #ifdef HAVE_SO_BINDTODEVICE
 		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname, strlen(iface->ifname)))
-			INFO("Failed setting SO_BINDTODEVICE on %s: %s", iface->ifname, strerror(errno));
+			WARN("No interface filter on %s, need CAP_NET_RAW for SO_BINDTODEVICE: %s",
+			     iface->ifname, strerror(errno));
 #endif
 	}
 
