@@ -628,6 +628,10 @@ static int _cache(mdns_daemon_t *d, struct resource *r, const inet_addr_t *from)
 	case QTYPE_NS:
 	case QTYPE_CNAME:
 	case QTYPE_PTR:
+		if (!r->known.ns.name) {
+			_free_cached(c);
+			return 1;
+		}
 		c->rr.rdname = strdup(r->known.ns.name);
 		/* Stash the responder address for mquery's device view */
 #ifdef ENABLE_IPV6
@@ -639,6 +643,10 @@ static int _cache(mdns_daemon_t *d, struct resource *r, const inet_addr_t *from)
 		break;
 
 	case QTYPE_SRV:
+		if (!r->known.srv.name) {
+			_free_cached(c);
+			return 1;
+		}
 		c->rr.rdname = strdup(r->known.srv.name);
 		c->rr.srv.port = r->known.srv.port;
 		c->rr.srv.weight = r->known.srv.weight;
