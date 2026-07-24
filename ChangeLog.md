@@ -3,6 +3,9 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[UNRELEASED][]
+--------------
+
 [v1.1][] - 2026-07-17
 ---------------------
 
@@ -225,7 +228,8 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed memory leaks
 
 [UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v1.1...HEAD
-[v1.1]: https://github.com/troglobit/mdnsd/compare/1.0...v1.1
+[v1.2]: https://github.com/troglobit/mdnsd/compare/v1.1...v1.2
+[v1.1]: https://github.com/troglobit/mdnsd/compare/v1.0...v1.1
 [v1.0]: https://github.com/troglobit/mdnsd/compare/v0.12...v1.0
 [v0.12]: https://github.com/troglobit/mdnsd/compare/v0.11...v0.12
 [v0.11]: https://github.com/troglobit/mdnsd/compare/v0.10...v0.11
