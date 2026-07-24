@@ -36,6 +36,8 @@
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <grp.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,6 +57,9 @@ static const char *prognm      = PACKAGE_NAME;
 char *hostnm      = NULL;
 static char *ifname      = NULL;
 static const char *path        = NULL;
+static const char *pidfn       = PACKAGE_NAME;
+static char *username    = NULL;
+static char *groupname   = NULL;
 static int   background  = 1;
 static int   logging     = 1;
 static int   ttl         = 255;
@@ -264,15 +269,62 @@ static void sig_init(void)
 }
 
 
+/*
+ * Called before any socket or the pid file, so every runtime resource --
+ * the SIGHUP reload and the pid file's atexit cleanup included -- ends up
+ * owned by the unprivileged user.  The -i filter then needs CAP_NET_RAW
+ * granted out-of-band, e.g. in the systemd unit; see issue #96.
+ */
+static void drop_privs(const char *user, const char *group)
+{
+	struct passwd *pw = NULL;
+	struct group *gr = NULL;
+	uid_t uid;
+	gid_t gid;
+
+	if (!user && !group)
+		return;
+
+	if (user && (pw = getpwnam(user)) == NULL) {
+		ERR("No such user '%s'", user);
+		exit(1);
+	}
+	if (group && (gr = getgrnam(group)) == NULL) {
+		ERR("No such group '%s'", group);
+		exit(1);
+	}
+
+	uid = pw ? pw->pw_uid : getuid();
+	gid = gr ? gr->gr_gid : pw->pw_gid;
+
+	/* Supplementary groups, while we still may set them */
+	if (pw && !group)
+		initgroups(pw->pw_name, gid);
+	else
+		setgroups(1, &gid);
+
+	if (setgid(gid)) {
+		ERR("Failed dropping to group %d: %s", gid, strerror(errno));
+		exit(1);
+	}
+	if (setuid(uid)) {
+		ERR("Failed dropping to user %d: %s", uid, strerror(errno));
+		exit(1);
+	}
+
+	NOTE("Dropped privileges to uid %d gid %d", uid, gid);
+}
+
 static int usage(int code)
 {
-	printf("Usage: %s [-hnsv] [-H NAME] "
+	printf("Usage: %s [-hnsv] [-g GROUP] [-H NAME] "
 #ifdef HAVE_SO_BINDTODEVICE
 	       "[-i IFACE] "
 #endif
-	       "[-l LEVEL] [-t TTL] [PATH]\n"
+	       "[-l LEVEL] [-p FILE] [-t TTL] [-u USER] [PATH]\n"
 	       "\n"
 	       "Options:\n"
+	       "    -g GROUP  Group to drop privileges to after start\n"
 	       "    -H NAME   Hostname to advertise, default: system hostname\n"
 	       "    -h        This help text\n"
 #ifdef HAVE_SO_BINDTODEVICE
@@ -280,13 +332,15 @@ static int usage(int code)
 #endif
 	       "    -l LEVEL  Set log level: none, err, notice (default), info, debug\n"
 	       "    -n        Run in foreground, do not detach from controlling terminal\n"
+	       "    -p FILE   Path to pid file, default: %s/%s.pid\n"
 	       "    -s        Use syslog even if running in foreground\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
+	       "    -u USER   User to drop privileges to after start\n"
 	       "    -v        Show program version and support information\n"
 	       "\n"
 	       "Arguments:\n"
 	       "    PATH      Path to mDNS-SD .service files, default: /etc/mdns.d\n",
-	       prognm);
+	       prognm, _PIDFILEDIR, PACKAGE_NAME);
 
 	return code;
 }
@@ -314,12 +368,16 @@ int main(int argc, char *argv[])
 	int nl_sd = -1;
 
 	prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "H:h"
+	while ((c = getopt(argc, argv, "g:H:h"
 #ifdef HAVE_SO_BINDTODEVICE
 			   "i:"
 #endif
-			   "l:nst:v?")) != EOF) {
+			   "l:np:st:u:v?")) != EOF) {
 		switch (c) {
+		case 'g':
+			groupname = optarg;
+			break;
+
 		case 'H':
 			hostnm = optarg;
 			break;
@@ -344,6 +402,10 @@ int main(int argc, char *argv[])
 			logging--;
 			break;
 
+		case 'p':
+			pidfn = optarg;
+			break;
+
 		case 's':
 			logging++;
 			break;
@@ -353,6 +415,10 @@ int main(int argc, char *argv[])
 			ttl = atoi(optarg);
 			if (ttl < 1 || ttl > 255)
 				return usage(1);
+			break;
+
+		case 'u':
+			username = optarg;
 			break;
 
 		case 'v':
@@ -385,9 +451,10 @@ int main(int argc, char *argv[])
 	}
 
 	NOTE("%s starting.", PACKAGE_STRING);
+	drop_privs(username, groupname);
 	sig_init();
 	sys_init();
-	pidfile(PACKAGE_NAME);
+	pidfile(pidfn);
 	nl_sd = netlink_init();
 
 	while (running) {
@@ -433,7 +500,7 @@ int main(int argc, char *argv[])
 #endif
 					conf_init(iface, path, hostnm);
 				}
-				pidfile(PACKAGE_NAME);
+				pidfile(pidfn);
 				reload = 0;
 			}
 

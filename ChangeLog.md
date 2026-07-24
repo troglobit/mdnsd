@@ -6,6 +6,13 @@ All relevant changes to the project are documented in this file.
 [UNRELEASED][]
 --------------
 
+### Changes
+
+- `mdnsd`: can now run as an unprivileged user.  New `-u USER` and
+  `-g GROUP` options drop privileges after start, and `-p FILE` places
+  the pid file where that user can write it.  The bundled systemd unit
+  runs unprivileged out of the box, issue #96
+
 [v1.1][] - 2026-07-17
 ---------------------
 

@@ -7,7 +7,23 @@ Requires=network-online.target
 
 [Service]
 Type=simple
-ExecStart=@SBINDIR@/mdnsd -sn
+ExecStart=@SBINDIR@/mdnsd -sn -p /run/mdnsd/mdnsd.pid
+RuntimeDirectory=mdnsd
+
+# Run unprivileged with no capabilities.  The -i IFACE filter is the one
+# exception: it uses SO_BINDTODEVICE, which needs CAP_NET_RAW.  To use it,
+# add -i IFACE above and uncomment the two capability lines below.
+DynamicUser=yes
+CapabilityBoundingSet=
+#CapabilityBoundingSet=CAP_NET_RAW
+#AmbientCapabilities=CAP_NET_RAW
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
 
 [Install]
 WantedBy=multi-user.target

@@ -49,15 +49,19 @@ Usage
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
 different path can be given, which may be a directory or a single file.
 
-    Usage: mdnsd [-hnsv] [-H NAME] [-i IFACE] [-l LEVEL] [-t TTL] [PATH]
+    Usage: mdnsd [-hnsv] [-g GROUP] [-H NAME] [-i IFACE] [-l LEVEL]
+                 [-p FILE] [-t TTL] [-u USER] [PATH]
     
+        -g GROUP  Group to drop privileges to after start
         -H NAME   Hostname to advertise, default: system hostname
         -h        This help text
         -i IFACE  Announce services only on this interface, default: all
         -l LEVEL  Set log level: none, err, notice (default), info, debug
         -n        Run in foreground, do not detach from controlling terminal
+        -p FILE   Path to pid file, default: /run/mdnsd.pid
         -s        Use syslog even if running in foreground
         -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
+        -u USER   User to drop privileges to after start
         -v        Show program version
     
     Bug report address: https://github.com/troglobit/mdnsd/issues
@@ -75,6 +79,16 @@ mdnsd early in the boot process, when the interface may not yet have
 acquired an IP address, or the interface itself may not even exist yet,
 is fine; mdnsd tracks interface and address changes in real time over
 netlink and (re)configures itself as they appear.
+
+mdnsd needs no special privileges to answer over mDNS, so it can run as
+an unprivileged user.  Either start it directly as that user, or start
+it as root and let it drop with `-u USER` (and optionally `-g GROUP`).
+When dropping, point `-p FILE` at a directory the user may write to.  The
+one privileged operation is the `-i IFACE` filter: it uses
+`SO_BINDTODEVICE`, which needs the `CAP_NET_RAW` capability.  Grant it
+out-of-band, e.g. by uncommenting `AmbientCapabilities=CAP_NET_RAW` in
+the bundled systemd unit; without it mdnsd still runs, but listens on
+all interfaces and logs a warning.
 
 See the file [API.md][] for pointers on how to use the mDNS library.
 
