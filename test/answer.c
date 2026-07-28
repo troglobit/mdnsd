@@ -232,6 +232,71 @@ static void test_a_match_null_rdname(__attribute__((__unused__)) void **state)
 	assert_false(_a_match(&r, &a));
 }
 
+/*
+ * Issue #97 (companion to #94): a name or SRV answer whose target did not
+ * decode leaves known.*.name NULL, which _cache() handed to strdup().
+ * Exercise the guard directly, like the #94 _a_match() checks.
+ */
+static void test_cache_null_rdname(__attribute__((__unused__)) void **state)
+{
+	unsigned short type[] = { QTYPE_NS, QTYPE_CNAME, QTYPE_PTR };
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	inet_addr_t from;
+	struct resource r;
+	size_t i;
+
+	assert_non_null(d);
+	memset(&from, 0, sizeof(from));
+
+	for (i = 0; i < sizeof(type) / sizeof(type[0]); i++) {
+		memset(&r, 0, sizeof(r));	/* known.ns.name == NULL */
+		r.name  = "x.local.";
+		r.type  = type[i];
+		r.class = QCLASS_IN;
+		r.ttl   = 120;			/* >0, else the delete path returns first */
+
+		assert_int_equal(1, _cache(d, &r, &from));
+	}
+
+	memset(&r, 0, sizeof(r));
+	r.name  = "x.local.";
+	r.type  = QTYPE_PTR;
+	r.class = QCLASS_IN;
+	r.ttl   = 120;
+	r.known.ns.name = "target.local.";
+	assert_int_equal(0, _cache(d, &r, &from));
+
+	mdnsd_free(d);
+}
+
+/* Same guard on the SRV arm, whose target lives at a different union offset. */
+static void test_cache_null_srv(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	inet_addr_t from;
+	struct resource r;
+
+	assert_non_null(d);
+	memset(&from, 0, sizeof(from));
+
+	memset(&r, 0, sizeof(r));		/* known.srv.name == NULL */
+	r.name  = "x._svc._tcp.local.";
+	r.type  = QTYPE_SRV;
+	r.class = QCLASS_IN;
+	r.ttl   = 120;
+	assert_int_equal(1, _cache(d, &r, &from));
+
+	memset(&r, 0, sizeof(r));
+	r.name  = "x._svc._tcp.local.";
+	r.type  = QTYPE_SRV;
+	r.class = QCLASS_IN;
+	r.ttl   = 120;
+	r.known.srv.name = "target.local.";
+	assert_int_equal(0, _cache(d, &r, &from));
+
+	mdnsd_free(d);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -241,6 +306,8 @@ int main(void)
 		cmocka_unit_test(test_additional_records_dedup),
 		cmocka_unit_test(test_a_match_empty_rdata),
 		cmocka_unit_test(test_a_match_null_rdname),
+		cmocka_unit_test(test_cache_null_rdname),
+		cmocka_unit_test(test_cache_null_srv),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
