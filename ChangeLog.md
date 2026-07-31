@@ -3,8 +3,8 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
-[UNRELEASED][]
---------------
+[v1.2][] - 2026-07-31
+---------------------
 
 ### Changes
 
@@ -14,6 +14,11 @@ All relevant changes to the project are documented in this file.
   runs unprivileged out of the box, issue #96
 - `mdnsd`: warn, instead of silently note, when `-i IFACE` cannot filter
   to the interface for lack of the `CAP_NET_RAW` capability
+
+### Fixes
+
+- Fix #97: undefined behavior when caching a name or SRV record with a
+  NULL (undecoded) target name, by Julius Pfrommer
 
 [v1.1][] - 2026-07-17
 ---------------------
