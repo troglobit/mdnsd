@@ -1,31 +1,27 @@
-mdnsd - embeddable Multicast DNS Daemon
-=======================================
+# mdnsd - embeddable Multicast DNS Daemon
 [![License svg][]][License] [![Release svg][]][Release] [![Repology svg][]][Repology] [![GitHub svg][]][GitHub] [![Coverity svg][]][Coverity]
 
 - [About](#about)
 - [Features](#features)
 - [Usage](#usage)
-  - [Service Records](#service-records)
-  - [Resolving .local Names](#resolving-local-names)
-  - [Browsing with mquery](#browsing-with-mquery)
+   - [Service Records](#service-records)
+   - [Resolving .local Names](#resolving-local-names)
+   - [Browsing with mquery](#browsing-with-mquery)
 - [Build & Install](#build--install)
 - [Origin & References](#origin--references)
 
-
-About
------
+## About
 
 `mdnsd` is a small Multicast DNS and DNS-SD (service discovery) responder
 and library for advertising hosts and services on the local link.  It
 descends from [Jeremie Miller's][jeremie] original mDNS/mDNS-SD daemon.
 
+> [!TIP]
 > Download a [versioned relased tarball][releases] (not a GitHub zip) to
 > unlock a fully supported version.  Hardcore devs. can proceed to clone
 > the GIT repository, see below for help.
 
-
-Features
---------
+## Features
 
 - Dual-stack: answers over IPv4 (`224.0.0.251`) and IPv6 (`ff02::fb`),
   with A and AAAA records for the host and its services.
@@ -42,29 +38,29 @@ Features
   `mquery` scan/debug tool.
 - Runs on GNU/Linux and the BSDs.
 
-
-Usage
------
+## Usage
 
 mdnsd by default reads service definitions from `/etc/mdns.d/*`, but a
 different path can be given, which may be a directory or a single file.
 
-    Usage: mdnsd [-hnsv] [-g GROUP] [-H NAME] [-i IFACE] [-l LEVEL]
-                 [-p FILE] [-t TTL] [-u USER] [PATH]
-    
-        -g GROUP  Group to drop privileges to after start
-        -H NAME   Hostname to advertise, default: system hostname
-        -h        This help text
-        -i IFACE  Announce services only on this interface, default: all
-        -l LEVEL  Set log level: none, err, notice (default), info, debug
-        -n        Run in foreground, do not detach from controlling terminal
-        -p FILE   Path to pid file, default: /run/mdnsd.pid
-        -s        Use syslog even if running in foreground
-        -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
-        -u USER   User to drop privileges to after start
-        -v        Show program version
-    
-    Bug report address: https://github.com/troglobit/mdnsd/issues
+```
+Usage: mdnsd [-hnsv] [-g GROUP] [-H NAME] [-i IFACE] [-l LEVEL]
+             [-p FILE] [-t TTL] [-u USER] [PATH]
+
+    -g GROUP  Group to drop privileges to after start
+    -H NAME   Hostname to advertise, default: system hostname
+    -h        This help text
+    -i IFACE  Announce services only on this interface, default: all
+    -l LEVEL  Set log level: none, err, notice (default), info, debug
+    -n        Run in foreground, do not detach from controlling terminal
+    -p FILE   Path to pid file, default: /run/mdnsd.pid
+    -s        Use syslog even if running in foreground
+    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
+    -u USER   User to drop privileges to after start
+    -v        Show program version
+
+Bug report address: https://github.com/troglobit/mdnsd/issues
+```
 
 By default mdnsd daemonizes, detaches from the controlling terminal and
 continues running in the background, logging errors (or debug messages
@@ -92,7 +88,6 @@ all interfaces and logs a warning.
 
 See the file [API.md][] for pointers on how to use the mDNS library.
 
-
 ### Service Records
 
 This section provides a couple of service record examples.  The syntax
@@ -101,54 +96,58 @@ of the files is fairly free form.  Optional directives: `name`, `txt`,
 file format; in particular `target` sets the host the service's `SRV`
 record points to, while the service `PTR` always points to the instance.
 
-> **Note:** you need at least one service record for `mdnsd` to respond
-> to queries from, e.g., `mdns-scan`.
+> [!NOTE]
+> You need at least one service record for `mdnsd` to respond to queries from,
+> e.g., `mdns-scan`.
 
 _FTP service example:_
 
-    # /etc/mdns.d/ftp.service -- mDNS-SD advertisement of FTP service
-    name Troglobit FTP Server
-    type _ftp._tcp
-    port 21
-    txt server=uftpd
-    txt version=2.6
-    cname ftp.local
+```
+# /etc/mdns.d/ftp.service -- mDNS-SD advertisement of FTP service
+name Troglobit FTP Server
+type _ftp._tcp
+port 21
+txt server=uftpd
+txt version=2.6
+cname ftp.local
+```
 
 _HTTP service example:_
 
-    # /etc/mdns.d/http.service -- mDNS-SD advertisement of HTTP service
-    name Troglobit HTTP Server
-    type _http._tcp
-    port 80
-    txt server=merecat
-    txt version=2.31
-    cname home.local
+```
+# /etc/mdns.d/http.service -- mDNS-SD advertisement of HTTP service
+name Troglobit HTTP Server
+type _http._tcp
+port 80
+txt server=merecat
+txt version=2.31
+cname home.local
+```
 
 _SSH service example:_
 
-    # /etc/mdns.d/http.service -- mDNS-SD advertisement of SSH service
-    name Dropbear SSH Server
-    type _ssh._tcp
-    port 22
-
+```
+# /etc/mdns.d/http.service -- mDNS-SD advertisement of SSH service
+name Dropbear SSH Server
+type _ssh._tcp
+port 22
+```
 
 ### Resolving .local Names
 
 `mdnsd` advertises this host and answers queries for it; it does not make
-the system resolver mDNS-aware.  To let programs on the host resolve
-`.local` names, e.g., `ping foo.local` or `getaddrinfo()`, install the
-libnss-mdns package and add it to `/etc/nsswitch.conf`:
+the system resolver mDNS-aware.  Resolving `.local` names on the host,
+e.g., `ping foo.local` or `getaddrinfo()`, needs a resolver that speaks
+mDNS itself.
 
-    hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4
+`libnss-mdns` does not, despite the name.  It sends no mDNS of its own; it
+forwards every lookup to `avahi-daemon` over a UNIX socket and fails when that
+daemon is not running.  So it currently cannot (yet) pair with `mdnsd` to
+resolve `.local` without Avahi.
 
-The two halves are complementary: `mdnsd` answers for the names it
-advertises, while libnss-mdns resolves everyone else's.  libnss-mdns
-issues its own queries, so nothing extra needs to run, and it coexists
-with `mdnsd` on port 5353.
-
-> **Note:** run either `mdnsd` or `avahi-daemon`, not both; two
-> responders on the same link would answer over each other.
-
+> [!NOTE]
+> Run either `mdnsd` or `avahi-daemon`, not both; two responders on the same
+> link would answer over each other.
 
 ### Browsing with mquery
 
@@ -156,29 +155,32 @@ The bundled `mquery` tool discovers and resolves services on the local
 link, a bit like `avahi-browse`.  Give it a service type or a host name;
 the `.local.` domain is implied.
 
-    mquery                     # browse all service types on the link
-    mquery _http._tcp          # list instances of a service type
-    mquery -t 33 NAME          # resolve an instance's host and port (SRV)
-    mquery -t 16 NAME          # show a service's TXT metadata
-    mquery -t 1  host          # resolve a host's address (-t 28 for IPv6)
-    mquery -D                  # scan and resolve into a device table
-    mquery -d host             # show one device in detail
+```bash
+mquery                     # browse all service types on the link
+mquery _http._tcp          # list instances of a service type
+mquery -t 33 NAME          # resolve an instance's host and port (SRV)
+mquery -t 16 NAME          # show a service's TXT metadata
+mquery -t 1  host          # resolve a host's address (-t 28 for IPv6)
+mquery -D                  # scan and resolve into a device table
+mquery -d host             # show one device in detail
+```
 
 The `-D` and `-d` modes print their table when you stop the scan with
 Ctrl-C, or automatically with `-T` (quiet timeout) or `-w SEC`.  See the
 **mquery(1)** manual for the full list of record types and options.
 
-
-Build & Install
----------------
+## Build & Install
 
 This project is built for and developed on GNU/Linux systems, but should
 work on any UNIX[^1] like system.  Use the standard GNU configure script
 to create a Makefile for your system and then call make.
 
-    ./configure
-    make all
-    make install
+```bash
+$ ./configure
+$ make all
+$ make install
+...
+````
 
 Users who checked out the source from GitHub must run `./autogen.sh`
 first to create the configure script.  This requires GNU autotools and
@@ -186,8 +188,8 @@ first to create the configure script.  This requires GNU autotools and
 you also need `libcmocka-dev`.
 
 IPv6 support is built by default; pass `--disable-ipv6` to leave it out.
-To resolve `.local` names on the host, also install the `libnss-mdns`
-package, see [Resolving .local Names](#resolving-local-names) above.
+For resolving `.local` names on the host, see [Resolving .local
+Names](#resolving-local-names) above.
 
 If you install to the default location used by the configure script,
 the library is installed in `/usr/local/lib`, which may not be in
@@ -196,7 +198,10 @@ used, the file `/etc/ld.so.conf` may exist (there may also be a
 sub-directory).  If `/usr/local/lib` is already listed there, you
 may need to update the cache:
 
-    ldconfig -v |grep mdnsd
+```bash
+$ ldconfig -v |grep mdnsd
+...
+```
 
 If you don't get any output from the above command, the ld.so.conf needs
 updating, or you may not be using the GNU C library.
@@ -204,9 +209,7 @@ updating, or you may not be using the GNU C library.
 [^1]: Builds and runs fine on: FreeBSD, NetBSD, OpenBSD, DragonFly BSD,
     and Illumos/SmartOS.
 
-
-Origin & References
--------------------
+## Origin & References
 
 This mDNS-SD implementation was developed by [Jeremie Miller][jeremie]
 in 2003, originally [announced on the rendezvous-dev][announced] mailing
