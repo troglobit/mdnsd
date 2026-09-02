@@ -26,13 +26,14 @@ TESTS             += lostif.sh
 TESTS             += local.sh
 
 if ENABLE_UNIT_TESTS
-check_PROGRAMS     = xht addr answer label sdtxt conflict
+check_PROGRAMS     = xht addr answer label sdtxt conflict clock
 TESTS             += xht
 TESTS             += addr
 TESTS             += answer
 TESTS             += label
 TESTS             += sdtxt
 TESTS             += conflict
+TESTS             += clock
 
 xht_SOURCES        = xht.c
 xht_LDADD          = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
@@ -43,10 +44,13 @@ addr_LDADD         = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS) ../src/ad
 # inside the library too, not just the copy in ../src/addr.o.
 addr_LDFLAGS       = -static -Wl,--wrap=getifaddrs -Wl,--wrap=freeifaddrs
 
-# answer.c #includes mdnsd.c to reach the static _a_copy(), so it
-# compiles the library sources here rather than linking libmdnsd.la.
-answer_SOURCES     = answer.c ../libmdnsd/1035.c ../libmdnsd/xht.c \
+# White-box tests #include mdnsd.c to reach its statics, so they compile
+# the rest of the library here rather than linking libmdnsd.la.
+WHITEBOX_SOURCES   = ../libmdnsd/1035.c ../libmdnsd/xht.c \
                      ../libmdnsd/sdtxt.c ../libmdnsd/log.c ../libmdnsd/inet.c
+
+# answer.c reaches the static _a_copy()
+answer_SOURCES     = answer.c $(WHITEBOX_SOURCES)
 answer_CPPFLAGS    = $(AM_CPPFLAGS)
 answer_LDADD       = $(cmocka_LIBS) $(LIBOBJS)
 
@@ -63,4 +67,10 @@ sdtxt_LDADD        = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
 # records_clear() and the record API are public; links the library normally.
 conflict_SOURCES   = conflict.c
 conflict_LDADD     = ../libmdnsd/libmdnsd.la $(cmocka_LIBS) $(LIBOBJS)
+
+# clock.c reaches the static _tvdiff() and the daemon timers, with
+# gettimeofday() redirected to a fake clock; see issue #99.
+clock_SOURCES      = clock.c $(WHITEBOX_SOURCES)
+clock_CPPFLAGS     = $(AM_CPPFLAGS)
+clock_LDADD        = $(cmocka_LIBS) $(LIBOBJS)
 endif
