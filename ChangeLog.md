@@ -3,6 +3,15 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v1.3][UNRELEASED]
+---------------------
+
+### Fixes
+
+- Fix #99: `mdnsd` stops answering queries on 32-bit systems if the
+  system clock jumps forward while it is starting up, e.g. when NTP sets
+  the time at boot.  Found by the Buildroot test suite
+
 [v1.2][] - 2026-07-31
 ---------------------
 
@@ -241,7 +250,7 @@ of the upcoming v1.0 with some important to remember limitations:
 - Fixed service record TTLs; 120 and 4500 are RFC recommended values
 - Fixed memory leaks
 
-[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v1.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/mdnsd/compare/v1.2...HEAD
 [v1.2]: https://github.com/troglobit/mdnsd/compare/v1.1...v1.2
 [v1.1]: https://github.com/troglobit/mdnsd/compare/v1.0...v1.1
 [v1.0]: https://github.com/troglobit/mdnsd/compare/v0.12...v1.0

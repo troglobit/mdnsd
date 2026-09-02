@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <limits.h>
 #include <errno.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
@@ -230,15 +231,17 @@ static bool _a_match(struct resource *r, mdns_answer_t *a)
 	return 0;
 }
 
-/* Compare time values easily */
+/* Microseconds from old to new, saturated so a clock jump cannot wrap it; see issue #99 */
 static long _tvdiff(struct timeval old, struct timeval new)
 {
-	long udiff = 0;
+	time_t sec = new.tv_sec - old.tv_sec;
 
-	if (old.tv_sec != new.tv_sec)
-		udiff = (new.tv_sec - old.tv_sec) * 1000000;
+	if (sec >= LONG_MAX / 1000000)
+		return LONG_MAX;
+	if (sec <= LONG_MIN / 1000000)
+		return LONG_MIN;
 
-	return (new.tv_usec - old.tv_usec) + udiff;
+	return (long)sec * 1000000 + (new.tv_usec - old.tv_usec);
 }
 
 static void _r_remove_list(mdns_record_t **list, mdns_record_t *r)
@@ -1472,12 +1475,10 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, inet_addr_t *to)
 }
 
 
-#define RET do {				\
-	while (d->sleep.tv_usec > 1000000) {	\
-		d->sleep.tv_sec++;		\
-		d->sleep.tv_usec -= 1000000;	\
-	}					\
-	return &d->sleep;			\
+#define RET do {						\
+	d->sleep.tv_sec += d->sleep.tv_usec / 1000000;		\
+	d->sleep.tv_usec = d->sleep.tv_usec % 1000000;		\
+	return &d->sleep;					\
 } while (0)
 
 struct timeval *mdnsd_sleep(mdns_daemon_t *d)
