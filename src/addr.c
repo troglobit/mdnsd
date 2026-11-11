@@ -104,8 +104,11 @@ static int sweep(void)
 	int changed = 0;
 
 	for (iface = iface_iterator(1); iface; iface = iface_iterator(0)) {
-		if (iface->unused)
+		if (iface->unused) {
+			iface->changed = 1;
+			changed++;
 			continue;
+		}
 
 		if (!iface->changed)
 			continue;
@@ -151,6 +154,10 @@ void iface_init(char *ifname)
 
 		if (!(ifa->ifa_flags & IFF_UP))
 			continue; /* skip for now, not enabled */
+
+		if (!(ifa->ifa_flags & IFF_RUNNING))
+			continue; /* skip for now, not enabled */
+
 
 		if (ifa->ifa_addr->sa_family != AF_INET && ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
