@@ -156,7 +156,7 @@ void iface_init(char *ifname)
 			continue; /* skip for now, not enabled */
 
 		if (!(ifa->ifa_flags & IFF_RUNNING))
-			continue; /* skip for now, not enabled */
+			continue; /* skip for now, no carrier */
 
 
 		if (ifa->ifa_addr->sa_family != AF_INET && ifa->ifa_addr->sa_family != AF_INET6)
