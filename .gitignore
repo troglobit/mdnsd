@@ -31,3 +31,4 @@ ltmain.sh
 missing
 stamp-h1
 mdnsd.service
+.DS_Store

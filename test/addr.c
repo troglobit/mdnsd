@@ -100,7 +100,7 @@ static void test_iface_init_one_ifc_ipv4(__attribute__((__unused__)) void **stat
 {
 	struct ifaddrs addrs = {
 		NULL,
-		"if0c1ip4", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+		"if0c1ip4", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 		(struct sockaddr*)&ipv4_10_0_20_1, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 	};
 
@@ -121,12 +121,12 @@ static void test_iface_init_one_ifc_global_ipv4_LL_ipv4(__attribute__((__unused_
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"if0Gip4LLip4", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0Gip4LLip4", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv4_10_0_20_1, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 		},
 		{
 			NULL,
-			"if0Gip4LLip4", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0Gip4LLip4", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv4_LL_169_254_100_32, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 		}
 	};
@@ -148,12 +148,12 @@ static void test_iface_init_one_ifc_LL_ipv4_global_ipv4(__attribute__((__unused_
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"if0LLip4Gip4", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLip4Gip4", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv4_LL_169_254_100_32, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 		},
 		{
 			NULL,
-			"if0LLip4Gip4", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLip4Gip4", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv4_10_0_20_1, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 		}
 	};
@@ -201,7 +201,7 @@ static void test_iface_init_one_ifc_ipv6(__attribute__((__unused__)) void **stat
 {
 	struct ifaddrs addrs = {
 		NULL,
-		"if0c1ip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+		"if0c1ip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 		(struct sockaddr*)&ipv6_global, (struct sockaddr*)&ipv6_FF, NULL, NULL
 	};
 
@@ -222,12 +222,12 @@ static void test_iface_init_one_ifc_global_ipv6_LL_ipv6(__attribute__((__unused_
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"if0Gip6LLip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0Gip6LLip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_global, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			NULL,
-			"if0Gip6LLip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0Gip6LLip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_link_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		}
 	};
@@ -249,12 +249,12 @@ static void test_iface_init_one_ifc_LL_ipv6_global_ipv6(__attribute__((__unused_
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"if0LLip6Gip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLip6Gip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_link_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			NULL,
-			"if0LLip6Gip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLip6Gip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_global, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		}
 	};
@@ -277,22 +277,22 @@ static void test_iface_init_one_ifc_LL_SL_UL_global_ipv6(__attribute__((__unused
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"if0LLSLULGip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLSLULGip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_link_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			addrs + 2,
-			"if0LLSLULGip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLSLULGip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_site_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			addrs + 3,
-			"if0LLSLULGip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLSLULGip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_unique_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			NULL,
-			"if0LLSLULGip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0LLSLULGip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_global, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		}
 	};
@@ -315,22 +315,22 @@ static void test_iface_init_one_ifc_global_UL_SL_LL_ipv6(__attribute__((__unused
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"if0GULSLLLip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0GULSLLLip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_global, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			addrs + 2,
-			"if0GULSLLLip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0GULSLLLip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_unique_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			addrs + 3,
-			"if0GULSLLLip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0GULSLLLip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_site_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			NULL,
-			"if0GULSLLLip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0GULSLLLip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_link_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		}
 	};
@@ -379,17 +379,17 @@ static void test_iface_init_one_ifc_ipv4_ll_global_ipv6(__attribute__((__unused_
 	struct ifaddrs addrs[] = {
 		{
 			addrs +1,
-			"if0c2ip4llgip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0c2ip4llgip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv4_10_0_20_1, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 		},
 		{
 			addrs + 2,
-			"if0c2ip4llgip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0c2ip4llgip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_link_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			NULL,
-			"if0c2ip4llgip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0c2ip4llgip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_global, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		}
 
@@ -412,27 +412,27 @@ static void test_iface_init_two_ifc_ipv4_ll_global_ipv6_ipv4_ipv6(__attribute__(
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"if0c3ip4llgip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0c3ip4llgip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv4_10_0_20_1, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 		},
 		{
 			addrs + 2,
-			"if1c2ip4gip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if1c2ip4gip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv4_192_168_2_100, (struct sockaddr*)&ipv4_255_255_255_0, NULL, NULL
 		},
 		{
 			addrs + 3,
-			"if0c3ip4llgip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0c3ip4llgip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_link_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			addrs + 4,
-			"if0c3ip4llgip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if0c3ip4llgip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_link_local, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		},
 		{
 			NULL,
-			"if1c2ip4gip6", IFF_UP | IFF_BROADCAST | IFF_MULTICAST,
+			"if1c2ip4gip6", IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST,
 			(struct sockaddr*)&ipv6_global_2, (struct sockaddr*)&ipv6_FF, NULL, NULL
 		}
 
@@ -499,12 +499,12 @@ static void test_set_interface_addresses_no_uaf(__attribute__((__unused__)) void
 	struct ifaddrs addrs[] = {
 		{
 			addrs + 1,
-			"eth0", IFF_UP | IFF_MULTICAST,
+			"eth0", IFF_UP | IFF_RUNNING | IFF_MULTICAST,
 			(struct sockaddr *)&ipv4_10_0_20_1, (struct sockaddr *)&ipv4_255_255_255_0, NULL, NULL
 		},
 		{
 			NULL,
-			"eth0", IFF_UP | IFF_MULTICAST,
+			"eth0", IFF_UP | IFF_RUNNING | IFF_MULTICAST,
 			(struct sockaddr *)&ipv6_global, (struct sockaddr *)&ipv6_FF, NULL, NULL
 		}
 	};

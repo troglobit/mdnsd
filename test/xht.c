@@ -1,6 +1,6 @@
 #include "unittest.h"
 
-void test1()
+void test1(void **state __attribute__((unused)))
 {
 	xht_t *ptr;
 
