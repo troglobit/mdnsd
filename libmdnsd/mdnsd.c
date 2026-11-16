@@ -1940,6 +1940,7 @@ int mdnsd_set_interface_addresses(mdns_daemon_t *d, const char *ifname)
 static int process_in(mdns_daemon_t *d, int sd)
 {
 	static unsigned char buf[MAX_PACKET_LEN + 1];
+    static struct message m;
 	inet_addr_t from;
 	socklen_t ssize = sizeof(from);
 	ssize_t bsize;
@@ -1947,8 +1948,8 @@ static int process_in(mdns_daemon_t *d, int sd)
 	memset(buf, 0, sizeof(buf));
 
 	while ((bsize = recvfrom(sd, buf, MAX_PACKET_LEN, MSG_DONTWAIT, (struct sockaddr *)&from, &ssize)) > 0) {
-		struct message m = { 0 };
 		int rc;
+        memset((void*)&m, 0, sizeof(struct message));
 
 		buf[MAX_PACKET_LEN] = 0;
 		mdnsd_log_hex("Got Data:", buf, bsize);
@@ -1970,7 +1971,7 @@ static int process_in(mdns_daemon_t *d, int sd)
 static int process_out(mdns_daemon_t *d, int sd)
 {
 	inet_addr_t to;
-	struct message m;
+	static struct message m;
 
 	while (mdnsd_out(d, &m, &to)) {
 		unsigned char *buf;
