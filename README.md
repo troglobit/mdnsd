@@ -45,7 +45,7 @@ different path can be given, which may be a directory or a single file.
 
 ```
 Usage: mdnsd [-hnsv] [-g GROUP] [-H NAME] [-i IFACE] [-l LEVEL]
-             [-p FILE] [-t TTL] [-u USER] [PATH]
+             [-p FILE] [-t TTL] [-U] [-u USER] [PATH]
 
     -g GROUP  Group to drop privileges to after start
     -H NAME   Hostname to advertise, default: system hostname
@@ -56,6 +56,7 @@ Usage: mdnsd [-hnsv] [-g GROUP] [-H NAME] [-i IFACE] [-l LEVEL]
     -p FILE   Path to pid file, default: /run/mdnsd.pid
     -s        Use syslog even if running in foreground
     -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)
+    -U        Also answer every query by unicast to the querier
     -u USER   User to drop privileges to after start
     -v        Show program version
 

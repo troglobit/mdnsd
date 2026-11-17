@@ -6,6 +6,13 @@ All relevant changes to the project are documented in this file.
 [v1.3][UNRELEASED]
 ---------------------
 
+### Changes
+
+- `mdnsd`: new `-U` option, also answer every query by unicast to the
+  querier.  For routers that do not forward multicast from wired ports
+  to Wi-Fi clients, so a laptop on Wi-Fi cannot resolve `host.local`
+- `libmdnsd`: new `mdnsd_set_unicast()` API for the same
+
 ### Fixes
 
 - Fix #99: `mdnsd` stops answering queries on 32-bit systems if the

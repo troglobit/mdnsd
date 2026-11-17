@@ -476,6 +476,25 @@ static void test_qu_question_probing(__attribute__((__unused__)) void **state)
 	mdnsd_free(d);
 }
 
+/* mdnsd -U: a plain (QM) question from port 5353 also gets a unicast reply */
+static void test_unicast_option(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = publish_two_a();
+	struct message resp;
+
+	mdnsd_set_unicast(d, 1);
+	assert_int_equal(0, feed_question(d, 0, QCLASS_IN, 5353));
+	reply(d, 5353, &resp);
+
+	assert_int_equal(0, resp.id);
+	assert_int_equal(0, resp.qdcount);
+	assert_int_equal(2, resp.ancount);
+	assert_null(d->uanswers);
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -492,6 +511,7 @@ int main(void)
 		cmocka_unit_test(test_legacy_question),
 		cmocka_unit_test(test_legacy_additional),
 		cmocka_unit_test(test_qu_question_probing),
+		cmocka_unit_test(test_unicast_option),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

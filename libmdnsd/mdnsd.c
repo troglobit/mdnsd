@@ -96,7 +96,7 @@ struct mdns_record {
 };
 
 struct mdns_daemon {
-	char shutdown, disco, local;
+	char shutdown, disco, local, unicast;
 	unsigned long int expireall, checkqlist;
 	struct timeval now, sleep, pause, probe, publish;
 	int class, frame;
@@ -969,6 +969,11 @@ void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family)
 }
 
 /* Process replies from our own host, or ignore them like avahi-browse(1) -l */
+void mdnsd_set_unicast(mdns_daemon_t *d, int enable)
+{
+	d->unicast = enable ? 1 : 0;
+}
+
 void mdnsd_set_local(mdns_daemon_t *d, int enable)
 {
 	d->local = enable ? 1 : 0;
@@ -1173,8 +1178,14 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 			if (!m->qd || (m->qd[i].class & 0x7fff) != d->class)
 				continue;
 
-			/* Unicast reply: QU question, or legacy querier, RFC 6762 6.7 */
-			unicast = (m->qd[i].class & 0x8000) || inet_port(from) != 5353;
+			/*
+			 * Unicast reply: QU question, or legacy querier, RFC 6762 6.7,
+			 * or any querier but ourselves when asked to (mdnsd -U, for
+			 * networks that do not deliver multicast to all hosts, e.g.,
+			 * from wired ports to Wi-Fi on some routers)
+			 */
+			unicast = (m->qd[i].class & 0x8000) || inet_port(from) != 5353 ||
+				(d->unicast && !_is_local(d, from));
 
 			INFO("Query for %s of type %d ...", m->qd[i].name, m->qd[i].type);
 			r = _r_next(d, NULL, m->qd[i].name, m->qd[i].type);
