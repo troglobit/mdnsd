@@ -11,6 +11,9 @@ All relevant changes to the project are documented in this file.
 - Fix #99: `mdnsd` stops answering queries on 32-bit systems if the
   system clock jumps forward while it is starting up, e.g. when NTP sets
   the time at boot.  Found by the Buildroot test suite
+- `mdnsd` silently dropped questions with the unicast-response (QU) bit
+  set in qclass, RFC 6762 section 5.4.  The Windows 10/11 resolver asks
+  this way for some records, which were never answered
 
 [v1.2][] - 2026-07-31
 ---------------------
