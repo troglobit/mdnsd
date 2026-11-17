@@ -299,27 +299,30 @@ static void test_cache_null_srv(__attribute__((__unused__)) void **state)
 
 /*
  * RFC 6762 §5.4: the top bit of qclass in a question is the unicast-response
- * (QU) bit.  Such a question must be answered, and by unicast to the querier,
- * even when it comes from port 5353.  A plain (QM) question from port 5353
- * gets only the multicast answer.
+ * (QU) bit.  Such a question must be answered by unicast to the querier,
+ * even when it comes from port 5353, with all matching records in one
+ * normal mDNS response.  §6.7: a query from another port is a legacy one,
+ * its reply echoes the ID and question and has no cache-flush bits.
  */
-static int feed_question(mdns_daemon_t *d, unsigned short class)
+static int feed_question(mdns_daemon_t *d, unsigned short id, unsigned short class, unsigned short port)
 {
 	inet_addr_t from = { 0 };
 	struct sockaddr_in *sin = (struct sockaddr_in *)&from;
 	struct message out = { 0 }, in = { 0 };
 
 	sin->sin_family = AF_INET;
-	sin->sin_port   = htons(5353);
+	sin->sin_port   = htons(port);
 	inet_pton(AF_INET, "192.0.2.10", &sin->sin_addr);
 
+	out.id = id;
 	message_qd(&out, "host.local.", QTYPE_A, class);
 	assert_int_equal(0, message_parse(&in, message_packet(&out)));
 
 	return mdnsd_in(d, &in, &from);
 }
 
-static void test_qu_question(__attribute__((__unused__)) void **state)
+/* host.local. with two A records: one shared, one unique and done probing */
+static mdns_daemon_t *publish_two_a(void)
 {
 	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
 	struct in_addr ip;
@@ -330,12 +333,100 @@ static void test_qu_question(__attribute__((__unused__)) void **state)
 	inet_pton(AF_INET, "192.0.2.1", &ip);
 	mdnsd_set_ip(d, r, ip);
 
-	assert_int_equal(0, feed_question(d, QCLASS_IN));
+	r = mdnsd_unique(d, "host.local.", QTYPE_A, 120, NULL, NULL);
+	inet_pton(AF_INET, "192.0.2.2", &ip);
+	mdnsd_set_ip(d, r, ip);
+	r->unique = 5;				/* probing done */
+
+	return d;
+}
+
+/* Take the next outgoing packet, it must be a unicast one to port */
+static void reply(mdns_daemon_t *d, unsigned short port, struct message *resp)
+{
+	struct message out;
+	inet_addr_t to;
+
+	assert_int_equal(1, mdnsd_out(d, &out, &to));
+	assert_int_equal(port, inet_port(&to));
+	memset(resp, 0, sizeof(*resp));
+	assert_int_equal(0, message_parse(resp, message_packet(&out)));
+}
+
+static void test_qm_question(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = publish_two_a();
+
+	assert_int_equal(0, feed_question(d, 0, QCLASS_IN, 5353));
 	assert_null(d->uanswers);		/* QM from 5353: multicast answer only */
 
-	assert_int_equal(0, feed_question(d, QCLASS_IN | 0x8000));
-	assert_non_null(d->uanswers);		/* QU: unicast answer queued */
-	assert_ptr_equal(r, d->uanswers->r);
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
+static void test_qu_question(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = publish_two_a();
+	struct message resp;
+	int i, flush = 0;
+
+	assert_int_equal(0, feed_question(d, 0, QCLASS_IN | 0x8000, 5353));
+	reply(d, 5353, &resp);
+
+	assert_int_equal(0, resp.id);
+	assert_int_equal(0, resp.qdcount);
+	assert_int_equal(2, resp.ancount);	/* both records, one packet */
+	for (i = 0; i < resp.ancount; i++) {
+		assert_int_equal(QTYPE_A, resp.an[i].type);
+		if (resp.an[i].class == (QCLASS_IN | 0x8000))
+			flush++;
+		else
+			assert_int_equal(QCLASS_IN, resp.an[i].class);
+	}
+	assert_int_equal(1, flush);		/* cache-flush on the unique one */
+	assert_null(d->uanswers);
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
+static void test_legacy_question(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = publish_two_a();
+	struct message resp;
+	int i;
+
+	assert_int_equal(0, feed_question(d, 0x1234, QCLASS_IN, 40000));
+	reply(d, 40000, &resp);
+
+	assert_int_equal(0x1234, resp.id);
+	assert_int_equal(1, resp.qdcount);
+	assert_string_equal("host.local.", resp.qd[0].name);
+	assert_int_equal(QTYPE_A, resp.qd[0].type);
+	assert_int_equal(2, resp.ancount);
+	for (i = 0; i < resp.ancount; i++)
+		assert_int_equal(QCLASS_IN, resp.an[i].class);	/* no cache-flush */
+	assert_null(d->uanswers);
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
+/* A unique record still probing is not ours yet, no unicast answer with it */
+static void test_qu_question_probing(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	struct in_addr ip;
+	mdns_record_t *r;
+
+	assert_non_null(d);
+	r = mdnsd_unique(d, "host.local.", QTYPE_A, 120, NULL, NULL);
+	inet_pton(AF_INET, "192.0.2.2", &ip);
+	mdnsd_set_ip(d, r, ip);
+	assert_true(r->unique < 5);
+
+	assert_int_equal(0, feed_question(d, 0, QCLASS_IN | 0x8000, 5353));
+	assert_null(d->uanswers);
 
 	mdnsd_shutdown(d);
 	mdnsd_free(d);
@@ -352,7 +443,10 @@ int main(void)
 		cmocka_unit_test(test_a_match_null_rdname),
 		cmocka_unit_test(test_cache_null_rdname),
 		cmocka_unit_test(test_cache_null_srv),
+		cmocka_unit_test(test_qm_question),
 		cmocka_unit_test(test_qu_question),
+		cmocka_unit_test(test_legacy_question),
+		cmocka_unit_test(test_qu_question_probing),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

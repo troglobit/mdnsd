@@ -72,6 +72,7 @@ struct query {
 
 struct unicast {
 	int id;
+	unsigned short qtype;		/* type of the question, for legacy replies */
 	inet_addr_t to;
 	mdns_record_t *r;
 	struct unicast *next;
@@ -338,10 +339,14 @@ static void _r_send(mdns_daemon_t *d, mdns_record_t *r)
 	_r_push(&d->a_pause, r);
 }
 
-/* Create generic unicast response struct */
-static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, const inet_addr_t *to)
+/*
+ * Queue a unicast answer with record r to the querier.  Kept in arrival
+ * order, so mdnsd_out() can put all answers to one question into one
+ * packet.
+ */
+static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, unsigned short qtype, const inet_addr_t *to)
 {
-	struct unicast *u;
+	struct unicast *u, **tail;
 
 	u = calloc(1, sizeof(struct unicast));
 	if (!u)
@@ -349,9 +354,20 @@ static void _u_push(mdns_daemon_t *d, mdns_record_t *r, int id, const inet_addr_
 
 	u->r = r;
 	u->id = id;
+	u->qtype = qtype;
 	u->to = *to;
-	u->next = d->uanswers;
-	d->uanswers = u;
+
+	for (tail = &d->uanswers; *tail; tail = &(*tail)->next)
+		;
+	*tail = u;
+}
+
+/* Is u for the same reply (querier and question) as first? */
+static int _u_same(const struct unicast *first, const struct unicast *u)
+{
+	return u->id == first->id && u->qtype == first->qtype &&
+		inet_len(&u->to) == inet_len(&first->to) &&
+		!memcmp(&u->to, &first->to, inet_len(&u->to));
 }
 
 /* Drop any pending unicast answers referring to r, which is being freed */
@@ -1149,14 +1165,15 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 	if (m->header.qr == 0) {
 		/* Process each query */
 		for (i = 0; i < m->qdcount; i++) {
-			mdns_record_t *r_start, *r_next;
-			bool has_conflict = false;
-			bool qu;
+			mdns_record_t *r_next;
+			bool unicast;
 
 			/* RFC 6762 5.4: the top bit of qclass asks for a unicast response (QU) */
 			if (!m->qd || (m->qd[i].class & 0x7fff) != d->class)
 				continue;
-			qu = (m->qd[i].class & 0x8000) != 0;
+
+			/* Unicast reply: QU question, or legacy querier, RFC 6762 6.7 */
+			unicast = (m->qd[i].class & 0x8000) || inet_port(from) != 5353;
 
 			INFO("Query for %s of type %d ...", m->qd[i].name, m->qd[i].type);
 			r = _r_next(d, NULL, m->qd[i].name, m->qd[i].type);
@@ -1176,7 +1193,7 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 			}
 
 			/* Check all of our potential answers */
-			for (r_start = r; r != NULL; r = r_next) {
+			for (; r != NULL; r = r_next) {
 				INFO("Local record: %s, type: %d, rdname: %s", r->rr.name, r->rr.type, r->rr.rdname);
 
 				/* Fetch next here, because _conflict() might delete r, invalidating next */
@@ -1199,7 +1216,6 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 							if (_is_local(d, from))
 								continue;
 							_conflict(d, r);
-							has_conflict = true;
 							break;
 						}
 					}
@@ -1223,12 +1239,12 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 				if (j == m->ancount) {
 					INFO("Yes we should, enquing %s for outbound", r->rr.name);
 					_r_send(d, r);
+
+					/* Not with a unique record still probing, it is not ours yet */
+					if (unicast && !(r->unique && r->unique < 5))
+						_u_push(d, r, m->id, m->qd[i].type, from);
 				}
 			}
-
-			/* Send the matching unicast reply: legacy querier (RFC 6762 6.7) or QU question */
-			if (!has_conflict && (inet_port(from) != 5353 || qu))
-				_u_push(d, r_start, m->id, from);
 		}
 
 		return 0;
@@ -1284,24 +1300,60 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, inet_addr_t *to)
 	m->header.qr = 1;
 	m->header.aa = 1;
 
-	/* Send out individual unicast answers */
+	/*
+	 * Unicast answers, all answers to one question from one querier in one
+	 * packet.  To port 5353 (QU question) it is a normal mDNS response: ID
+	 * zero, no question, cache-flush bit on unique records.  To any other
+	 * port it is a legacy reply, RFC 6762 6.7: the query ID and question
+	 * echoed, no cache-flush bit.
+	 */
 	if (d->uanswers) {
-		struct unicast *u = d->uanswers;
+		struct unicast key = *d->uanswers, *u, **pu;
+		int legacy = inet_port(&key.to) != 5353;
+		int i, n = 0;
 
-		INFO("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
+		*to = key.to;
+		if (legacy) {
+			m->id = key.id;
+			message_qd(m, key.r->rr.name, key.qtype, d->class);
+		}
 
-		d->uanswers = u->next;
-		*to = u->to;
-		m->id = u->id;
-		message_qd(m, u->r->rr.name, u->r->rr.type, d->class);
-		message_an(m, u->r->rr.name, u->r->rr.type, d->class, u->r->rr.ttl);
-		u->r->last_sent = d->now;
-		_a_copy(m, &u->r->rr);
+		pu = &d->uanswers;
+		while ((u = *pu) != NULL) {
+			int class = d->class;
 
-		/* RFC 6763 §12 additional records for the unicast answer */
-		_answered_add(&seen, u->r);
-		_additional(d, m, u->r, &seen);
-		free(u);
+			if (!_u_same(&key, u)) {
+				pu = &u->next;
+				continue;
+			}
+
+			/* Same record queued twice, e.g. asked again before we replied */
+			if (_answered(&seen, u->r)) {
+				*pu = u->next;
+				free(u);
+				continue;
+			}
+
+			/* Packet full, the rest goes in the next one */
+			if (n && message_packet_len(m) + (int)_rr_len(&u->r->rr) >= d->frame)
+				break;
+
+			INFO("Send Unicast Answer: Name: %s, Type: %d", u->r->rr.name, u->r->rr.type);
+			if (!legacy && u->r->unique)
+				class += 32768;
+			message_an(m, u->r->rr.name, u->r->rr.type, class, u->r->rr.ttl);
+			u->r->last_sent = d->now;
+			_a_copy(m, &u->r->rr);
+			_answered_add(&seen, u->r);
+			n++;
+
+			*pu = u->next;
+			free(u);
+		}
+
+		/* RFC 6763 §12 additional records for the unicast answers */
+		for (i = 0; i < n; i++)
+			_additional(d, m, seen.rec[i], &seen);
 
 		return 1;
 	}
