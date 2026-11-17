@@ -1151,9 +1151,12 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 		for (i = 0; i < m->qdcount; i++) {
 			mdns_record_t *r_start, *r_next;
 			bool has_conflict = false;
+			bool qu;
 
-			if (!m->qd || m->qd[i].class != d->class)
+			/* RFC 6762 5.4: the top bit of qclass asks for a unicast response (QU) */
+			if (!m->qd || (m->qd[i].class & 0x7fff) != d->class)
 				continue;
+			qu = (m->qd[i].class & 0x8000) != 0;
 
 			INFO("Query for %s of type %d ...", m->qd[i].name, m->qd[i].type);
 			r = _r_next(d, NULL, m->qd[i].name, m->qd[i].type);
@@ -1223,8 +1226,8 @@ int mdnsd_in(mdns_daemon_t *d, struct message *m, const inet_addr_t *from)
 				}
 			}
 
-			/* Send the matching unicast reply */
-			if (!has_conflict && inet_port(from) != 5353)
+			/* Send the matching unicast reply: legacy querier (RFC 6762 6.7) or QU question */
+			if (!has_conflict && (inet_port(from) != 5353 || qu))
 				_u_push(d, r_start, m->id, from);
 		}
 
