@@ -61,6 +61,7 @@ static const char *pidfn       = PACKAGE_NAME;
 static char *username    = NULL;
 static char *groupname   = NULL;
 static int   background  = 1;
+static int   unicast     = 0;
 static int   logging     = 1;
 static int   ttl         = 255;
 
@@ -185,6 +186,7 @@ static void setup_iface(struct iface *iface)
 			exit(1);
 		}
 		mdnsd_register_receive_callback(iface->mdns, record_received, NULL);
+		mdnsd_set_unicast(iface->mdns, unicast);
 	}
 
 	if (iface->sd < 0) {
@@ -208,6 +210,7 @@ static void setup_iface(struct iface *iface)
 		}
 		mdnsd_set_family(iface->mdns6, AF_INET6);
 		mdnsd_register_receive_callback(iface->mdns6, record_received, NULL);
+		mdnsd_set_unicast(iface->mdns6, unicast);
 	}
 #endif
 
@@ -321,7 +324,7 @@ static int usage(int code)
 #ifdef HAVE_SO_BINDTODEVICE
 	       "[-i IFACE] "
 #endif
-	       "[-l LEVEL] [-p FILE] [-t TTL] [-u USER] [PATH]\n"
+	       "[-l LEVEL] [-p FILE] [-t TTL] [-U] [-u USER] [PATH]\n"
 	       "\n"
 	       "Options:\n"
 	       "    -g GROUP  Group to drop privileges to after start\n"
@@ -335,6 +338,7 @@ static int usage(int code)
 	       "    -p FILE   Path to pid file, default: %s/%s.pid\n"
 	       "    -s        Use syslog even if running in foreground\n"
 	       "    -t TTL    Set TTL of mDNS packets, default: 1 (link-local only)\n"
+	       "    -U        Also answer every query by unicast to the querier\n"
 	       "    -u USER   User to drop privileges to after start\n"
 	       "    -v        Show program version and support information\n"
 	       "\n"
@@ -372,7 +376,7 @@ int main(int argc, char *argv[])
 #ifdef HAVE_SO_BINDTODEVICE
 			   "i:"
 #endif
-			   "l:np:st:u:v?")) != EOF) {
+			   "l:np:st:Uu:v?")) != EOF) {
 		switch (c) {
 		case 'g':
 			groupname = optarg;
@@ -380,6 +384,10 @@ int main(int argc, char *argv[])
 
 		case 'H':
 			hostnm = optarg;
+			break;
+
+		case 'U':
+			unicast = 1;
 			break;
 
 		case 'h':

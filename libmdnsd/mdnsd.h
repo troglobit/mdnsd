@@ -111,6 +111,13 @@ mdns_daemon_t *mdnsd_new(int class, int frame);
 void mdnsd_set_family(mdns_daemon_t *d, sa_family_t family);
 
 /**
+ * Also answer every question by unicast to the querier, in addition to the
+ * multicast answer.  Off by default.  For networks where multicast does not
+ * reach every host, e.g., routers that do not forward it from wired to Wi-Fi.
+ */
+void mdnsd_set_unicast(mdns_daemon_t *d, int enable);
+
+/**
  * Control whether replies originating from this host are processed.  On by
  * default, so mdnsd_in() (and hence mquery) sees a responder on the same
  * host; disable to skip the local host, like avahi-browse(1) -l.

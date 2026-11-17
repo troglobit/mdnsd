@@ -38,6 +38,7 @@
 .Op Fl l Ar LEVEL
 .Op Fl p Ar FILE
 .Op Fl t Ar TTL
+.Op Fl U
 .Op Fl u Ar USER
 .Op Ar PATH
 .Sh DESCRIPTION
@@ -99,6 +100,11 @@ and removed at exit.
 Use syslog even if running in foreground.
 .It Fl t Ar TTL
 Set TTL of mDNS packets, default: 1 (link-local only).
+.It Fl U
+Also answer every query by unicast to the querier, in addition to the
+multicast answer.  For networks where multicast does not reach every
+host, e.g., routers that do not forward it from wired ports to Wi-Fi
+clients.  Outside RFC 6762 for plain (QM) questions, so off by default.
 .It Fl u Ar USER
 User to drop privileges to after start.  Must be started as root.
 .Pp
