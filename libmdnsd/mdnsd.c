@@ -720,6 +720,7 @@ static void _a_copy(struct message *m, mdns_answer_t *a)
 struct answered {
 	mdns_record_t *rec[ADDITIONAL_MAX];
 	int n;
+	int legacy;		/* legacy unicast reply: no cache-flush bit */
 };
 
 static void _answered_add(struct answered *a, mdns_record_t *r)
@@ -748,7 +749,7 @@ static void _ar(mdns_daemon_t *d, struct message *m, mdns_record_t *r, struct an
 	if (message_packet_len(m) + (int)_rr_len(&r->rr) >= d->frame)
 		return;
 
-	message_ar(m, r->rr.name, r->rr.type, d->class + (r->unique ? 32768 : 0), r->rr.ttl);
+	message_ar(m, r->rr.name, r->rr.type, d->class + (r->unique && !seen->legacy ? 32768 : 0), r->rr.ttl);
 	_a_copy(m, &r->rr);
 	_answered_add(seen, r);
 }
@@ -1312,6 +1313,7 @@ int mdnsd_out(mdns_daemon_t *d, struct message *m, inet_addr_t *to)
 		int legacy = inet_port(&key.to) != 5353;
 		int i, n = 0;
 
+		seen.legacy = legacy;
 		*to = key.to;
 		if (legacy) {
 			m->id = key.id;

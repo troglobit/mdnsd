@@ -412,6 +412,50 @@ static void test_legacy_question(__attribute__((__unused__)) void **state)
 	mdnsd_free(d);
 }
 
+/*
+ * Legacy reply to a PTR query: the RFC 6763 §12 additional records must
+ * not carry the cache-flush bit either.  A unicast DNS parser, e.g. BIND's
+ * in dig(1), rejects a message with mixed classes as malformed.
+ */
+static void test_legacy_additional(__attribute__((__unused__)) void **state)
+{
+	mdns_daemon_t *d = mdnsd_new(QCLASS_IN, 1000);
+	inet_addr_t from = { 0 };
+	struct sockaddr_in *sin = (struct sockaddr_in *)&from;
+	struct message out = { 0 }, in = { 0 }, resp;
+	struct in_addr ip;
+	mdns_record_t *r;
+	int i;
+
+	assert_non_null(d);
+	r = mdnsd_shared(d, "_qotd._tcp.local.", QTYPE_PTR, 120);
+	mdnsd_set_host(d, r, "qotd._qotd._tcp.local.");
+	r = mdnsd_unique(d, "qotd._qotd._tcp.local.", QTYPE_SRV, 120, NULL, NULL);
+	mdnsd_set_srv(d, r, 0, 0, 17, "host.local.");
+	r->unique = 5;
+	r = mdnsd_unique(d, "host.local.", QTYPE_A, 120, NULL, NULL);
+	inet_pton(AF_INET, "192.0.2.1", &ip);
+	mdnsd_set_ip(d, r, ip);
+	r->unique = 5;
+
+	sin->sin_family = AF_INET;
+	sin->sin_port   = htons(40000);
+	inet_pton(AF_INET, "192.0.2.10", &sin->sin_addr);
+	out.id = 0x4242;
+	message_qd(&out, "_qotd._tcp.local.", QTYPE_PTR, QCLASS_IN);
+	assert_int_equal(0, message_parse(&in, message_packet(&out)));
+	assert_int_equal(0, mdnsd_in(d, &in, &from));
+
+	reply(d, 40000, &resp);
+	assert_int_equal(1, resp.ancount);
+	assert_int_equal(2, resp.arcount);	/* SRV + A */
+	for (i = 0; i < resp.arcount; i++)
+		assert_int_equal(QCLASS_IN, resp.ar[i].class);
+
+	mdnsd_shutdown(d);
+	mdnsd_free(d);
+}
+
 /* A unique record still probing is not ours yet, no unicast answer with it */
 static void test_qu_question_probing(__attribute__((__unused__)) void **state)
 {
@@ -446,6 +490,7 @@ int main(void)
 		cmocka_unit_test(test_qm_question),
 		cmocka_unit_test(test_qu_question),
 		cmocka_unit_test(test_legacy_question),
+		cmocka_unit_test(test_legacy_additional),
 		cmocka_unit_test(test_qu_question_probing),
 	};
 
